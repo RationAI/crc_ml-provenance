@@ -1,0 +1,250 @@
+{
+    "experiment": {
+        "seed": 0,
+        "experiment_prefix": "CYTOSEG-DEBUG",
+        "_continue": {
+            "eid": null,
+            "copy_data": true
+        },
+        "ordered_steps": [
+            "exp.train",
+            "exp.test"
+        ]
+    },
+
+    "data": {
+        "dirs": {
+            "root": "data/KOS-234",
+            "dataset": {
+                "name": "all234-L1-T256-S128.gz",
+                "test_size": 0.2,
+                "valid_size": 0.1,
+                "stratify_col": "slide_id"
+            }
+        },
+
+        "meta": {
+            "level": 1,
+            "tile_size": 512,
+            "center_size": 256,
+            "offset": 128
+        }
+    },
+
+    "generator": {
+        "batch_size": 1,
+        "valid_generator_type": "linear",
+        "steps_per_epoch": 30,
+        "validation_steps": 10,
+
+        "train_augment": true,
+        "valid_augment": false,
+        "test_augment": false,
+
+        "extractor": {
+            "class_name": "SegmentationExtractor"
+        },
+
+        "augmenter": {
+            "class_name": "SlideAugmenter",
+            "config": {
+                "horizontal": 0.5,
+                "vertical": 0.5,
+                "brightness": [
+                   -64,
+                   64
+               ],
+                "hue": [
+                   -10,
+                   10
+               ],
+                "saturation": [
+                   -64,
+                   64
+               ],
+                "contrast": [
+                   0.7,
+                   1.3
+               ]
+           }
+        },
+
+        "sampler": {
+            "sampling_strat": {
+                "slide_id": []
+           },
+            "sequence_column": "slide_id"
+       }
+    },
+
+    "model": {
+        "class_name": "UNet",
+
+        "optimizer": {
+             "class_name": "Adam",
+             "config": {
+                 "lr": 3e-05
+            }
+        },
+
+        "loss": {
+             "class_name": "DiceBCELoss",
+             "config": {
+                 "smooth": 1e-6
+            }
+        },
+
+        "regularizer": {
+            "class_name": "L2",
+            "config": {
+                "l2": 1e-05
+            }
+        },
+
+        "input_shape": [
+            512,
+            512,
+            3
+        ],
+
+         "train_checkpoint": "/mnt/data/cytoseg/models/checkpoints/dicebce_finetune/loss-16",
+         "test_checkpoint": "/mnt/data/cytoseg/models/checkpoints/dicebce_finetune/loss-16",
+
+         "sequence_metrics": [
+            {"class_name": "BinaryAccuracy"},
+            {
+                "class_name": "MeanIoUWrapper",
+                "config": {
+                    "num_classes": 2,
+                    "name": "MIoU50",
+                    "threshold": 0.5
+                }
+            },
+            {
+                "class_name": "MeanIoUWrapper",
+                "config": {
+                    "num_classes": 2,
+                    "name": "MIoU70",
+                    "threshold": 0.7
+                }
+            },
+            {
+                "class_name": "MeanIoUWrapper",
+                "config": {
+                    "num_classes": 2,
+                    "name": "MIoU90",
+                    "threshold": 0.9
+                }
+            },
+            {"class_name": "Recall"},
+            {"class_name": "Specificity"}
+        ],
+
+         "total_metrics": [
+            { "class_name": "Recall" },
+            { "class_name": "Specificity" }
+        ]
+    },
+
+    "step_definitions": {
+        "exp.train": {
+            "init": {
+                "class_id": "rationai.training.ExperimentRunner",
+                "config": {
+                    "experiment_class": "SegmentationExperiment"
+                }
+            },
+            "exec": {
+                "method": "train",
+                "kwargs": {
+                    "fit_kwargs": {
+                        "epochs": 2,
+                        "workers": 10,
+                        "use_multiprocessing": true,
+                        "max_queue_size": 50,
+                        "callbacks": [
+                            {
+                                "class_name": "ModelCheckpoint",
+                                "config": {
+                                    "filepath": "loss",
+                                    "monitor": "val_loss",
+                                    "save_best_only": true,
+                                    "mode": "min",
+                                    "save_weights_only": true,
+                                    "verbose": 1
+                                }
+                            },
+                            {
+                                "class_name": "ModelCheckpoint",
+                                "config": {
+                                    "filepath": "miou50",
+                                    "monitor": "val_MIoU50",
+                                    "save_best_only": false,
+                                    "mode": "max",
+                                    "save_weights_only": true,
+                                    "verbose": 1
+                                }
+                            },
+                            {
+                                "class_name": "ModelCheckpoint",
+                                "config": {
+                                    "filepath": "miou70",
+                                    "monitor": "val_MIoU70",
+                                    "save_best_only": true,
+                                    "mode": "max",
+                                    "save_weights_only": true,
+                                    "verbose": 1
+                                }
+                            },
+                            {
+                                "class_name": "ModelCheckpoint",
+                                "config": {
+                                    "filepath": "miou90",
+                                    "monitor": "val_MIoU90",
+                                    "verbose": 1,
+                                    "save_best_only": true,
+                                    "mode": "max",
+                                    "save_weights_only": true
+                                }
+                            },
+                            {
+                                "class_name": "ReduceLROnPlateau",
+                                "config": {
+                                    "monitor": "val_loss",
+                                    "mode": "min",
+                                    "patience": 5,
+                                    "factor": 0.1,
+                                    "verbose": 1
+                                }
+                            },
+                            {
+                                "class_name": "EarlyStopping",
+                                "config": {
+                                    "monitor": "val_loss",
+                                    "mode": "min",
+                                    "patience": 15,
+                                    "verbose": 1
+                                }
+                            }
+
+                        ]
+                    }
+                }
+            }
+        },
+
+        "exp.test": {
+            "exec": {
+                "method": "infer",
+                "kwargs": {
+                    "infer_type": "evaluate",
+                    "infer_params": {
+                        "workers": 10,
+                        "max_queue_size": 50,
+                        "use_multiprocessing": false
+                    }
+                }
+            }
+        }
+    }
+}

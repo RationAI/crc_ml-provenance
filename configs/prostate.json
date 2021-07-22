@@ -1,0 +1,278 @@
+{
+    "experiment": {
+        "seed": 0,
+        "experiment_prefix": "SOME_EXPERIMENT",
+        "continue": {
+            "eid": "",
+            "copy_data": true
+        },
+        "ordered_steps": [
+            "exp.train",
+            "exp.test",
+            "heatmaps",
+            "froc"
+        ]
+    },
+
+    "data": {
+        "dirs": {
+            "results": "models",
+            "root": "data/Prostata",
+            "rgb": "slides",
+            "label": "label",
+
+            "dataset": {
+                "name": "no_overlap.h5",
+                "valid_size": 0.1,
+                "pd_label_col": "center_tumor_tile"
+            }
+        },
+
+        "meta": {
+            "level": 1,
+            "tile_size": 512,
+            "center_size": 256,
+            "offset": 256,
+            "include_annot_keywords": ["Carcinoma", "metastases"],
+            "exclude_annot_keywords": []
+        }
+    },
+
+    "generator": {
+        "batch_size": 1,
+        "valid_generator_type": "linear",
+        "steps_per_epoch": 20000,
+        "validation_steps": 10000,
+
+        "train_augment": true,
+        "valid_augment": false,
+        "test_augment": false,
+
+        "extractor": {
+            "class_name": "BinaryClassExtractor"
+        },
+
+        "augmenter": {
+            "class_name": "SlideAugmenter",
+            "config": {
+                "horizontal": 0.5,
+                "vertical": 0.5,
+                "brightness": [-64, 64],
+                "hue": [-64, 64],
+                "saturation": [-64, 64],
+                "contrast": [0.7, 1.3]
+            }
+        },
+
+        "sampler": {
+            "sampling_strat": {
+                "center_tumor_tile": [],
+                "slide_name": []
+            },
+            "sequence_column": "slide_name"
+        }
+    },
+
+    "model": {
+        "class_name": "PretrainedModel",
+
+        "optimizer": {
+            "class_name": "RMSProp",
+            "config": {
+                "lr": 1e-7,
+                "momentum": 0.9,
+                "epsilon": 1.0,
+                "rho": 0.9
+            }
+        },
+        "loss": {
+            "class_name": "BinaryCrossentropy"
+        },
+        "regularizer": {
+            "class_name": "L2",
+            "config": {
+                "l2": 5e-05
+            }
+        },
+        "input_shape": [512, 512, 3],
+        "train_checkpoint": null,
+        "test_checkpoint": "early.hdf5",
+
+        "keras_application": {
+            "class_name": "VGG16",
+            "config": {
+                "pooling": "max"
+            }
+        },
+        "output_size": 1,
+        "output_bias": null,
+        "trainable": true,
+        "dropout": 0.5,
+
+        "sequence_metrics": [
+            {"class_name": "BinaryAccuracy"},
+            {"class_name": "Precision"},
+            {"class_name": "Recall"},
+            {"class_name": "F1"},
+            {"class_name": "AUC"}
+        ],
+        "total_metrics": [
+            {"class_name": "Recall"},
+            {"class_name": "Specificity"}
+        ]
+    },
+
+    "step_definitions": {
+        "exp.train": {
+            "init": {
+                "class_id": "rationai.training.ExperimentRunner",
+                "config": {
+                    "experiment_class": "ClassificationExperiment"
+                }
+            },
+            "exec": {
+                "method": "train",
+                "kwargs": {
+                    "fit_kwargs": {
+                        "epochs": 30,
+                        "workers": 10,
+                        "use_multiprocessing": true,
+                        "max_queue_size": 50,
+                        "callbacks": [
+                            {
+                                "class_name": "TensorBoard",
+                                "config": {
+                                    "log_dir": "logs",
+                                    "histogram_freq": 1
+                                }
+                            },
+                            {
+                                "class_name": "ModelCheckpoint",
+                                "config": {
+                                    "filepath": "early.hdf5",
+                                    "monitor": "val_auc",
+                                    "save_best_only": true,
+                                    "save_weights_only": true,
+                                    "period": 1,
+                                    "mode": "max",
+                                    "verbose": 1
+                                }
+
+                            },
+                            {
+                                "class_name": "ReduceLROnPlateau",
+                                "config": {
+                                    "monitor": "val_loss",
+                                    "factor": 0.5,
+                                    "min_lr": 1e-07,
+                                    "mode": "max",
+                                    "patience": 3,
+                                    "verbose": 1
+                                }
+                            },
+                            {
+                                "class_name": "EarlyStopping",
+                                "config": {
+                                    "monitor": "val_auc",
+                                    "patience": 5,
+                                    "mode": "max",
+                                    "restore_best_weights": true,
+                                    "verbose": 1
+                                }
+                            },
+                            {
+                                "class_name": "CSVLogger",
+                                "config": {
+                                    "filename": "history.csv"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+
+        "exp.test": {
+            "init": {
+                "class_id": "rationai.training.ExperimentRunner",
+                "config": {
+                    "experiment_class": "ClassificationExperiment"
+                }
+            },
+            "exec": {
+                "method": "infer",
+                "kwargs": {
+                    "infer_type": "predict_evaluate",
+                    "infer_params": {
+                        "workers": 10,
+                        "max_queue_size": 50,
+                        "use_multiprocessing": true
+                    }
+
+                }
+            }
+        },
+
+        "heatmaps": {
+            "init": {
+                "class_id": "rationai.visual.HeatmapVisualizer",
+                "config": {
+                    "visual_level": 1,
+                    "max_workers": 3
+                }
+            },
+            "exec": {
+                "method": "run"
+            }
+        },
+
+        "froc": {
+            "init": {
+                "class_id": "rationai.eval.FROC",
+                "config": {
+                    "visual_level": 1,
+                    "nms_threshold": 0.5,
+                    "nms_radius": 1,
+                    "nms_neighbourhood": "google",
+                    "max_workers": 3
+                }
+            },
+            "exec": {
+                "method": "run"
+            }
+        },
+
+        "saliency": {
+            "init": {
+                "class_id": "rationai.visual.explain.SaliencyRunner",
+                "config": {
+                    "grad_modifier": null
+                }
+            },
+            "exec": {
+                "method": "run",
+                "kwargs": {
+                    "slide_names": ["TP-2019_7207-06-1"]
+                }
+            }
+        },
+
+        "occlusion": {
+            "init": {
+                "class_id": "rationai.visual.explain.OcclusionRunner",
+                "config": {
+                    "window_size": 55,
+                    "stride": 25,
+                    "pixel": 0,
+                    "interpolation": "nearest"
+                }
+            },
+            "exec": {
+                "method": "run",
+                "kwargs": {
+                    "slide_names": ["TP-2019_7207-06-1"]
+                }
+            }
+        }
+    }
+}
