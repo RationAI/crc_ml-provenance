@@ -17,6 +17,7 @@ tensorboard==2.3.0
 tensorflow==2.3.1
 tqdm
 tf-keras-vis==0.5.5
+torch==1.9.0
 
 # Image Registration requires histomicstk: $ python -m pip install histomicstk --find-links https://girder.github.io/large_image_wheels
 
