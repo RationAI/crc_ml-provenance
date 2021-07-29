@@ -5,9 +5,60 @@ import torch
 from rationai.utils import pytorchutils as tst
 
 
+class TestGetPytorchOptimizer(unittest.TestCase):
+    def setUp(self):
+        self.config = {'lr': 1e-7, 'momentum': .9, 'epsilon': 1., 'rho': .9}
+
+        class TestNet(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.fc = torch.nn.Linear(10, 1)
+                self.dropout = torch.nn.Dropout2d(0.25)
+
+            def forward(self, inp):
+                return self.dropout(self.fc(inp))
+
+        self.net = TestNet()
+
+    def test_name_none_returns_none(self):
+        self.assertIsNone(tst.get_pytorch_optimizer(None, self.config))
+
+    def test_rmsprop_returns_rmsprop_optimizer(self):
+        optim_gen = tst.get_pytorch_optimizer('RMSProp', self.config)
+
+        optimizer = optim_gen(self.net.parameters())
+        self.assertIsInstance(optimizer, torch.optim.Optimizer)
+        self.assertIsInstance(optimizer, torch.optim.RMSprop)
+
+    def test_rmsprop_parameters_are_passed_correctly(self):
+        optim_gen = tst.get_pytorch_optimizer('RMSProp', self.config)
+        optimizer = optim_gen(self.net.parameters())
+        for param_group in optimizer.param_groups:
+            self.assertEqual(self.config['lr'], param_group['lr'])
+            self.assertEqual(self.config['epsilon'], param_group['eps'])
+            self.assertEqual(self.config['rho'], param_group['weight_decay'])
+            self.assertEqual(self.config['momentum'], param_group['momentum'])
+
+    def test_rmsprop_invalid_config_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            tst.get_pytorch_optimizer('RMSProp', {})
+
+        with self.assertRaises(ValueError):
+            tst.get_pytorch_optimizer('RMSProp', None)
+
+        config = dict(self.config)
+        del config['rho']
+
+        with self.assertRaises(ValueError):
+            tst.get_pytorch_optimizer('RMSProp', config)
+
+    def test_unknown_name_returns_none(self):
+        self.assertIsNone(tst.get_pytorch_optimizer('unknown_reg', {}))
+
+
 class TestGetPytorchRegularizer(unittest.TestCase):
     def test_name_none_returns_none(self):
-        self.assertIsNone(tst.get_pytorch_regularizer(None, None))
+        self.assertIsNone(tst.get_pytorch_regularizer(None, {'l1': 1}))
 
     def test_l1_returns_l1_regularizer(self):
         regularizer = tst.get_pytorch_regularizer('L1', {'l1': 1})
@@ -63,7 +114,7 @@ class TestGetPytorchRegularizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             tst.get_pytorch_regularizer('L1', {'l2': 1})
 
-    def test_l2_missing_config_raises_value_error(self):
+    def test_l2_invalid_config_raises_value_error(self):
         with self.assertRaises(ValueError):
             tst.get_pytorch_regularizer('L2', {})
 
