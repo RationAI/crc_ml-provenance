@@ -1,5 +1,4 @@
 import unittest
-from collections import Callable
 
 import torch
 
