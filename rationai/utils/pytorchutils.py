@@ -4,8 +4,19 @@ Utility functions for working with PyTorch objects.
 from typing import Optional
 
 import torch
+import torchmetrics as torchmetrics
 
 from rationai.utils.typealias import TorchOptimGenerator, TorchRegularizer
+
+# Mapping from string names to torchmetrics metrics.
+_TORCHMETRICS_MAP = dict(
+    auc=torchmetrics.AUC,
+    binaryaccuracy=torchmetrics.Accuracy,
+    f1=torchmetrics.F1,
+    precision=torchmetrics.Precision,
+    recall=torchmetrics.Recall,
+    specificity=torchmetrics.Specificity
+)
 
 
 def get_pytorch_loss(name: str) -> Optional[torch.nn.modules.loss._Loss]:
@@ -34,6 +45,31 @@ def get_pytorch_loss(name: str) -> Optional[torch.nn.modules.loss._Loss]:
         pass
 
     return loss
+
+
+def get_pytorch_metric(name: str) -> Optional[torchmetrics.Metric]:
+    """
+    Resolve PyTorch metric.
+
+    Parameters
+    ----------
+    name : str
+        The name of the metric to be used. Currently available are:
+            'AUC', 'BinaryAccuracy', 'F1', 'Precision', 'Recall',
+            'Specificity'
+        If anything other than these is provided, None is returned.
+
+    Return
+    ------
+    Optional[torchmetrics.Metric]
+        A PyTorch metric.
+    """
+    if name is None:
+        return None
+
+    metric_class = _TORCHMETRICS_MAP.get(name.lower())
+    metric = metric_class() if metric_class is not None else None
+    return metric
 
 
 def get_pytorch_optimizer(name: str, config: dict) -> Optional[TorchOptimGenerator]:

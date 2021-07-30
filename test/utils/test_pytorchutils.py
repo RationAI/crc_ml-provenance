@@ -1,6 +1,7 @@
 import unittest
 
 import torch
+import torchmetrics
 
 from rationai.utils import pytorchutils as tst
 
@@ -14,8 +15,44 @@ class TestGetPytorchLoss(unittest.TestCase):
             tst.get_pytorch_loss('BinaryCrossentropy'), torch.nn.BCELoss
         )
 
+        self.assertIsInstance(
+            tst.get_pytorch_loss('binarycrossentropy'), torch.nn.BCELoss
+        )
+
+        self.assertIsInstance(
+            tst.get_pytorch_loss('BINARYCROSSENTROPY'), torch.nn.BCELoss
+        )
+
     def test_unknown_name_returns_none(self):
         self.assertIsNone(tst.get_pytorch_loss('unknown_loss'))
+
+
+class TestGetPytorchMetric(unittest.TestCase):
+    def test_name_none_returns_none(self):
+        self.assertIsNone(tst.get_pytorch_metric(None))
+
+    def test_metric_names_return_appropriate_metrics(self):
+        names_to_metrics = dict(
+            auc=torchmetrics.AUC,
+            Auc=torchmetrics.AUC,
+            AUC=torchmetrics.AUC,
+            binaryaccuracy=torchmetrics.Accuracy,
+            BinaryAccuracy=torchmetrics.Accuracy,
+            f1=torchmetrics.F1,
+            F1=torchmetrics.F1,
+            precision=torchmetrics.Precision,
+            pREciSion=torchmetrics.Precision,
+            recall=torchmetrics.Recall,
+            RECALL=torchmetrics.Recall,
+            specificity=torchmetrics.Specificity,
+            SPEciFIciTY=torchmetrics.Specificity
+        )
+
+        for name, metric_class in names_to_metrics.items():
+            self.assertIsInstance(tst.get_pytorch_metric(name), metric_class)
+
+    def test_unknown_name_returns_none(self):
+        self.assertIsNone(tst.get_pytorch_metric('unknown_metric'))
 
 
 class TestGetPytorchOptimizer(unittest.TestCase):
