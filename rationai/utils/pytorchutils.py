@@ -8,6 +8,34 @@ import torch
 from rationai.utils.typealias import TorchOptimGenerator, TorchRegularizer
 
 
+def get_pytorch_loss(name: str) -> Optional[torch.nn.modules.loss._Loss]:
+    """
+    Resolve PyTorch loss.
+
+    Parameters
+    ----------
+    name : str
+        The name of the loss to be used. Currently available are:
+            'BinaryCrossentropy'.
+        If anything other than this is provided, None is returned.
+
+    Return
+    ------
+    Optional[torch.nn.modules._Loss]
+        A PyTorch loss function.
+    """
+    loss = None
+
+    try:
+        if name.lower() == 'binarycrossentropy':
+            loss = torch.nn.BCELoss()
+    except AttributeError:
+        # `name` is not a string
+        pass
+
+    return loss
+
+
 def get_pytorch_optimizer(name: str, config: dict) -> Optional[TorchOptimGenerator]:
     """
     Resolve PyTorch optimizer.

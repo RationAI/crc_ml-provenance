@@ -5,6 +5,19 @@ import torch
 from rationai.utils import pytorchutils as tst
 
 
+class TestGetPytorchLoss(unittest.TestCase):
+    def test_name_none_returns_none(self):
+        self.assertIsNone(tst.get_pytorch_loss(None))
+
+    def test_binary_crossentropy_returns_loss_object(self):
+        self.assertIsInstance(
+            tst.get_pytorch_loss('BinaryCrossentropy'), torch.nn.BCELoss
+        )
+
+    def test_unknown_name_returns_none(self):
+        self.assertIsNone(tst.get_pytorch_loss('unknown_loss'))
+
+
 class TestGetPytorchOptimizer(unittest.TestCase):
     def setUp(self):
         self.config = {'lr': 1e-7, 'momentum': .9, 'epsilon': 1., 'rho': .9}
@@ -53,7 +66,7 @@ class TestGetPytorchOptimizer(unittest.TestCase):
             tst.get_pytorch_optimizer('RMSProp', config)
 
     def test_unknown_name_returns_none(self):
-        self.assertIsNone(tst.get_pytorch_optimizer('unknown_reg', {}))
+        self.assertIsNone(tst.get_pytorch_optimizer('unknown_opt', {}))
 
 
 class TestGetPytorchRegularizer(unittest.TestCase):
