@@ -14,31 +14,31 @@ class PretrainedVGG16(nn.Module):
     def __init__(self):
         super().__init__()
         # Block 1
-        self.block1_conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block1_conv2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding="same")
+        self.block1_conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block1_conv2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding='same')
         self.block1_pool = nn.MaxPool2d(2, stride=2, padding=0)
 
         # Block 2
-        self.block2_conv1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block2_conv2 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding="same")
+        self.block2_conv1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block2_conv2 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding='same')
         self.block2_pool = nn.MaxPool2d(2, stride=2, padding=0)
 
         # Block 3
-        self.block3_conv1 = nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block3_conv2 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block3_conv3 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding="same")
+        self.block3_conv1 = nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block3_conv2 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block3_conv3 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding='same')
         self.block3_pool = nn.MaxPool2d(2, stride=2, padding=0)
 
         # Block 4
-        self.block4_conv1 = nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block4_conv2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block4_conv3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding="same")
+        self.block4_conv1 = nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block4_conv2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block4_conv3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding='same')
         self.block4_pool = nn.MaxPool2d(2, stride=2, padding=0)
 
         # Block 5
-        self.block5_conv1 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block5_conv2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding="same")
-        self.block5_conv3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding="same")
+        self.block5_conv1 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block5_conv2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding='same')
+        self.block5_conv3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding='same')
         self.block5_pool = nn.MaxPool2d(2, stride=2, padding=0)
 
         self.dropout = nn.Dropout(.5)
