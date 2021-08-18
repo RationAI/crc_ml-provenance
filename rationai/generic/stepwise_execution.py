@@ -71,7 +71,8 @@ class StepInterface(abc.ABC):
 
 
 class StepExecutor:
-    """Generic executor of pipeline steps.
+    """
+    Generic executor of pipeline steps.
     Iterates over an array of declared steps and attempts to run them.
 
     Requirements for classes runnable as "steps":
@@ -107,12 +108,12 @@ class StepExecutor:
 
     def __init__(self,
                  ordered_steps: List[str],
-                 step_defs: dict,
+                 step_definitions: dict,
                  params: dict):
 
-        self.step_idx = -1  # starting index
-        self.steps = deepcopy(ordered_steps)
-        self.step_defs = deepcopy(step_defs)
+        self.current_step_idx = -1  # starting index
+        self.step_keys = deepcopy(ordered_steps)
+        self.step_definitions = deepcopy(step_definitions)
         self.params = deepcopy(params)
 
         # Stores step instances for re-usage
@@ -128,7 +129,7 @@ class StepExecutor:
         next_step = self._next()
 
         if next_step:
-            self.step_idx -= 1
+            self.current_step_idx -= 1
         return next_step
 
     def run_next(self) -> Optional[str]:
@@ -140,7 +141,7 @@ class StepExecutor:
         step_name = self._next()
         if not step_name:
             return None
-        if step_name not in self.step_defs:
+        if step_name not in self.step_definitions:
             log.info(f'Step "{step_name}" not found in step_definitions. Skipping ...')
             return self.peek_next()
 
@@ -152,7 +153,7 @@ class StepExecutor:
         if context_key != step_name:
             # INIT & SAVE to self.context
             if context_key not in self.context:
-                instance = self._init_class(self.step_defs.get(step_name))
+                instance = self._init_class(self.step_definitions.get(step_name))
                 log.debug(f'Saving {instance.__class__} to context')
                 self.context[context_key] = instance
 
@@ -165,13 +166,13 @@ class StepExecutor:
                     release_context = True
         else:
             # INIT
-            instance = self._init_class(self.step_defs.get(step_name))
+            instance = self._init_class(self.step_definitions.get(step_name))
 
         if instance is None:
             return self.peek_next()
 
         # get method name to execute
-        exec_method = self.step_defs[step_name]['exec'].get('method')
+        exec_method = self.step_definitions[step_name]['exec'].get('method')
         if not hasattr(instance.__class__, exec_method):
             log.info(f'Class {instance.__class__} '
                      f'does not have the method "{exec_method}".')
@@ -179,7 +180,7 @@ class StepExecutor:
             return self.peek_next()
 
         # RUN METHOD
-        kwargs = self.step_defs[step_name]['exec'].get('kwargs', dict())
+        kwargs = self.step_definitions[step_name]['exec'].get('kwargs', dict())
         getattr(instance, exec_method)(**kwargs)
 
         # free up resources
@@ -191,20 +192,20 @@ class StepExecutor:
 
     def _next(self) -> Optional[str]:
         """Returns key of the next step or None"""
-        if self.step_idx + 1 <= len(self.steps) - 1:
-            self.step_idx += 1
-            return self.steps[self.step_idx]
+        if self.current_step_idx + 1 <= len(self.step_keys) - 1:
+            self.current_step_idx += 1
+            return self.step_keys[self.current_step_idx]
         return None
 
     def _is_last_occurence(self, context_key: str) -> bool:
         """Returns True if context_key is not present in the remaining steps"""
-        if self.step_idx == len(self.steps) - 1:
+        if self.current_step_idx == len(self.step_keys) - 1:
             return True
 
         # context key not in remaining steps context keys
         return context_key not in list(
             map(lambda x: x.split('.')[0],
-                deepcopy(self.steps[self.step_idx + 1:])))
+                deepcopy(self.step_keys[self.current_step_idx + 1:])))
 
     def _init_class(self, step_config: dict) -> object:
         """Returns initialized class defined by step_config"""
