@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import abc
 import importlib
-import inspect
 import logging
 from copy import deepcopy
 from typing import (
@@ -119,25 +118,30 @@ class StepExecutor:
         # Stores step instances for re-usage
         self.context = dict()
 
-    def run_all(self) -> NoReturn:
-        """Runs all steps"""
-        while self.run_next():
-            pass
+    def next_step_key(self) -> Optional[str]:
+        try:
+            return self.step_keys[self.current_step_idx + 1]
+        except IndexError:
+            # current step is the last step defined
+            return None
 
-    def run_next(self) -> Optional[str]:
+    def run_has_more_steps(self) -> bool:
+        return self.next_step_key() is not None
+
+    def run_next(self) -> NoReturn:
         """Loads next class in the queue and runs its specified method.
         Returns a peek at the next item in the iterator
         or None when all the steps are performed.
         """
+        if not self.run_has_more_steps():
+            return
 
         step_name = self.next_step_key()
-        if not step_name:
-            return None
-
         self.current_step_idx += 1
+
         if step_name not in self.step_definitions:
             log.info(f'Step "{step_name}" not found in step_definitions. Skipping ...')
-            return self.next_step_key()
+            return
 
         context_key = step_name.split('.')[0]
 
@@ -163,7 +167,7 @@ class StepExecutor:
             instance = self._init_class(self.step_definitions.get(step_name))
 
         if instance is None:
-            return self.next_step_key()
+            return
 
         # get method name to execute
         exec_method = self.step_definitions[step_name]['exec'].get('method')
@@ -171,7 +175,7 @@ class StepExecutor:
             log.info(f'Class {instance.__class__} '
                      f'does not have the method "{exec_method}".')
             log.info(f'Skipping execution of step with key "{step_name}"')
-            return self.next_step_key()
+            return
 
         # RUN METHOD
         kwargs = self.step_definitions[step_name]['exec'].get('kwargs', dict())
@@ -182,15 +186,9 @@ class StepExecutor:
             log.debug(f'Releasing {context_key}')
             del self.context[context_key]
 
-        return self.next_step_key()
-
-    def next_step_key(self) -> Optional[str]:
-        """Returns key of the next step or None"""
-        try:
-            return self.step_keys[self.current_step_idx + 1]
-        except IndexError:
-            # current step is the last step defined
-            return None
+    def run_all(self) -> NoReturn:
+        while self.run_has_more_steps():
+            self.run_next()
 
     def _is_last_occurence(self, context_key: str) -> bool:
         """Returns True if context_key is not present in the remaining steps"""
