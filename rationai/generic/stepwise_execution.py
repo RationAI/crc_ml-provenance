@@ -11,7 +11,6 @@ from typing import (
     Optional
 )
 
-from rationai.utils import DirStructure
 
 log = logging.getLogger('step-exec')
 
@@ -21,8 +20,7 @@ class StepInterface(abc.ABC):
 
     Subclass requirements:
         - @classmethod from_params(params: dict,
-                                   self_config: dict,
-                                   dir_struct: DirStructure)
+                                   self_config: dict)
 
         - A step is initialized if issubclass(cls, StepInterface) is True
         - A step is run by specifing the method to execute.
@@ -42,15 +40,13 @@ class StepInterface(abc.ABC):
         params = list(inspect.signature(subclass.from_params).parameters)
         return 'params' in params and \
                'self_config' in params and \
-               'dir_struct' in params and \
-               len(params) == 3
+               len(params) == 2
 
     @classmethod
     @abc.abstractclassmethod
     def from_params(cls,
                     self_config: dict,
-                    params: dict,
-                    dir_struct: DirStructure) -> StepInterface:
+                    params: dict) -> StepInterface:
         """Subclasses have to implement this factory method.
         StepExecutor uses the method to initialize the steps."""
         raise NotImplementedError('Pipeline Step has to implement from_params classmethod')
@@ -94,13 +90,11 @@ class StepExecutor:
     def __init__(self,
                  ordered_steps: List[str],
                  step_defs: dict,
-                 dir_struct: DirStructure,
                  params: dict):
 
         self.step_idx = -1  # starting index
         self.steps = deepcopy(ordered_steps)
         self.step_defs = deepcopy(step_defs)
-        self.dir_struct = dir_struct
         self.params = deepcopy(params)
 
         # Stores step instances for re-usage
@@ -216,11 +210,10 @@ class StepExecutor:
             return None
 
         try:
-            # NOTE: maybe looser interface where dir_struct & sw are not a must
             return cls.from_params(
                 params=deepcopy(self.params),
-                self_config=deepcopy(step_config['init'].get('config', dict())),
-                dir_struct=self.dir_struct)
+                self_config=deepcopy(step_config['init'].get('config', dict()))
+            )
         except Exception as e:
             log.info(f'Failed to init {class_name}. Skipping its execution. {e}')
             return None
