@@ -11,39 +11,34 @@ from typing import (
     Optional
 )
 
+from rationai.utils import utils
 
 log = logging.getLogger('step-exec')
 
 
 class StepInterface(abc.ABC):
-    """Interface for classes that are runnable as pipeline steps.
+    """
+    Interface for classes that are runnable as pipeline steps.
 
     Subclass requirements:
-        - @classmethod from_params(params: dict,
-                                   self_config: dict)
-
+        - @classmethod from_params(params: dict, self_config: dict)
         - A step is initialized if issubclass(cls, StepInterface) is True
-        - A step is run by specifing the method to execute.
-          Optionally, method's keyword arguments can be specified
+        - A step is run by specifying the method to execute.
+          Optionally, the method's keyword arguments can be specified
           but have to be JSON serializable.
     """
 
     @classmethod
     def __subclasshook__(cls, subclass):
-        return (hasattr(subclass, 'from_params') and
-                callable(subclass.from_params) and
-                type(subclass.__dict__.get('from_params')) is classmethod and
-                cls._is_valid_from_params(subclass))
-
-    @staticmethod
-    def _is_valid_from_params(subclass):
-        params = list(inspect.signature(subclass.from_params).parameters)
-        return 'params' in params and \
-               'self_config' in params and \
-               len(params) == 2
+        return (
+            utils.class_has_classmethod(subclass, 'from_params')
+            and utils.callable_has_signature(
+                subclass.from_params, ['params', 'self_config']
+            )
+        )
 
     @classmethod
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     def from_params(cls,
                     self_config: dict,
                     params: dict) -> StepInterface:

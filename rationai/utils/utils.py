@@ -9,7 +9,7 @@ import shutil
 
 from enum import Enum
 from pathlib import Path
-from typing import NoReturn
+from typing import Callable, List, NoReturn
 from typing import Optional
 
 
@@ -25,6 +25,76 @@ class ExperimentLevel(Enum):
     SEARCH = 'search'
     TEST = 'test'
     FINAL = 'final'
+
+
+def callable_has_signature(callable: Callable, param_names: List[str]) -> bool:
+    """
+    Check any callable for the list of its parameter names.
+
+    Parameters
+    ----------
+    callable : Callable
+        Any function or method to check.
+    param_names : List[str]
+        The list of parameter names checked against the signature of
+        `callable`.
+
+    Return
+    ------
+    bool
+        True if `param_names` contains exactly the parameter names of
+        `callable` (ignoring order), False otherwise.
+
+    Raise
+    -----
+    TypeError
+        When `callable` is not Callable.
+    """
+    callable_params = list(inspect.signature(callable).parameters)
+
+    return (
+        len(callable_params) == len(param_names)
+        and all((name in callable_params) for name in param_names)
+    )
+
+
+def class_has_classmethod(cls_object: type, method_name: str) -> bool:
+    """
+    Check whether a class object declares a classmethod of given name.
+
+    Illustrative example:
+
+        class Dog:
+            def __init__(self, age, color):
+                self.age = age
+                self.color = color
+
+            @classmethod
+            def default_color(cls, age):
+                return Dog(age, 'brown')
+
+        class_has_classmethod(Dog, 'default_color') => True
+        class_has_classmethod(Dog, 'default_age') => False
+
+
+    Parameters
+    ----------
+    cls_object : type
+        The class object to check.
+    method_name : str
+        The name of the method to search `cls_object` for.
+
+    Return
+    ------
+    bool
+        True if `cls_object` has a classmethod named `method_name`, False
+        otherwise.
+    """
+    return (
+        hasattr(cls_object, method_name)
+        and callable(getattr(cls_object, method_name))
+        and type(cls_object.__dict__.get(method_name)) is classmethod
+    )
 
 
 def divide_round_up(n, d):
