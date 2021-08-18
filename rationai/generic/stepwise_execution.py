@@ -22,6 +22,7 @@ class StepInterface(abc.ABC):
 
     Subclass requirements:
         - @classmethod from_params(params: dict, self_config: dict)
+        - method continue_from_run()
         - A step is initialized if issubclass(cls, StepInterface) is True
         - A step is run by specifying the method to execute.
           Optionally, the method's keyword arguments can be specified
@@ -35,6 +36,8 @@ class StepInterface(abc.ABC):
             and utils.callable_has_signature(
                 subclass.from_params, ['params', 'self_config']
             )
+            and utils.class_has_method(subclass, 'continue_from_run')
+            and utils.callable_has_signature(subclass.continue_from_run, [])
         )
 
     @classmethod

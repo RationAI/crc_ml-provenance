@@ -154,3 +154,51 @@ class TestClassHasClassmethod(unittest.TestCase):
                 return None
 
         self.assertTrue(tst.class_has_classmethod(TestClass, 'test_method'))
+
+
+class TestClassHasMethod(unittest.TestCase):
+    def test_class_without_attribute_fails(self):
+        class TestClass:
+            pass
+
+        self.assertFalse(tst.class_has_method(TestClass, 'test_method'))
+
+    def test_class_with_noncallable_attribute_fails(self):
+        class TestClass1:
+            test_method = None
+
+        class TestClass2:
+            test_method = []
+
+        class TestClass3:
+            test_method = 42
+
+        self.assertFalse(tst.class_has_method(TestClass1, 'test_method'))
+        self.assertFalse(tst.class_has_method(TestClass2, 'test_method'))
+        self.assertFalse(tst.class_has_method(TestClass3, 'test_method'))
+
+    def test_class_with_method_passes(self):
+        def test_function():
+            return None
+
+        class TestClass1:
+            test_method = test_function
+
+        class TestClass2:
+            def test_method(self):
+                return None
+
+        class TestClass3:
+            @staticmethod
+            def test_method():
+                return None
+
+        class TestClass4:
+            @classmethod
+            def test_method(cls):
+                return None
+
+        self.assertTrue(tst.class_has_method(TestClass1, 'test_method'))
+        self.assertTrue(tst.class_has_method(TestClass2, 'test_method'))
+        self.assertTrue(tst.class_has_method(TestClass3, 'test_method'))
+        self.assertTrue(tst.class_has_method(TestClass4, 'test_method'))

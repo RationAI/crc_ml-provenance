@@ -53,14 +53,14 @@ def callable_has_signature(callable: Callable, param_names: List[str]) -> bool:
     callable_params = list(inspect.signature(callable).parameters)
 
     return (
-        len(callable_params) == len(param_names)
-        and all((name in callable_params) for name in param_names)
+            len(callable_params) == len(param_names)
+            and all((name in callable_params) for name in param_names)
     )
 
 
-def class_has_classmethod(cls_object: type, method_name: str) -> bool:
+def class_has_method(cls_object: type, method_name: str) -> bool:
     """
-    Check whether a class object declares a classmethod of given name.
+    Check whether a class object declares a method of given name.
 
     Illustrative example:
 
@@ -69,13 +69,37 @@ def class_has_classmethod(cls_object: type, method_name: str) -> bool:
                 self.age = age
                 self.color = color
 
-            @classmethod
-            def default_color(cls, age):
-                return Dog(age, 'brown')
+            def bark(self):
+                return "Woof! " * self.age
 
-        class_has_classmethod(Dog, 'default_color') => True
-        class_has_classmethod(Dog, 'default_age') => False
+        class_has_method(Dog, 'bark') => True
+        class_has_method(Dog, 'meow') => False
 
+    Parameters
+    ----------
+    cls_object : type
+        The class object to check.
+    method_name : str
+        The name of the method to search `cls_object` for.
+
+    Return
+    ------
+    bool
+        True if `cls_object` has a method named `method_name`, False
+        otherwise.
+    """
+    return (
+        hasattr(cls_object, method_name)
+        and callable(getattr(cls_object, method_name))
+    )
+
+
+def class_has_classmethod(cls_object: type, method_name: str) -> bool:
+    """
+    Check whether a class object declares a classmethod of given name.
+
+    The same as `class_has_method`, with the additional constraint that the
+    method is a class method.
 
     Parameters
     ----------
@@ -91,8 +115,7 @@ def class_has_classmethod(cls_object: type, method_name: str) -> bool:
         otherwise.
     """
     return (
-        hasattr(cls_object, method_name)
-        and callable(getattr(cls_object, method_name))
+        class_has_method(cls_object, method_name)
         and type(cls_object.__dict__.get(method_name)) is classmethod
     )
 
@@ -246,6 +269,7 @@ def detect_file_format(folder: Path,
 class ThreadSafeIterator:
     """Iterator with a lock for multiprocessing.
     Allows usage of generator with pool of workers"""
+
     def __init__(self, alist):
         self.data = alist
         self.idx = 0
