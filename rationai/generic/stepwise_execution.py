@@ -12,7 +12,6 @@ from typing import (
 )
 
 from rationai.utils import DirStructure
-from rationai.utils import SummaryWriter
 
 log = logging.getLogger('step-exec')
 
@@ -23,8 +22,7 @@ class StepInterface(abc.ABC):
     Subclass requirements:
         - @classmethod from_params(params: dict,
                                    self_config: dict,
-                                   dir_struct: DirStructure,
-                                   summary_writer: SummaryWriter)
+                                   dir_struct: DirStructure)
 
         - A step is initialized if issubclass(cls, StepInterface) is True
         - A step is run by specifing the method to execute.
@@ -45,16 +43,14 @@ class StepInterface(abc.ABC):
         return 'params' in params and \
                'self_config' in params and \
                'dir_struct' in params and \
-               'summary_writer' in params and \
-               len(params) == 4
+               len(params) == 3
 
     @classmethod
     @abc.abstractclassmethod
     def from_params(cls,
                     self_config: dict,
                     params: dict,
-                    dir_struct: DirStructure,
-                    summary_writer: SummaryWriter) -> StepInterface:
+                    dir_struct: DirStructure) -> StepInterface:
         """Subclasses have to implement this factory method.
         StepExecutor uses the method to initialize the steps."""
         raise NotImplementedError('Pipeline Step has to implement from_params classmethod')
@@ -99,14 +95,12 @@ class StepExecutor:
                  ordered_steps: List[str],
                  step_defs: dict,
                  dir_struct: DirStructure,
-                 summary_writer: SummaryWriter,
                  params: dict):
 
         self.step_idx = -1  # starting index
         self.steps = deepcopy(ordered_steps)
         self.step_defs = deepcopy(step_defs)
         self.dir_struct = dir_struct
-        self.summary_writer = summary_writer
         self.params = deepcopy(params)
 
         # Stores step instances for re-usage
@@ -115,7 +109,7 @@ class StepExecutor:
     def run_all(self) -> NoReturn:
         """Runs all steps"""
         while self.run_next():
-            self.summary_writer.update_log()
+            pass
 
     def peek_next(self) -> Optional[str]:
         """Returns a name of the next step"""
@@ -226,8 +220,7 @@ class StepExecutor:
             return cls.from_params(
                 params=deepcopy(self.params),
                 self_config=deepcopy(step_config['init'].get('config', dict())),
-                dir_struct=self.dir_struct,
-                summary_writer=self.summary_writer)
+                dir_struct=self.dir_struct)
         except Exception as e:
             log.info(f'Failed to init {class_name}. Skipping its execution. {e}')
             return None
