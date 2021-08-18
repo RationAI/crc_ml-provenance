@@ -39,12 +39,32 @@ class StepInterface(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_params(cls,
-                    self_config: dict,
-                    params: dict) -> StepInterface:
-        """Subclasses have to implement this factory method.
-        StepExecutor uses the method to initialize the steps."""
-        raise NotImplementedError('Pipeline Step has to implement from_params classmethod')
+    def from_params(cls, self_config: dict, params: dict) -> StepInterface:
+        """
+        Factory method used by `StepExecutor` to initialize a step.
+
+        Subclasses have to implement this.
+
+        Parameters
+        ----------
+        self_config : dict
+            Configuration specific for this step.
+        params : dict
+            The general configuration information.
+        """
+        raise NotImplementedError(
+            'Pipeline Step has to implement from_params classmethod'
+        )
+
+    @abc.abstractmethod
+    def continue_from_run(self) -> NoReturn:
+        """
+        Prepare artifacts from a previous pipeline run such that they can be
+        used in this step.
+        """
+        raise NotImplementedError(
+            'Pipeline Step has to implement continue_from_run method'
+        )
 
 
 class StepExecutor:
