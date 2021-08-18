@@ -124,26 +124,20 @@ class StepExecutor:
         while self.run_next():
             pass
 
-    def peek_next(self) -> Optional[str]:
-        """Returns a name of the next step"""
-        next_step = self._next()
-
-        if next_step:
-            self.current_step_idx -= 1
-        return next_step
-
     def run_next(self) -> Optional[str]:
         """Loads next class in the queue and runs its specified method.
         Returns a peek at the next item in the iterator
         or None when all the steps are performed.
         """
 
-        step_name = self._next()
+        step_name = self.next_step_key()
         if not step_name:
             return None
+
+        self.current_step_idx += 1
         if step_name not in self.step_definitions:
             log.info(f'Step "{step_name}" not found in step_definitions. Skipping ...')
-            return self.peek_next()
+            return self.next_step_key()
 
         context_key = step_name.split('.')[0]
 
@@ -169,7 +163,7 @@ class StepExecutor:
             instance = self._init_class(self.step_definitions.get(step_name))
 
         if instance is None:
-            return self.peek_next()
+            return self.next_step_key()
 
         # get method name to execute
         exec_method = self.step_definitions[step_name]['exec'].get('method')
@@ -177,7 +171,7 @@ class StepExecutor:
             log.info(f'Class {instance.__class__} '
                      f'does not have the method "{exec_method}".')
             log.info(f'Skipping execution of step with key "{step_name}"')
-            return self.peek_next()
+            return self.next_step_key()
 
         # RUN METHOD
         kwargs = self.step_definitions[step_name]['exec'].get('kwargs', dict())
@@ -188,14 +182,15 @@ class StepExecutor:
             log.debug(f'Releasing {context_key}')
             del self.context[context_key]
 
-        return self.peek_next()
+        return self.next_step_key()
 
-    def _next(self) -> Optional[str]:
+    def next_step_key(self) -> Optional[str]:
         """Returns key of the next step or None"""
-        if self.current_step_idx + 1 <= len(self.step_keys) - 1:
-            self.current_step_idx += 1
-            return self.step_keys[self.current_step_idx]
-        return None
+        try:
+            return self.step_keys[self.current_step_idx + 1]
+        except IndexError:
+            # current step is the last step defined
+            return None
 
     def _is_last_occurence(self, context_key: str) -> bool:
         """Returns True if context_key is not present in the remaining steps"""
