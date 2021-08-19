@@ -242,17 +242,23 @@ class StepExecutor:
         if step_instance is None:
             return
 
-        # get method name to execute
-        exec_method = self.step_definitions[step_name]['exec'].get('method')
-        if not hasattr(step_instance.__class__, exec_method):
-            log.info(f'Class {step_instance.__class__} '
-                     f'does not have the method "{exec_method}".')
-            log.info(f'Skipping execution of step with key "{step_name}"')
+        try:
+            exec_info = self.step_definitions[step_name]['exec']
+        except KeyError:
+            log.error(
+                f'No execution info for step {step_instance.__class__}'
+                f'provided.'
+            )
             return
 
-        # RUN METHOD
-        kwargs = self.step_definitions[step_name]['exec'].get('kwargs', dict())
-        getattr(step_instance, exec_method)(**kwargs)
+        exec_method = exec_info.get('method')
+        kwargs = exec_info.get('kwargs', dict())
+
+        try:
+            utils.run_classmethod(step_instance.__class__, exec_method, kwargs)
+        except Exception as ex:
+            log.error(f'Failed step run "{step_name}", full stack trace: {ex}')
+            return
 
         # free up resources
         if is_step_contextual(step_name):

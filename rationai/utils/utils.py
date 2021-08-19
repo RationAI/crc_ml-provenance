@@ -9,7 +9,7 @@ import shutil
 
 from enum import Enum
 from pathlib import Path
-from typing import Callable, List, NoReturn, Tuple
+from typing import Callable, List, NoReturn, Tuple, Any
 from typing import Optional
 
 
@@ -172,6 +172,36 @@ def load_class(class_descriptor: str) -> type:
     module_id, class_name = parse_module_and_class_string(class_descriptor)
     module = importlib.import_module(module_id)
     return getattr(module, class_name)
+
+
+def run_classmethod(cls: type, method_name: str, kwargs: dict) -> Any:
+    """
+    Runs a classmethod of given class with passed parameters.
+
+    Parameters
+    ----------
+    cls : type
+        The class whose classmethod should be run.
+    method_name : str
+        The name of the classmethod to run.
+    kwargs : dict
+        The arguments to be passed to the classmethod.
+
+    Return
+    ------
+    Any
+        The return value of the run classmethod.
+
+    Raise
+    -----
+    AttributeError
+        When `cls` does not declare a classmethod of name `method_name`.
+    """
+    if not class_has_classmethod(cls, method_name):
+        raise AttributeError(
+            f'class {cls} does not declare classmethod {method_name}'
+        )
+    return getattr(cls, method_name)(**kwargs)
 
 
 def divide_round_up(n, d):

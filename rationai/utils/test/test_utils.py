@@ -263,3 +263,51 @@ class TestParseModuleAndClassString(unittest.TestCase):
         result_a, result_b = tst.parse_module_and_class_string('.test.complex.module.Class.')
         self.assertEqual('test.complex.module', result_a)
         self.assertEqual('Class', result_b)
+
+
+class TestRunClassmethod(unittest.TestCase):
+    def test_classmethod_runs(self):
+        class TestClass:
+            @classmethod
+            def test_method(cls):
+                return 2
+
+            @classmethod
+            def test_method_subtract(cls, a, b):
+                return a - b
+
+        self.assertEqual(2, tst.run_classmethod(TestClass, 'test_method', {}))
+        self.assertEqual(
+            -3,
+            tst.run_classmethod(TestClass, 'test_method_subtract', dict(a=1, b=4))
+        )
+
+    def test_non_classmethod_raises_attribute_error(self):
+        class TestClass:
+            def __init__(self):
+                self.return_val = -42
+
+            def test_method(self):
+                return self.return_val
+
+        with self.assertRaises(AttributeError):
+            tst.run_classmethod(TestClass, 'test_method', {})
+
+    def test_nonexistent_method_raises_attribute_error(self):
+        class TestClass:
+            attribute = 3
+
+        with self.assertRaises(AttributeError):
+            tst.run_classmethod(TestClass, 'attribute', {})
+
+        with self.assertRaises(AttributeError):
+            tst.run_classmethod(TestClass, 'nonexistent_method', {})
+
+    def test_raised_error_gets_propagated(self):
+        class TestClass:
+            @classmethod
+            def raising_method(cls):
+                raise TypeError
+
+        with self.assertRaises(TypeError):
+            tst.run_classmethod(TestClass, 'raising_method', {})
