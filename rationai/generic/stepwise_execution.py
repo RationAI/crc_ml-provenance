@@ -245,10 +245,7 @@ class StepExecutor:
         try:
             exec_info = self.step_definitions[step_name]['exec']
         except KeyError:
-            log.error(
-                f'No execution info for step {step_instance.__class__}'
-                f'provided.'
-            )
+            log.error(f'No execution info for step "{step_name}" provided.')
             return
 
         exec_method = exec_info.get('method')
@@ -260,13 +257,8 @@ class StepExecutor:
             log.error(f'Failed step run "{step_name}", full stack trace: {ex}')
             return
 
-        # free up resources
-        if is_step_contextual(step_name):
-            context_key = extract_context_key(step_name)
-
-            if self._is_last_occurence(context_key):
-                log.debug(f'Releasing {context_key}')
-                del self.context[context_key]
+        self._free_up_context_if_possible(step_name)
+        return
 
     def run_all(self) -> NoReturn:
         while self.run_has_more_steps():
@@ -277,6 +269,8 @@ class StepExecutor:
         Initialize step instance.
 
         If contextual, the context gets cached for later use.
+
+        RAI_UNTESTED
 
         Parameters
         ----------
@@ -300,6 +294,8 @@ class StepExecutor:
         """
         Initialize contextual step instance and save it to context cache.
 
+        RAI_UNTESTED
+
         Parameters
         ----------
         step_key : str
@@ -321,12 +317,42 @@ class StepExecutor:
 
         return self.context[context_key]
 
-    def _is_last_occurence(self, context_key: str) -> bool:
-        """Returns True if context_key is not present in the remaining steps"""
-        if self.current_step_idx == len(self.step_keys) - 1:
-            return True
+    def _free_up_context_if_possible(self, step_key: str) -> NoReturn:
+        """
+        Delete a step context if it will not appear again in the run.
 
-        # context key not in remaining steps context keys
-        return context_key not in list(
-            map(extract_context_key,
-                deepcopy(self.step_keys[self.current_step_idx + 1:])))
+        Non-contextual steps are ignored.
+
+        RAI_UNTESTED
+
+        Parameters
+        ----------
+        step_key : str
+            The step identifier.
+        """
+        if not is_step_contextual(step_key):
+            return
+
+        context_key = extract_context_key(step_key)
+
+        if self._is_last_occurrence(context_key):
+            log.debug(f'Releasing {context_key}')
+            del self.context[context_key]
+
+    def _is_last_occurrence(self, context_key: str) -> bool:
+        """
+        Check if a context key will appear anywhere in the remaining steps.
+
+        Parameters
+        ----------
+        context_key : str
+            The context key to look for in the remaining steps to be run.
+
+        Return
+        ------
+            False if there are any remaining steps with given `context_key`,
+            True otherwise.
+        """
+        return context_key not in map(
+            extract_context_key, self.step_keys[self.current_step_idx + 1:]
+        )
