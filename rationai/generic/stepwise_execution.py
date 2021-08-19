@@ -14,6 +14,62 @@ from rationai.utils import utils
 log = logging.getLogger('step-exec')
 
 
+def extract_context_key(step_key: str) -> str:
+    """
+    Get context key from step key.
+
+    A step key identifies an execution step. Potentially, a step key can have
+    the format '<part1>.<part2>'. In this case, <part1> describes the context
+    (step object), while <part2> identifies the step (method of the step
+    object to be run).
+
+    This function returns '<part1>' for input '<part1>.<part2>'. For input
+    '<part1>', this same input is returned as output.
+
+    Parameters
+    ----------
+    step_key : str
+        The step key (identifier).
+
+    Return
+    ------
+    Either the context key (if `step_key` is contextual), or the `step_key`
+    itself.
+
+    Raise
+    -----
+    ValueError
+        When `step_key` is malformed.
+    """
+    dot_split = step_key.split('.')
+    if len(dot_split) > 2 or any((part == '') for part in dot_split):
+        raise ValueError('malformed step key expression')
+
+    return dot_split[0]
+
+
+def is_step_contextual(step_key: str) -> bool:
+    """
+    Check whether a step key is contextual.
+
+    Parameters
+    ----------
+    step_key : str
+        A step key (identifier).
+
+    Return
+    ------
+    bool
+        True when `step_key` is contextual, False otherwise.
+
+    Raise
+    -----
+    ValueError
+        When `step_key` is malformed.
+    """
+    return extract_context_key(step_key) != step_key
+
+
 def initialize_step(params: dict, step_config: dict) -> Optional[StepInterface]:
     """
     Initialize a StepInterface instance.
@@ -186,12 +242,11 @@ class StepExecutor:
             log.info(f'Step "{step_name}" not found in step_definitions. Skipping ...')
             return
 
-        context_key = step_name.split('.')[0]
-
         # flag to release a step from self.context once it is not needed anymore
         release_context = False
 
-        if context_key != step_name:
+        if is_step_contextual(step_name):
+            context_key = extract_context_key(step_name)
             # INIT & SAVE to self.context
             if context_key not in self.context:
                 instance = initialize_step(self.params, self.step_definitions.get(step_name))
@@ -240,5 +295,5 @@ class StepExecutor:
 
         # context key not in remaining steps context keys
         return context_key not in list(
-            map(lambda x: x.split('.')[0],
+            map(extract_context_key,
                 deepcopy(self.step_keys[self.current_step_idx + 1:])))
