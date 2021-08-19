@@ -9,7 +9,7 @@ import shutil
 
 from enum import Enum
 from pathlib import Path
-from typing import Callable, List, NoReturn
+from typing import Callable, List, NoReturn, Tuple
 from typing import Optional
 
 
@@ -27,30 +27,30 @@ class ExperimentLevel(Enum):
     FINAL = 'final'
 
 
-def callable_has_signature(callable: Callable, param_names: List[str]) -> bool:
+def callable_has_signature(func: Callable, param_names: List[str]) -> bool:
     """
     Check any callable for the list of its parameter names.
 
     Parameters
     ----------
-    callable : Callable
+    func : Callable
         Any function or method to check.
     param_names : List[str]
         The list of parameter names checked against the signature of
-        `callable`.
+        `func`.
 
     Return
     ------
     bool
         True if `param_names` contains exactly the parameter names of
-        `callable` (ignoring order), False otherwise.
+        `func` (ignoring order), False otherwise.
 
     Raise
     -----
     TypeError
-        When `callable` is not Callable.
+        When `func` is not Callable.
     """
-    callable_params = list(inspect.signature(callable).parameters)
+    callable_params = list(inspect.signature(func).parameters)
 
     return (
             len(callable_params) == len(param_names)
@@ -118,6 +118,60 @@ def class_has_classmethod(cls_object: type, method_name: str) -> bool:
         class_has_method(cls_object, method_name)
         and type(cls_object.__dict__.get(method_name)) is classmethod
     )
+
+
+def parse_module_and_class_string(descriptor: str) -> Tuple[str, str]:
+    """
+    Parse a class descriptor string into class and module descriptors.
+
+    E.g.    'path.to.module.Class' -> ('path.to.module', 'Class')
+            'Class' -> ('', 'Class')
+
+    Ignores any dots surrounding the `descriptor`.
+
+    Parameters
+    ----------
+    descriptor : str
+        A class descriptor interpreted as the full path to a class.
+
+    Return
+    ------
+    Tuple[str, str]
+        A tuple containing the (module ID, class ID) strings.
+    """
+    dot_split = descriptor.strip('.').split('.')
+    class_name = dot_split[-1]
+    module_id = '.'.join(dot_split[:-1])
+    return module_id, class_name
+
+
+def load_class(class_descriptor: str) -> type:
+    """
+    Load a class by its class descriptor.
+
+    Parameters
+    ----------
+    class_descriptor : str
+        The full name of the class including its module namespace, e.g.
+        'some.module.Class', where 'some.module' is the full module path and
+        'Class' is the name of the class.
+
+    Return
+    ------
+    Type
+        The corresponding class.
+
+    Raise
+    -----
+    AttributeError
+        When the module on the corresponding module path exists, but does not
+        define the expected class.
+    ImportError
+        When the module on the corresponding module path is nonexistent.
+    """
+    module_id, class_name = parse_module_and_class_string(class_descriptor)
+    module = importlib.import_module(module_id)
+    return getattr(module, class_name)
 
 
 def divide_round_up(n, d):

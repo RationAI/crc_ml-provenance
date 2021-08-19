@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import importlib
 import logging
 from copy import deepcopy
 from typing import (
@@ -13,6 +12,50 @@ from typing import (
 from rationai.utils import utils
 
 log = logging.getLogger('step-exec')
+
+
+def initialize_step(params: dict, step_config: dict) -> Optional[StepInterface]:
+    """
+    Initialize a StepInterface instance.
+
+    RAI_UNTESTED
+
+    Parameters
+    ----------
+    params : dict
+        Overall parameters of the run.
+    step_config : dict
+        Step initialization and execution-specific parameters.
+
+    Return
+    ------
+    Optional[StepInterface]
+        An initialized instance of the StepInterface, or None if a problem
+        occurs.
+    """
+    try:
+        class_descriptor: str = step_config['init']['class_id']
+    except KeyError:
+        log.error('Could not obtain class descriptor from step_config.')
+        return None
+
+    log.info(f'Initializing {class_descriptor}')
+    cls = utils.load_class(class_descriptor)
+
+    if not issubclass(cls, StepInterface):
+        log.error(
+            f'Class {cls} must implement StepInterface to execute as a step.'
+        )
+        return None
+
+    try:
+        return cls.from_params(
+            params=deepcopy(params),
+            self_config=deepcopy(step_config['init'].get('config', dict()))
+        )
+    except Exception as ex:
+        log.error(f'Failed to init {class_descriptor}. Full stack trace: {ex}')
+        return None
 
 
 class StepInterface(abc.ABC):
@@ -151,7 +194,7 @@ class StepExecutor:
         if context_key != step_name:
             # INIT & SAVE to self.context
             if context_key not in self.context:
-                instance = self._init_class(self.step_definitions.get(step_name))
+                instance = initialize_step(self.params, self.step_definitions.get(step_name))
                 log.debug(f'Saving {instance.__class__} to context')
                 self.context[context_key] = instance
 
@@ -164,7 +207,7 @@ class StepExecutor:
                     release_context = True
         else:
             # INIT
-            instance = self._init_class(self.step_definitions.get(step_name))
+            instance = initialize_step(self.params, self.step_definitions.get(step_name))
 
         if instance is None:
             return
@@ -199,33 +242,3 @@ class StepExecutor:
         return context_key not in list(
             map(lambda x: x.split('.')[0],
                 deepcopy(self.step_keys[self.current_step_idx + 1:])))
-
-    def _init_class(self, step_config: dict) -> object:
-        """Returns initialized class defined by step_config"""
-        if step_config is None:
-            log.info('step_config is None')
-            return None
-
-        # Parse module & class from string
-        split = step_config['init']['class_id'].split('.')
-        class_name = split[-1]
-        module_id = '.'.join(split[:-1])
-
-        log.info(f'Initializing {class_name}')
-
-        # Import the class
-        module = importlib.import_module(module_id)
-        cls = getattr(module, class_name)
-
-        if not issubclass(cls, StepInterface):
-            log.info(f'Class {cls} should implement StepInterface to work as step')
-            return None
-
-        try:
-            return cls.from_params(
-                params=deepcopy(self.params),
-                self_config=deepcopy(step_config['init'].get('config', dict()))
-            )
-        except Exception as e:
-            log.info(f'Failed to init {class_name}. Skipping its execution. {e}')
-            return None

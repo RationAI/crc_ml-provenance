@@ -1,9 +1,10 @@
+import collections
 import unittest
 
 from rationai.utils import utils as tst
 
 
-class CallableHasSignature(unittest.TestCase):
+class TestCallableHasSignature(unittest.TestCase):
     def test_function_empty_signature(self):
         def f_test():
             pass
@@ -202,3 +203,63 @@ class TestClassHasMethod(unittest.TestCase):
         self.assertTrue(tst.class_has_method(TestClass2, 'test_method'))
         self.assertTrue(tst.class_has_method(TestClass3, 'test_method'))
         self.assertTrue(tst.class_has_method(TestClass4, 'test_method'))
+
+
+class TestLoadClass(unittest.TestCase):
+    def test_existing_class_gets_loaded(self):
+        loaded = tst.load_class('collections.Counter')
+        self.assertIs(loaded, collections.Counter)
+
+        loaded = tst.load_class('collections.OrderedDict')
+        self.assertIs(loaded, collections.OrderedDict)
+
+    def test_nonexistent_module_raises_import_error(self):
+        with self.assertRaises(ImportError):
+            tst.load_class('nonexistentmodule.OrderedDict')
+
+    def test_nonexistent_class_raises_attribute_error(self):
+        with self.assertRaises(AttributeError):
+            tst.load_class('collections.NonexistentClass')
+
+
+class TestParseModuleAndClassString(unittest.TestCase):
+    def test_returns_two_strings(self):
+        result_a, result_b = tst.parse_module_and_class_string('module.Class')
+        self.assertIsInstance(result_a, str)
+        self.assertIsInstance(result_b, str)
+
+    def test_empty_descriptor(self):
+        result_a, result_b = tst.parse_module_and_class_string('')
+        self.assertEqual('', result_a)
+        self.assertEqual('', result_b)
+
+    def test_parses_module_name_properly(self):
+        result_a, result_b = tst.parse_module_and_class_string('module.Class')
+        self.assertEqual('module', result_a)
+
+        result_a, result_b = tst.parse_module_and_class_string('complex.module.Class')
+        self.assertEqual('complex.module', result_a)
+
+    def test_parses_class_name_properly(self):
+        result_a, result_b = tst.parse_module_and_class_string('module.Class')
+        self.assertEqual('Class', result_b)
+
+        result_a, result_b = tst.parse_module_and_class_string('module.Classy')
+        self.assertEqual('Classy', result_b)
+
+        result_a, result_b = tst.parse_module_and_class_string('complex.module.Classiest')
+        self.assertEqual('Classiest', result_b)
+
+    def test_class_name_with_dot_only(self):
+        result_a, result_b = tst.parse_module_and_class_string('.Class')
+        self.assertEqual('', result_a)
+        self.assertEqual('Class', result_b)
+
+        result_a, result_b = tst.parse_module_and_class_string('Class.')
+        self.assertEqual('', result_a)
+        self.assertEqual('Class', result_b)
+
+    def test_complex_module_with_surrounding_dots(self):
+        result_a, result_b = tst.parse_module_and_class_string('.test.complex.module.Class.')
+        self.assertEqual('test.complex.module', result_a)
+        self.assertEqual('Class', result_b)
