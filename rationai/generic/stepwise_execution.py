@@ -204,11 +204,7 @@ class StepExecutor:
             }
     """
 
-    def __init__(self,
-                 ordered_steps: List[str],
-                 step_definitions: dict,
-                 params: dict):
-
+    def __init__(self, ordered_steps: List[str], step_definitions: dict, params: dict):
         self.current_step_idx = -1  # starting index
         self.step_keys = deepcopy(ordered_steps)
         self.step_definitions = deepcopy(step_definitions)
@@ -242,51 +238,82 @@ class StepExecutor:
             log.info(f'Step "{step_name}" not found in step_definitions. Skipping ...')
             return
 
-        # flag to release a step from self.context once it is not needed anymore
-        release_context = False
-
-        if is_step_contextual(step_name):
-            context_key = extract_context_key(step_name)
-            # INIT & SAVE to self.context
-            if context_key not in self.context:
-                instance = initialize_step(self.params, self.step_definitions.get(step_name))
-                log.debug(f'Saving {instance.__class__} to context')
-                self.context[context_key] = instance
-
-            # LOAD from self.context
-            elif context_key in self.context:
-                instance = self.context[context_key]
-
-                # RELEASE from self.context
-                if self._is_last_occurence(context_key):
-                    release_context = True
-        else:
-            # INIT
-            instance = initialize_step(self.params, self.step_definitions.get(step_name))
-
-        if instance is None:
+        step_instance = self._load_step_instance(step_name)
+        if step_instance is None:
             return
 
         # get method name to execute
         exec_method = self.step_definitions[step_name]['exec'].get('method')
-        if not hasattr(instance.__class__, exec_method):
-            log.info(f'Class {instance.__class__} '
+        if not hasattr(step_instance.__class__, exec_method):
+            log.info(f'Class {step_instance.__class__} '
                      f'does not have the method "{exec_method}".')
             log.info(f'Skipping execution of step with key "{step_name}"')
             return
 
         # RUN METHOD
         kwargs = self.step_definitions[step_name]['exec'].get('kwargs', dict())
-        getattr(instance, exec_method)(**kwargs)
+        getattr(step_instance, exec_method)(**kwargs)
 
         # free up resources
-        if release_context:
-            log.debug(f'Releasing {context_key}')
-            del self.context[context_key]
+        if is_step_contextual(step_name):
+            context_key = extract_context_key(step_name)
+
+            if self._is_last_occurence(context_key):
+                log.debug(f'Releasing {context_key}')
+                del self.context[context_key]
 
     def run_all(self) -> NoReturn:
         while self.run_has_more_steps():
             self.run_next()
+
+    def _load_step_instance(self, step_key: str) -> Optional[StepInterface]:
+        """
+        Initialize step instance.
+
+        If contextual, the context gets cached for later use.
+
+        Parameters
+        ----------
+        step_key : str
+            The identifier of the step.
+
+        Return
+        ------
+        Optional[StepInterface]
+            An instance of a StepInterface object, or None if the object fails
+            to instantiate.
+        """
+        if is_step_contextual(step_key):
+            return self._load_contextual_instance(step_key)
+
+        return initialize_step(
+            self.params, self.step_definitions.get(step_key)
+        )
+
+    def _load_contextual_instance(self, step_key: str) -> Optional[StepInterface]:
+        """
+        Initialize contextual step instance and save it to context cache.
+
+        Parameters
+        ----------
+        step_key : str
+            The identifier of the step.
+
+        Return
+        ------
+        Optional[StepInterface]
+            An instance of a StepInterface object, or None if the object fails
+            to instantiate.
+        """
+        context_key = extract_context_key(step_key)
+        if context_key not in self.context:
+            new_instance = initialize_step(
+                self.params, self.step_definitions.get(step_key)
+            )
+            log.debug(f'Saving {new_instance.__class__} to context.')
+            self.context[context_key] = new_instance
+
+        return self.context[context_key]
 
     def _is_last_occurence(self, context_key: str) -> bool:
         """Returns True if context_key is not present in the remaining steps"""
