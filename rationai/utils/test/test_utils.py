@@ -1,3 +1,4 @@
+import abc
 import collections
 import unittest
 
@@ -203,6 +204,90 @@ class TestClassHasMethod(unittest.TestCase):
         self.assertTrue(tst.class_has_method(TestClass2, 'test_method'))
         self.assertTrue(tst.class_has_method(TestClass3, 'test_method'))
         self.assertTrue(tst.class_has_method(TestClass4, 'test_method'))
+
+
+class TestClassHasNonabstractMethod(unittest.TestCase):
+    def test_class_without_attribute_fails(self):
+        class TestClass:
+            pass
+
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass, 'test_method')
+        )
+
+    def test_class_with_noncallable_attribute_fails(self):
+        class TestClass1:
+            test_method = None
+
+        class TestClass2:
+            test_method = []
+
+        class TestClass3:
+            test_method = 42
+
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass1, 'test_method')
+        )
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass2, 'test_method')
+        )
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass3, 'test_method')
+        )
+
+    def test_class_with_nonabstract_method_passes(self):
+        def test_function():
+            return None
+
+        class TestClass1:
+            test_method = test_function
+
+        class TestClass2:
+            def test_method(self):
+                return None
+
+        class TestClass3:
+            @staticmethod
+            def test_method():
+                return None
+
+        class TestClass4:
+            @classmethod
+            def test_method(cls):
+                return None
+
+        self.assertTrue(tst.class_has_nonabstract_method(TestClass1, 'test_method'))
+        self.assertTrue(tst.class_has_nonabstract_method(TestClass2, 'test_method'))
+        self.assertTrue(tst.class_has_nonabstract_method(TestClass3, 'test_method'))
+        self.assertTrue(tst.class_has_nonabstract_method(TestClass4, 'test_method'))
+
+    def test_class_with_abstract_method_fails(self):
+        class TestClass1:
+            @abc.abstractmethod
+            def test_method(self):
+                return None
+
+        class TestClass2:
+            @staticmethod
+            @abc.abstractmethod
+            def test_method():
+                return None
+
+        class TestClass3:
+            @classmethod
+            @abc.abstractmethod
+            def test_method(cls):
+                return None
+
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass1, 'test_method')
+        )
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass2, 'test_method')
+        )
+        self.assertFalse(
+            tst.class_has_nonabstract_method(TestClass3, 'test_method')
+        )
 
 
 class TestLoadClass(unittest.TestCase):

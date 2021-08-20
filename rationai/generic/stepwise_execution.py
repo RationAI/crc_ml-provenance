@@ -1,13 +1,30 @@
+"""
+Handling of executions of runs' steps.
+
+Key concepts:
+- StepInterface: an abstract class which should be implemented in order to
+                 treat the resulting object as a pipeline (run) step.
+- StepExecutor: handles the general running of the pipeline - keeps ordering
+                and runs steps (StepInterface objects) one-by-one
+
+- step key: identifies a step (a string, e.g. "train", "test", etc.)
+- contextual steps: steps which are identified by a step key in the format
+                    "context.method"
+                    in such a case, "context" describes the context (step
+                    object), while "method" identifies the step (method of the
+                    step object to be run).
+- context key: is the first part before a period of a contextual step; for
+               non-contextual steps, the context key is the same as the whole
+               step key (in other words, we may recognize whether a key is
+               contextual or not by seeing whether its context key equals the
+               whole step key)
+"""
 from __future__ import annotations
 
 import abc
 import logging
 from copy import deepcopy
-from typing import (
-    List,
-    NoReturn,
-    Optional
-)
+from typing import NoReturn, Optional
 
 from rationai.utils import utils
 
@@ -18,13 +35,8 @@ def extract_context_key(step_key: str) -> str:
     """
     Get context key from step key.
 
-    A step key identifies an execution step. Potentially, a step key can have
-    the format '<part1>.<part2>'. In this case, <part1> describes the context
-    (step object), while <part2> identifies the step (method of the step
-    object to be run).
-
     This function returns '<part1>' for input '<part1>.<part2>'. For input
-    '<part1>', this same input is returned as output.
+    such as '<part1>', this same input is returned as output.
 
     Parameters
     ----------
@@ -33,8 +45,9 @@ def extract_context_key(step_key: str) -> str:
 
     Return
     ------
-    Either the context key (if `step_key` is contextual), or the `step_key`
-    itself.
+    str
+        Either the context key (if `step_key` is contextual), or the `step_key`
+        itself.
 
     Raise
     -----
@@ -119,8 +132,9 @@ class StepInterface(abc.ABC):
     Interface for classes that are runnable as pipeline steps.
 
     Subclass requirements:
-        - @classmethod from_params(params: dict, self_config: dict)
-        - method continue_from_run()
+        - must implement:
+            - @classmethod from_params(params: dict, self_config: dict)
+            - method continue_from_run()
         - A step is initialized if issubclass(cls, StepInterface) is True
         - A step is run by specifying the method to execute.
           Optionally, the method's keyword arguments can be specified
@@ -134,8 +148,12 @@ class StepInterface(abc.ABC):
             and utils.callable_has_signature(
                 subclass.from_params, ['params', 'self_config']
             )
-            and utils.class_has_method(subclass, 'continue_from_run')
-            and utils.callable_has_signature(subclass.continue_from_run, [])
+            and utils.class_has_nonabstract_method(
+                subclass, 'continue_from_run'
+            )
+            and utils.callable_has_signature(
+                subclass.continue_from_run, ['self']
+            )
         )
 
     @classmethod
@@ -180,7 +198,7 @@ class StepExecutor:
 
     Config usage example:
         Array "ordered_steps" contains custom user-defined keys
-        that represet the pipeline steps.
+        that represent the pipeline steps.
         Dictionary "step_definitions" contains a definition for each key.
 
         Additionally, multiple steps can be run using one instance.
@@ -204,9 +222,9 @@ class StepExecutor:
             }
     """
 
-    def __init__(self, ordered_steps: List[str], step_definitions: dict, params: dict):
+    def __init__(self, ordered_steps: list[str], step_definitions: dict, params: dict):
         self.current_step_idx = -1  # starting index
-        self.step_keys = deepcopy(ordered_steps)
+        self.step_keys = ordered_steps[:]
         self.step_definitions = deepcopy(step_definitions)
         self.params = deepcopy(params)
 
@@ -220,33 +238,30 @@ class StepExecutor:
             # current step is the last step defined
             return None
 
-    def run_has_more_steps(self) -> bool:
-        return self.next_step_key() is not None
-
     def run_next(self) -> NoReturn:
         """Loads next class in the queue and runs its specified method.
         Returns a peek at the next item in the iterator
         or None when all the steps are performed.
         """
-        if not self.run_has_more_steps():
-            return
+        step_key = self.next_step_key()
+        if step_key is None:
+            return False
 
-        step_name = self.next_step_key()
         self.current_step_idx += 1
 
-        if step_name not in self.step_definitions:
-            log.info(f'Step "{step_name}" not found in step_definitions. Skipping ...')
-            return
+        if step_key not in self.step_definitions:
+            log.error(f'Step "{step_key}" not found in step_definitions.')
+            return False
 
-        step_instance = self._load_step_instance(step_name)
+        step_instance = self._load_step_instance(step_key)
         if step_instance is None:
-            return
+            return False
 
         try:
-            exec_info = self.step_definitions[step_name]['exec']
+            exec_info = self.step_definitions[step_key]['exec']
         except KeyError:
-            log.error(f'No execution info for step "{step_name}" provided.')
-            return
+            log.error(f'No execution info for step "{step_key}" provided.')
+            return False
 
         exec_method = exec_info.get('method')
         kwargs = exec_info.get('kwargs', dict())
@@ -254,15 +269,15 @@ class StepExecutor:
         try:
             utils.run_classmethod(step_instance.__class__, exec_method, kwargs)
         except Exception as ex:
-            log.error(f'Failed step run "{step_name}", full stack trace: {ex}')
-            return
+            log.error(f'Failed step run "{step_key}", full stack trace: {ex}')
+            return False
 
-        self._free_up_context_if_possible(step_name)
-        return
+        self._free_up_context_if_possible(step_key)
+        return self.next_step_key() is not None
 
     def run_all(self) -> NoReturn:
-        while self.run_has_more_steps():
-            self.run_next()
+        while self.run_next():
+            pass
 
     def _load_step_instance(self, step_key: str) -> Optional[StepInterface]:
         """

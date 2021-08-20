@@ -120,6 +120,33 @@ def class_has_classmethod(cls_object: type, method_name: str) -> bool:
     )
 
 
+def class_has_nonabstract_method(cls_object: type, method_name: str) -> bool:
+    """
+   Check whether a class object declares a non-abstract method of given name.
+
+   The same as `class_has_method`, with the additional constraint that the
+   method is not abstract method.
+
+   Parameters
+   ----------
+   cls_object : type
+       The class object to check.
+   method_name : str
+       The name of the method to search `cls_object` for.
+
+   Return
+   ------
+   bool
+       True if `cls_object` has a non-abstract method named `method_name`,
+       False otherwise.
+   """
+    if not class_has_method(cls_object, method_name):
+        return False
+
+    method = getattr(cls_object, method_name)
+    return getattr(method, '__isabstractmethod__', False) is False
+
+
 def parse_module_and_class_string(descriptor: str) -> Tuple[str, str]:
     """
     Parse a class descriptor string into class and module descriptors.
