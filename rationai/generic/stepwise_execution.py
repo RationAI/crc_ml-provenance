@@ -22,7 +22,6 @@ Key concepts:
                contextual or not by seeing whether its context key equals the
                whole step key)
 """
-# TODO: put DirStructure back to StepExecutor and StepInterface
 from __future__ import annotations
 
 import abc
@@ -31,12 +30,14 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, NoReturn, Optional
 
-from rationai.utils import utils
+from rationai.utils import utils, DirStructure
 
 log = logging.getLogger('step-exec')
 
 
-def initialize_step(params: dict, step_config: StepConfig) -> Optional[StepInterface]:
+def initialize_step(
+        params: dict, step_config: StepConfig, dir_structure: DirStructure
+) -> Optional[StepInterface]:
     """
     Initialize a StepInterface instance.
 
@@ -48,6 +49,9 @@ def initialize_step(params: dict, step_config: StepConfig) -> Optional[StepInter
         Overall parameters of the run.
     step_config : StepConfig
         Step initialization and execution-specific parameters.
+    dir_structure : DirStructure
+        The shared data directory structure for the run in which the step is to
+        be executed.
 
     Return
     ------
@@ -67,7 +71,8 @@ def initialize_step(params: dict, step_config: StepConfig) -> Optional[StepInter
     try:
         return cls.from_params(
             params=deepcopy(params),
-            self_config=deepcopy(step_config.init_params)
+            self_config=deepcopy(step_config.init_params),
+            dir_structure=dir_structure
         )
     except Exception as ex:
         log.error(
@@ -277,7 +282,7 @@ class StepInterface(abc.ABC):
         return (
             utils.class_has_classmethod(subclass, 'from_params')
             and utils.callable_has_signature(
-                subclass.from_params, ['params', 'self_config']
+                subclass.from_params, ['params', 'self_config', 'dir_structure']
             )
             and utils.class_has_nonabstract_method(
                 subclass, 'continue_from_run'
@@ -289,7 +294,7 @@ class StepInterface(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_params(cls, self_config: dict, params: dict) -> StepInterface:
+    def from_params(cls, self_config: dict, params: dict, dir_structure: DirStructure) -> StepInterface:
         """
         Factory method used by `StepExecutor` to initialize a step.
 
@@ -301,6 +306,9 @@ class StepInterface(abc.ABC):
             Configuration specific for this step.
         params : dict
             The general configuration information.
+        dir_structure : DirStructure
+            The shared data directory structure for the run in which this step
+            is to be executed.
         """
         raise NotImplementedError(
             'Pipeline Step has to implement from_params classmethod'
@@ -347,11 +355,12 @@ class StepExecutor:
     step_definitions: dict
     step_keys: list[str]
 
-    def __init__(self, step_keys: list[str], step_definitions: dict, params: dict):
+    def __init__(self, step_keys: list[str], step_definitions: dict, params: dict, dir_structure: DirStructure):
         self.current_step_idx = -1  # starting index
         self.step_keys = step_keys[:]
         self.step_definitions = deepcopy(step_definitions)
         self.params = deepcopy(params)
+        self.dir_structure = dir_structure
 
         # Stores step instances for re-usage
         self.context = dict()
@@ -424,7 +433,7 @@ class StepExecutor:
         if step_config.is_contextual_step:
             return self._load_contextual_instance(step_config)
 
-        return initialize_step(self.params, step_config)
+        return initialize_step(self.params, step_config, self.dir_structure)
 
     def _load_contextual_instance(self, step_config: StepConfig) -> Optional[StepInterface]:
         """
@@ -444,7 +453,7 @@ class StepExecutor:
             to instantiate.
         """
         if step_config.context_key not in self.context:
-            new_instance = initialize_step(self.params, step_config)
+            new_instance = initialize_step(self.params, step_config, self.dir_structure)
             log.debug(f'Saving {new_instance.__class__} to context.')
             self.context[step_config.context_key] = new_instance
 

@@ -3,6 +3,79 @@ import unittest
 import rationai.generic.stepwise_execution as tst
 
 
+class StepInterfaceDummy(tst.StepInterface):
+    @classmethod
+    def from_params(
+            cls,
+            self_config: dict,
+            params: dict,
+            dir_structure: tst.DirStructure
+    ):
+        return cls()
+
+    def continue_from_run(self):
+        pass
+
+
+class StepInterfaceErrorRaisingDummy(tst.StepInterface):
+    @classmethod
+    def from_params(
+            cls,
+            self_config: dict,
+            params: dict,
+            dir_structure: tst.DirStructure
+    ):
+        raise ValueError()
+
+    def continue_from_run(self):
+        pass
+
+
+class TestInitializeStep(unittest.TestCase):
+
+    def test_cannot_initialize_not_subclass_of_step_interface(self):
+        params_dummy = {}
+
+        class StepConfigDummy:
+            class_id = 'collections.OrderedDict'
+            init_params = {}
+
+        class DirStructDummy:
+            pass
+
+        self.assertIsNone(
+            tst.initialize_step(params_dummy, StepConfigDummy(), DirStructDummy())
+        )
+
+    def test_can_initialize_step_interface(self):
+        params_dummy = {}
+
+        class StepConfigDummy:
+            class_id = 'rationai.generic.test.test_stepwise_execution.StepInterfaceDummy'
+            init_params = {}
+
+        class DirStructDummy:
+            pass
+
+        self.assertIsNotNone(
+            tst.initialize_step(params_dummy, StepConfigDummy(), DirStructDummy())
+        )
+
+    def test_return_none_on_error(self):
+        params_dummy = {}
+
+        class StepConfigDummy:
+            class_id = 'rationai.generic.test.test_stepwise_execution.StepInterfaceErrorRaisingDummy'
+            init_params = {}
+
+        class DirStructDummy:
+            pass
+
+        self.assertIsNone(
+            tst.initialize_step(params_dummy, StepConfigDummy(), DirStructDummy())
+        )
+
+
 class TestToContextKey(unittest.TestCase):
     def test_extract_basic_context_key(self):
         self.assertEqual('context', tst.to_context_key('context.step'))
@@ -171,7 +244,7 @@ class TestStepInterfaceSubclassing(unittest.TestCase):
 
     def test_cannot_run_from_params(self):
         with self.assertRaises(NotImplementedError):
-            tst.StepInterface.from_params({}, {})
+            tst.StepInterface.from_params({}, {}, None)
 
     def test_cannot_run_continue_from_run(self):
         with self.assertRaises(NotImplementedError):
@@ -187,7 +260,7 @@ class TestStepInterfaceSubclassing(unittest.TestCase):
     def test_cannot_subclass_without_continue_from_run(self):
         class StepInterfaceImpl(tst.StepInterface):
             @classmethod
-            def from_params(cls, self_config, params):
+            def from_params(cls, self_config, params, dir_structure):
                 pass
 
         self.assertFalse(issubclass(StepInterfaceImpl, tst.StepInterface))
@@ -206,7 +279,7 @@ class TestStepInterfaceSubclassing(unittest.TestCase):
                 pass
 
             @classmethod
-            def from_params(cls, self_config, params):
+            def from_params(cls, self_config, params, dir_structure):
                 pass
 
         self.assertFalse(issubclass(StepInterfaceImpl, tst.StepInterface))
@@ -215,7 +288,7 @@ class TestStepInterfaceSubclassing(unittest.TestCase):
     def test_can_subclass_with_constraints_satisfied(self):
         class StepInterfaceImpl(tst.StepInterface):
             @classmethod
-            def from_params(cls, self_config, params):
+            def from_params(cls, self_config, params, dir_structure):
                 pass
 
             def continue_from_run(self):
