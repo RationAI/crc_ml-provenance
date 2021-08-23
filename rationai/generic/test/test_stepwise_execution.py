@@ -3,53 +3,165 @@ import unittest
 import rationai.generic.stepwise_execution as tst
 
 
-class TestExtractContextKey(unittest.TestCase):
+class TestToContextKey(unittest.TestCase):
     def test_extract_basic_context_key(self):
-        self.assertEqual('context', tst.extract_context_key('context.step'))
-        self.assertEqual('context2', tst.extract_context_key('context2.step2'))
+        self.assertEqual('context', tst.to_context_key('context.step'))
+        self.assertEqual('context2', tst.to_context_key('context2.step2'))
 
     def test_extract_context_key_from_noncontextual_step(self):
-        self.assertEqual('step', tst.extract_context_key('step'))
+        self.assertEqual('step', tst.to_context_key('step'))
 
     def test_malformed_step_raises_value_error(self):
         with self.assertRaises(ValueError):
-            tst.extract_context_key('context.strange.expression')
+            tst.to_context_key('context.strange.expression')
 
         with self.assertRaises(ValueError):
-            tst.extract_context_key('.strange')
+            tst.to_context_key('.strange')
 
         with self.assertRaises(ValueError):
-            tst.extract_context_key('.strange.part')
+            tst.to_context_key('.strange.part')
 
         with self.assertRaises(ValueError):
-            tst.extract_context_key('part.')
+            tst.to_context_key('part.')
 
         with self.assertRaises(ValueError):
-            tst.extract_context_key('strange.part.')
+            tst.to_context_key('strange.part.')
 
 
-class TestIsStepContextual(unittest.TestCase):
+class TestStepConfig(unittest.TestCase):
+    def setUp(self):
+        self.base_definition = dict(
+            init=dict(class_id='some_id', config=dict()),
+            exec=dict(method='some_method', kwargs=dict())
+        )
+
+    def test_existing_step_key_parses_to_object(self):
+        step_definitions = dict(step=self.base_definition)
+        step_config = tst.StepConfig.from_step_definitions(
+            'step', step_definitions
+        )
+        self.assertIsNotNone(step_config)
+
     def test_contextual_step(self):
-        self.assertTrue(tst.is_step_contextual('context.step'))
+        step_definitions = {'context.step': self.base_definition}
+        step_config = tst.StepConfig.from_step_definitions(
+            'context.step', step_definitions
+        )
+        self.assertTrue(step_config.is_contextual_step)
 
     def test_noncontextual_step(self):
-        self.assertFalse(tst.is_step_contextual('step'))
+        step_definitions = dict(step=self.base_definition)
+        step_config = tst.StepConfig.from_step_definitions(
+            'step', step_definitions
+        )
+        self.assertFalse(step_config.is_contextual_step)
 
-    def test_malformed_step_raises_value_error(self):
-        with self.assertRaises(ValueError):
-            tst.extract_context_key('context.strange.expression')
+    def test_missing_step_key_parses_to_none(self):
+        step_config = tst.StepConfig.from_step_definitions('test', {})
+        self.assertIsNone(step_config)
 
-        with self.assertRaises(ValueError):
-            tst.extract_context_key('.strange')
+    def test_malformed_step_key_parses_to_none(self):
+        step_definitions = {
+            'context.strange.expression': self.base_definition,
+            '.strange': self.base_definition,
+            '.strange.part': self.base_definition,
+            'part.': self.base_definition,
+            'strange.part.': self.base_definition
+        }
 
-        with self.assertRaises(ValueError):
-            tst.extract_context_key('.strange.part')
+        for step_key in step_definitions:
+            step_config = tst.StepConfig.from_step_definitions(
+                step_key, step_definitions
+            )
+            self.assertIsNone(step_config)
 
-        with self.assertRaises(ValueError):
-            tst.extract_context_key('part.')
+    def test_parse_init_info_requires_init(self):
+        del self.base_definition['init']
 
-        with self.assertRaises(ValueError):
-            tst.extract_context_key('strange.part.')
+        parsed = tst.StepConfig._parse_init_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertIsNone(parsed[0])
+        self.assertIsNone(parsed[1])
+
+    def test_parse_init_info_requires_class_id(self):
+        del self.base_definition['init']['class_id']
+
+        parsed = tst.StepConfig._parse_init_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertIsNone(parsed[0])
+        self.assertIsNone(parsed[1])
+
+    def test_parse_init_info_config_is_optional(self):
+        del self.base_definition['init']['config']
+
+        parsed = tst.StepConfig._parse_init_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertEqual('some_id', parsed[0])
+        self.assertDictEqual(dict(), parsed[1])
+
+    def test_parse_init_info(self):
+        config = dict(param_a=1)
+        self.base_definition['init']['class_id'] = 'test_parse_id'
+        self.base_definition['init']['config'] = config
+
+        parsed = tst.StepConfig._parse_init_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertEqual('test_parse_id', parsed[0])
+        self.assertDictEqual(config, parsed[1])
+
+    def test_parse_exec_info_requires_exec(self):
+        del self.base_definition['exec']
+
+        parsed = tst.StepConfig._parse_exec_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertIsNone(parsed[0])
+        self.assertIsNone(parsed[1])
+
+    def test_parse_exec_info_requires_method(self):
+        del self.base_definition['exec']['method']
+
+        parsed = tst.StepConfig._parse_exec_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertIsNone(parsed[0])
+        self.assertIsNone(parsed[1])
+
+    def test_parse_exec_info_kwargs_is_optional(self):
+        del self.base_definition['exec']['kwargs']
+
+        parsed = tst.StepConfig._parse_exec_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertEqual('some_method', parsed[0])
+        self.assertDictEqual(dict(), parsed[1])
+
+    def test_parse_exec_info(self):
+        kwargs = dict(param_b=['test'])
+        self.base_definition['exec']['method'] = 'test_parse_method'
+        self.base_definition['exec']['kwargs'] = kwargs
+
+        parsed = tst.StepConfig._parse_exec_info('step', self.base_definition)
+        self.assertEqual(2, len(parsed))
+        self.assertEqual('test_parse_method', parsed[0])
+        self.assertDictEqual(kwargs, parsed[1])
+
+    def test_class_id_and_method_are_mandatory(self):
+        step_definitions = {
+            'without_class_id': self.base_definition.copy(),
+            'without_method': self.base_definition.copy()
+        }
+
+        del step_definitions['without_class_id']['init']['class_id']
+
+        step_config = tst.StepConfig.from_step_definitions(
+            'without_class_id', step_definitions
+        )
+        self.assertIsNone(step_config)
+
+        del step_definitions['without_class_id']['exec']['method']
+
+        step_config = tst.StepConfig.from_step_definitions(
+            'without_method', step_definitions
+        )
+        self.assertIsNone(step_config)
 
 
 class TestStepInterfaceSubclassing(unittest.TestCase):
