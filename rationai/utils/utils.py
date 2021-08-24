@@ -201,34 +201,34 @@ def load_class(class_descriptor: str) -> type:
     return getattr(module, class_name)
 
 
-def run_classmethod(cls: type, method_name: str, kwargs: dict) -> Any:
+def run_method(obj: object, method_name: str, kwargs: dict) -> Any:
     """
-    Runs a classmethod of given class with passed parameters.
+    Runs a method of given object with passed parameters.
 
     Parameters
     ----------
-    cls : type
-        The class whose classmethod should be run.
+    obj : object
+        The object whose method should be run.
     method_name : str
-        The name of the classmethod to run.
+        The name of the method to run.
     kwargs : dict
-        The arguments to be passed to the classmethod.
+        The arguments to be passed to the method.
 
     Return
     ------
     Any
-        The return value of the run classmethod.
+        The return value of the run method.
 
     Raise
     -----
     AttributeError
-        When `cls` does not declare a classmethod of name `method_name`.
+        When `obj` does not declare a (non-abstract) method `method_name`.
     """
-    if not class_has_classmethod(cls, method_name):
+    if not class_has_nonabstract_method(obj, method_name):
         raise AttributeError(
-            f'class {cls} does not declare classmethod {method_name}'
+            f'object {obj} does not declare classmethod {method_name}'
         )
-    return getattr(cls, method_name)(**kwargs)
+    return getattr(obj, method_name)(**kwargs)
 
 
 def divide_round_up(n, d):

@@ -11,10 +11,15 @@ class StepInterfaceDummy(tst.StepInterface):
             params: dict,
             dir_structure: tst.DirStructure
     ):
-        return cls()
+        return cls(**self_config)
 
     def continue_from_run(self):
         pass
+
+    @staticmethod
+    def run(fail=False):
+        if fail:
+            raise IndexError()
 
 
 class StepInterfaceErrorRaisingDummy(tst.StepInterface):
@@ -28,6 +33,27 @@ class StepInterfaceErrorRaisingDummy(tst.StepInterface):
         raise ValueError()
 
     def continue_from_run(self):
+        pass
+
+
+class StepInterfaceWithParamsDummy(tst.StepInterface):
+
+    def __init__(self, param_id):
+        self.id = param_id
+
+    @classmethod
+    def from_params(
+            cls,
+            self_config: dict,
+            params: dict,
+            dir_structure: tst.DirStructure
+    ):
+        return cls(**self_config)
+
+    def continue_from_run(self):
+        pass
+
+    def run(self, state_number):
         pass
 
 
@@ -235,6 +261,250 @@ class TestStepConfig(unittest.TestCase):
             'without_method', step_definitions
         )
         self.assertIsNone(step_config)
+
+
+class TestStepExecutor(unittest.TestCase):
+    def setUp(self):
+        class DirStructDummy:
+            pass
+
+        self.dir_struct = DirStructDummy(),
+
+        self.valid_dummy_with_params_config = dict(
+            init=dict(
+                class_id='rationai.generic.test.test_stepwise_execution.StepInterfaceWithParamsDummy',
+                config=dict(param_id=1)
+            ),
+            exec=dict(
+                method='run',
+                kwargs=dict(state_number=42)
+            )
+        )
+
+        self.valid_dummy_no_fail_config = dict(
+            init=dict(
+                class_id='rationai.generic.test.test_stepwise_execution.StepInterfaceDummy',
+                config=dict()
+            ),
+            exec=dict(
+                method='run'
+            )
+        )
+
+        self.valid_dummy_fail_config = dict(
+            init=dict(
+                class_id='rationai.generic.test.test_stepwise_execution.StepInterfaceDummy',
+                config=dict()
+            ),
+            exec=dict(
+                method='run',
+                # Make the run fail
+                kwargs=dict(fail=True)
+            )
+        )
+
+        self.invalid_dummy_no_exec_method_config = dict(
+            init=dict(
+                class_id='rationai.generic.test.test_stepwise_execution.StepInterfaceDummy',
+                config=dict(id=1)
+            ),
+            exec=dict(
+                # the method config option is mandatory
+                # method='run'
+            )
+        )
+
+        self.invalid_dummy_bad_params_config = dict(
+            init=dict(
+                class_id='rationai.generic.test.test_stepwise_execution.StepInterfaceDummy',
+                config=dict(nonexisting_param=1)
+            ),
+            exec=dict(
+                method='run'
+            )
+        )
+
+    def test_proper_initialization(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_key'],
+            step_definitions=dict(some_key=dict()),
+            params=dict(param_a=1),
+            dir_structure=self.dir_struct
+        )
+
+        self.assertEqual(-1, executor.current_step_idx)
+        self.assertListEqual(['test_key'], executor.step_keys)
+        self.assertDictEqual(dict(some_key=dict()), executor.step_definitions)
+        self.assertDictEqual(dict(param_a=1), executor.params)
+        self.assertIs(self.dir_struct, executor.dir_structure)
+        self.assertDictEqual(dict(), executor.context)
+
+    def test_next_step_key(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_key'],
+            step_definitions=dict(some_key=dict()),
+            params=dict(param_a=1),
+            dir_structure=self.dir_struct
+        )
+        self.assertEqual('test_key', executor.next_step_key())
+
+        executor = tst.StepExecutor(
+            step_keys=[],
+            step_definitions=dict(some_key=dict()),
+            params=dict(param_a=1),
+            dir_structure=self.dir_struct
+        )
+        self.assertIsNone(executor.next_step_key())
+
+    def test_run_next_moves_index(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step'],
+            step_definitions=dict(
+                test_step=self.valid_dummy_with_params_config
+            ),
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+        self.assertFalse(executor.run_next())
+        self.assertEqual(0, executor.current_step_idx)
+
+        self.assertFalse(executor.run_next())
+        self.assertEqual(0, executor.current_step_idx)
+
+    def test_run_next_can_run_multiple_steps(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step', 'test_step_1'],
+            step_definitions=dict(
+                test_step=self.valid_dummy_with_params_config,
+                test_step_1=self.valid_dummy_with_params_config
+            ),
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+        self.assertTrue(executor.run_next())
+        self.assertEqual(0, executor.current_step_idx)
+
+        self.assertFalse(executor.run_next())
+        self.assertEqual(1, executor.current_step_idx)
+
+    def test_run_next_holds_context(self):
+        executor = tst.StepExecutor(
+            step_keys=['ctx.test_step', 'test_step_1', 'ctx.test_step_2', 'test_step_3'],
+            step_definitions={
+                'ctx.test_step': self.valid_dummy_with_params_config,
+                'test_step_1': self.valid_dummy_no_fail_config,
+                # Watch out for the discrepancy:
+                # class_id - StepInterfaceDummy
+                # run kwargs - state_number
+                # because a StepInterfaceWithMemoryDummy object is saved in
+                # the context, class_id gets ignored
+                # TODO: Potentially fix this to fail explicitly in this case
+                'ctx.test_step_2': dict(
+                    init=dict(
+                        class_id='rationai.generic.test.test_stepwise_execution.StepInterfaceDummy',
+                        config=dict(param_id=2)
+                    ),
+                    exec=dict(
+                        method='run',
+                        kwargs=dict(state_number=42)
+                    )
+                ),
+                'test_step_3': self.valid_dummy_no_fail_config,
+            },
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+        self.assertDictEqual({}, executor.context)
+        self.assertTrue(executor.run_next())
+        self.assertEqual(0, executor.current_step_idx)
+        self.assertTrue('ctx' in executor.context)
+        self.assertIsInstance(executor.context['ctx'], StepInterfaceWithParamsDummy)
+
+        self.assertTrue(executor.run_next())
+        self.assertEqual(1, executor.current_step_idx)
+        self.assertTrue('ctx' in executor.context)
+        self.assertIsInstance(executor.context['ctx'], StepInterfaceWithParamsDummy)
+
+        self.assertTrue(executor.run_next())
+        self.assertEqual(2, executor.current_step_idx)
+        self.assertFalse('ctx' in executor.context)
+
+        self.assertFalse(executor.run_next())
+        self.assertEqual(3, executor.current_step_idx)
+
+    def test_error_in_step_execution_fails_run(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step_0', 'test_step_1', 'test_step_2'],
+            step_definitions={
+                'test_step_0': self.valid_dummy_no_fail_config,
+                'test_step_1': self.valid_dummy_fail_config,
+                'test_step_2': self.valid_dummy_no_fail_config
+            },
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+        self.assertTrue(executor.run_next())
+        self.assertEqual(0, executor.current_step_idx)
+
+        self.assertFalse(executor.run_next())
+        self.assertEqual(1, executor.current_step_idx)
+
+    def test_invalid_step_config_disables_run(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step_0', 'test_step_1'],
+            step_definitions={
+                'test_step_0': self.invalid_dummy_no_exec_method_config,
+                'test_step_1': self.valid_dummy_no_fail_config
+            },
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+
+        self.assertFalse(executor.run_next())
+
+    def test_invalid_step_instance(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step_0', 'test_step_1'],
+            step_definitions={
+                'test_step_0': self.invalid_dummy_bad_params_config,
+                'test_step_1': self.valid_dummy_no_fail_config
+            },
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+
+        self.assertFalse(executor.run_next())
+
+    def test_run_all(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step_0', 'test_step_1', 'test_step_2'],
+            step_definitions={
+                'test_step_0': self.valid_dummy_no_fail_config,
+                'test_step_1': self.valid_dummy_no_fail_config,
+                'test_step_2': self.valid_dummy_no_fail_config
+            },
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+
+        executor.run_all()
+        self.assertIsNone(executor.next_step_key())
+        self.assertEqual(2, executor.current_step_idx)
+
+    def test_run_all_stops_on_fail(self):
+        executor = tst.StepExecutor(
+            step_keys=['test_step_0', 'test_step_1', 'test_step_2'],
+            step_definitions={
+                'test_step_0': self.valid_dummy_no_fail_config,
+                'test_step_1': self.valid_dummy_fail_config,
+                'test_step_2': self.valid_dummy_no_fail_config
+            },
+            params=dict(),
+            dir_structure=self.dir_struct
+        )
+
+        executor.run_all()
+        self.assertEqual(1, executor.current_step_idx)
 
 
 class TestStepInterfaceSubclassing(unittest.TestCase):

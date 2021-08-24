@@ -41,8 +41,6 @@ def initialize_step(
     """
     Initialize a StepInterface instance.
 
-    RAI_UNTESTED
-
     Parameters
     ----------
     params : dict
@@ -354,6 +352,7 @@ class StepExecutor:
     params: dict[str, Any]
     step_definitions: dict
     step_keys: list[str]
+    dir_structure: DirStructure
 
     def __init__(self, step_keys: list[str], step_definitions: dict, params: dict, dir_structure: DirStructure):
         self.current_step_idx = -1  # starting index
@@ -376,6 +375,9 @@ class StepExecutor:
         """Loads next class in the queue and runs its specified method.
         Returns a peek at the next item in the iterator
         or None when all the steps are performed.
+
+        RAI_UNTESTABLE - cannot ensure that the defined StepInterface method
+                         was actually executed as of right now
         """
         step_key = self.next_step_key()
         if step_key is None:
@@ -395,8 +397,8 @@ class StepExecutor:
             return False
 
         try:
-            utils.run_classmethod(
-                step_instance.__class__,
+            utils.run_method(
+                step_instance,
                 step_config.exec_method,
                 step_config.exec_kwargs
             )
@@ -405,7 +407,7 @@ class StepExecutor:
             return False
 
         self._free_up_context_if_possible(step_config)
-        return self.next_step_key() is not None
+        return self.current_step_idx < (len(self.step_keys) - 1)
 
     def run_all(self) -> NoReturn:
         while self.run_next():
@@ -416,8 +418,6 @@ class StepExecutor:
         Initialize step instance.
 
         If contextual, the context gets cached for later use.
-
-        RAI_UNTESTED
 
         Parameters
         ----------
@@ -438,8 +438,6 @@ class StepExecutor:
     def _load_contextual_instance(self, step_config: StepConfig) -> Optional[StepInterface]:
         """
         Initialize contextual step instance and save it to context cache.
-
-        RAI_UNTESTED
 
         Parameters
         ----------
@@ -464,8 +462,6 @@ class StepExecutor:
         Delete a step context if it will not appear again in the run.
 
         Non-contextual steps are ignored.
-
-        RAI_UNTESTED
 
         Parameters
         ----------

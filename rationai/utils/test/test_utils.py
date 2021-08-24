@@ -350,24 +350,8 @@ class TestParseModuleAndClassString(unittest.TestCase):
         self.assertEqual('Class', result_b)
 
 
-class TestRunClassmethod(unittest.TestCase):
-    def test_classmethod_runs(self):
-        class TestClass:
-            @classmethod
-            def test_method(cls):
-                return 2
-
-            @classmethod
-            def test_method_subtract(cls, a, b):
-                return a - b
-
-        self.assertEqual(2, tst.run_classmethod(TestClass, 'test_method', {}))
-        self.assertEqual(
-            -3,
-            tst.run_classmethod(TestClass, 'test_method_subtract', dict(a=1, b=4))
-        )
-
-    def test_non_classmethod_raises_attribute_error(self):
+class TestRunMethod(unittest.TestCase):
+    def test_method_runs(self):
         class TestClass:
             def __init__(self):
                 self.return_val = -42
@@ -375,18 +359,39 @@ class TestRunClassmethod(unittest.TestCase):
             def test_method(self):
                 return self.return_val
 
-        with self.assertRaises(AttributeError):
-            tst.run_classmethod(TestClass, 'test_method', {})
+            @classmethod
+            def test_method_2(cls):
+                return 2
+
+            @classmethod
+            def test_method_subtract(cls, a, b):
+                return a - b
+
+        self.assertEqual(-42, tst.run_method(TestClass(), 'test_method', {}))
+        self.assertEqual(2, tst.run_method(TestClass, 'test_method_2', {}))
+        self.assertEqual(
+            -3,
+            tst.run_method(TestClass, 'test_method_subtract', dict(a=1, b=4))
+        )
 
     def test_nonexistent_method_raises_attribute_error(self):
         class TestClass:
             attribute = 3
 
         with self.assertRaises(AttributeError):
-            tst.run_classmethod(TestClass, 'attribute', {})
+            tst.run_method(TestClass, 'attribute', {})
 
         with self.assertRaises(AttributeError):
-            tst.run_classmethod(TestClass, 'nonexistent_method', {})
+            tst.run_method(TestClass, 'nonexistent_method', {})
+
+    def test_abstract_method_raises_attribute_error(self):
+        class TestClass:
+            @abc.abstractmethod
+            def abstract_method(self):
+                pass
+
+        with self.assertRaises(AttributeError):
+            tst.run_method(TestClass, 'abstract_method', {})
 
     def test_raised_error_gets_propagated(self):
         class TestClass:
@@ -395,4 +400,4 @@ class TestRunClassmethod(unittest.TestCase):
                 raise TypeError
 
         with self.assertRaises(TypeError):
-            tst.run_classmethod(TestClass, 'raising_method', {})
+            tst.run_method(TestClass, 'raising_method', {})
