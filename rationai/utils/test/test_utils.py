@@ -2,7 +2,7 @@ import abc
 import collections
 import unittest
 
-from rationai.utils import utils as tst
+from rationai.utils import clsutils as tst
 
 
 class TestCallableHasSignature(unittest.TestCase):

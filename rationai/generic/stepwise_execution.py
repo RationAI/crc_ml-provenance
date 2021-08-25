@@ -30,7 +30,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, NoReturn, Optional
 
-from rationai.utils import utils, DirStructure
+from rationai.utils import clsutils, DirStructure
 
 log = logging.getLogger('step-exec')
 
@@ -58,7 +58,7 @@ def initialize_step(
         occurs.
     """
     log.info(f'Initializing {step_config.class_id}')
-    cls = utils.load_class(step_config.class_id)
+    cls = clsutils.load_class(step_config.class_id)
 
     if not issubclass(cls, StepInterface):
         log.error(
@@ -278,14 +278,14 @@ class StepInterface(abc.ABC):
     @classmethod
     def __subclasshook__(cls, subclass):
         return (
-            utils.class_has_classmethod(subclass, 'from_params')
-            and utils.callable_has_signature(
+                clsutils.class_has_classmethod(subclass, 'from_params')
+                and clsutils.callable_has_signature(
                 subclass.from_params, ['params', 'self_config', 'dir_structure']
             )
-            and utils.class_has_nonabstract_method(
+                and clsutils.class_has_nonabstract_method(
                 subclass, 'continue_from_run'
             )
-            and utils.callable_has_signature(
+                and clsutils.callable_has_signature(
                 subclass.continue_from_run, ['self']
             )
         )
@@ -397,7 +397,7 @@ class StepExecutor:
             return False
 
         try:
-            utils.run_method(
+            clsutils.run_method(
                 step_instance,
                 step_config.exec_method,
                 step_config.exec_kwargs
