@@ -20,7 +20,7 @@ Key concepts:
                non-contextual steps, the context key is the same as the whole
                step key (in other words, we may recognize whether a key is
                contextual or not by seeing whether its context key equals the
-               whole step key)
+               whole step key); e.g., a step key "model.train" contains a context key "model"
 """
 from __future__ import annotations
 
