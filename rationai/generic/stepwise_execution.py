@@ -57,7 +57,7 @@ def initialize_step(
         An initialized instance of the StepInterface, or None if a problem
         occurs.
     """
-    log.info(f'Initializing {step_config.class_id}')
+    log.info(f'Initializing class {step_config.class_id} for the step {step_config.step_key}')
     cls = clsutils.load_class(step_config.class_id)
 
     if not issubclass(cls, StepInterface):
