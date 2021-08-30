@@ -63,6 +63,10 @@ class DirStructure:
         -----
         ValueError
             When `key` already exists inside `self.paths`.
+
+        RAI_UNTESTABLE - tests do not cover whether a new folder is correctly
+                         created when parameter `create` is True
+
         """
         if key in self.paths:
             raise ValueError(f'Cannot add key "{key}" to DirStructure: '
