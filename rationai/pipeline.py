@@ -47,7 +47,6 @@ def main(params: dict, description: str, device: str):
     # Path managing
     dir_struct = exp_init.get_dir_struct()
     sw.set_path(dir_struct.get('expdir') / 'summary.json')
-    dir_struct.log_paths_to_summary(sw)
 
     # Execute the pipeline steps
     StepExecutor(
@@ -59,7 +58,7 @@ def main(params: dict, description: str, device: str):
     ).run_all()
 
     log.info(f'Experiment ID: {exp_init.eid}')
-    dir_struct.log_paths_to_summary(sw)
+    # dir_struct.log_paths_to_summary(sw)  # NOTE: needs to be implemented
 
 
 def load_params(params_filepath: Path) -> dict:

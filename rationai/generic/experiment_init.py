@@ -1,20 +1,21 @@
-import os
 import json
-import shutil
 import logging
+import os
+import shutil
 from copy import deepcopy
 from pathlib import Path
-from typing import (
-    Optional,
-    Union,
-    Type
-)
 from uuid import uuid4
+
+from typing import Dict
+from typing import NoReturn
+from typing import Optional
+from typing import Type
+from typing import Union
 
 from rationai.utils import DirStructure
 from rationai.utils import make_archive
 
-log = logging.getLogger('exp_init')
+log = logging.getLogger('exp-init')
 
 # A relative path to the dir inside the project containing the source code
 SOURCE_DIR = 'rationai'
@@ -38,18 +39,17 @@ class ExperimentInitializer:
                  data_dirs_params: dict):
 
         self.exp_params = exp_params
-        self.dir_struct = DirStructure(data_dirs_params)
+        self.dir_struct = DirStructure()
 
         self.eid = self._generate_id()
         # Set in case we continue previous experiment
         self.continue_eid = None
         self.use_copy_mode = False
 
-        self._init_eval_ckpt_dirs()
+        self._init_dirs(data_dirs_params)
         if 'continue' in exp_params and exp_params['continue'].get('eid'):
             self._handle_continue_experiment()
 
-        self.dir_struct.create_dirs()
         self._log_source_code()
 
         log.info(f'EXPERIMENT ID: {self.eid}')
@@ -107,9 +107,20 @@ class ExperimentInitializer:
 
         return eid
 
-    def _init_eval_ckpt_dirs(self):
-        result_dir = self.dir_struct.get('results')
+    def _init_dirs(self, path_config: dict) -> NoReturn:
+        """
+        Adds basic generic paths to DirStructure instance.
+        """
+        # Input data root
+        self.dir_struct.add('data_root', Path(path_config['root']))
+
+        # Location where to create a folder for run results
+        result_dir = self.dir_struct.add('results', Path(path_config.get('results', 'results')))
+
+        # TODO: rename to `rundir` (globally in a separate commit)
         eval_dir = self.dir_struct.add('expdir', result_dir / self.eid)
+
+        # TODO: move to a better place when refactoring this class (ckpts is not generic)
         self.dir_struct.add('checkpoints', eval_dir / 'callbacks' / 'ModelCheckpoint')
 
     def _log_source_code(self):
