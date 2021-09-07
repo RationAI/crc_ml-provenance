@@ -59,6 +59,13 @@ class StepInterface(abc.ABC):
         StepExecutor uses the method to initialize the steps."""
         raise NotImplementedError('Pipeline Step has to implement from_params classmethod')
 
+    def init_path_variables(self):
+        """
+        Implementation of the method should ensure that DirStructure object
+        contains the paths it needs for the execution of the step.
+        """
+        raise NotImplementedError('Pipeline step has to imlement `init_path_variables` method')
+
 
 class StepExecutor:
     """Generic executor of pipeline steps.
