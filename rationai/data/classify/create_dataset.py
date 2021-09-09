@@ -88,6 +88,7 @@ def main(args):
 
     with h5py.File((output_dir / ds_filename).with_suffix('.h5'), 'w') as f:
         string_dt = h5py.special_dtype(vlen=str)
+        f.attrs.create('coord_maps_dir', str(args.coord_maps))
         f.create_dataset('train', data=train_maps, dtype=string_dt)
         f.create_dataset('test', data=test_maps, dtype=string_dt)
         meta = get_metadata(ds_filename)

@@ -22,6 +22,7 @@ from rationai.generic import StepInterface
 from rationai.training.models import load_keras_model
 from rationai.utils import DirStructure
 from rationai.utils import SummaryWriter
+from rationai.utils.fileutils import get_h5_attr
 from rationai.visual.explain import utils
 from rationai.visual.explain.adapter import modeladapt
 from rationai.visual.explain.compute import occlusion
@@ -78,6 +79,8 @@ class OcclusionRunner(StepInterface):
         self.out_dir = out_dir
         self.summary_writer = summary_writer
 
+        self.init_path_variables()
+
         self.model = self._init_model()
         if summary_writer:
             self.summary_writer.set_value('occlusion', value={'mode': 'blended'})
@@ -103,6 +106,35 @@ class OcclusionRunner(StepInterface):
             traceback.print_exc()
             print(f'Failed to initialize OcclusionRunner: {e}')
             return None
+
+    def init_path_variables(self) -> NoReturn:
+        """
+        Initializes required path variables of the pipeline step.
+
+        Ensures existence of the following entries:
+            `dataset`, `coord_maps`, `input`, `checkpoints`
+        """
+        data_root = self.dir_struct.get('data_root')
+
+        # dataset
+        if not self.dir_struct.contains('dataset'):
+            ds_path = data_root / 'datasets' / self.params['data']['dataset']['name']
+            self.dir_struct.add('dataset', ds_path)
+
+        # coordinate maps
+        if not self.dir_struct.contains('coord_maps'):
+            cm_path = data_root / get_h5_attr(self.dir_struct.get('dataset'),
+                                              'coord_maps_dir')
+            self.dir_struct.add('coord_maps', cm_path)
+
+        # checkpoints
+        if not self.dir_struct.contains('checkpoints'):
+            ckpt_dir = self.dir_struct.get('expdir') / 'callbacks' / 'ModelCheckpoint'
+            self.dir_struct.add('checkpoints', ckpt_dir)
+
+        # input (WSIs)
+        if not self.dir_struct.contains('input'):
+            self.dir_struct.add('input', data_root / self.params['data']['dirs']['rgb'])
 
     def _init_model(self) -> Model:
         return modeladapt.replace_activation(
