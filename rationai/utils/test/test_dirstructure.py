@@ -10,7 +10,14 @@ class TestDirstructure(unittest.TestCase):
         self.key = 'key'
         self.path = Path('some/random/path')
 
+    def test_contains(self):
+        self.assertFalse(self.dir_struct.contains(self.key))
+        self.dir_struct.add(self.key, self.path)
+        self.assertTrue(self.dir_struct.contains(self.key))
+
     def test_add_new_key(self):
+        self.assertFalse(self.dir_struct.contains(self.key))
+
         result = self.dir_struct.add(self.key, self.path)
 
         self.assertEqual(self.path, result)

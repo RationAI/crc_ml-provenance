@@ -5,7 +5,7 @@ An overview of keywords that are used to identify various types of paths.
 Keys
 ----
 results
-    A folder where a run creates a foldler for all its results.
+    A directory where a run creates a folder for all its results.
 
 data_root
     A folder contaning a data set.
@@ -16,7 +16,6 @@ data_root
 import logging
 from pathlib import Path
 
-from typing import Any
 from typing import Dict
 from typing import NoReturn
 from typing import Optional
@@ -37,6 +36,12 @@ class DirStructure:
 
     def __init__(self):
         self.paths = dict()
+
+    def contains(self, key: str) -> bool:
+        """
+        Returns whether `key` already exists among used key-path pairs.
+        """
+        return key in self.paths
 
     def add(self, key: str, path: Path, create=False) -> Path:
         """
@@ -68,9 +73,9 @@ class DirStructure:
                          created when parameter `create` is True
 
         """
-        if key in self.paths:
+        if self.contains(key):
             raise ValueError(f'Cannot add key "{key}" to DirStructure: '
-                              'the key already exists.')
+                             'the key already exists.')
 
         self.paths[key] = path
 
@@ -93,7 +98,7 @@ class DirStructure:
         Path
             A path identified by the parameter key.
         """
-        if key not in self.paths:
+        if not self.contains(key):
             log.info(f'Key "{key}" not found in DirStructure')
             return None
         return self.paths[key]
@@ -103,4 +108,3 @@ class DirStructure:
         # for key, path in self.paths.items():
         #     summary_writer.set_value('paths', key, value=str(path))
         pass
-
