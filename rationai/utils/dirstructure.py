@@ -1,16 +1,47 @@
-# TODO: Describe all keys used by the pipeline in one place.
 """
 An overview of keywords that are used to identify various types of paths.
 
 Keys
 ----
-results
-    A directory where a run creates a folder for all its results.
+checkpoints
+    A directory with model checkpoints.
+
+coord_maps
+    A directory where coordinate maps (data frames) of a dataset file are located.
 
 data_root
     A folder contaning a data set.
     I.e., a directory containing subfolders with raw files,
     processed dataframes, datasets, etc. for a collection of data.
+    (Can be configured.)
+
+dataset
+    A path to a dataset file.
+    Typically located in `data_root`/datasets/<dataset_file>
+    (Can be configured.)
+
+expdir
+    An output directory created for the pipeline run.
+    Its name consist of a descriptive prefix and a random UUID.
+
+figures
+    A directory where steps that generate figures save their outputs.
+
+input
+    A directory containing input data that are to be used as feature vectors.
+    e.g.: WSIs
+    (Can be configured.)
+
+label
+    A directory (inside `data_root`) containing labels for supervised learning.
+    (Can be configured.)
+
+predictions
+    A directory where predictions are saved.
+
+results
+    A directory where a pipeline run creates a folder for all its results.
+    (Can be configured.)
 """
 
 import logging
