@@ -7,8 +7,8 @@ from skimage.color import rgb2gray
 from skimage.exposure import equalize_hist
 from skimage.filters import median, threshold_otsu
 from skimage.draw import line
-from rationai.imreg.our_method.utils.point_tools import compute_nn_indices
-from rationai.imreg.magic_constants import MIN_DISTANCE_BETWEEN_REGIONS, MAX_DISTANCE_BETWEEN_CENTROIDS, BLUR_RADIUS, \
+from rationai.data.imreg.our_method.utils.point_tools import compute_nn_indices
+from rationai.data.imreg.magic_constants import MIN_DISTANCE_BETWEEN_REGIONS, MAX_DISTANCE_BETWEEN_CENTROIDS, BLUR_RADIUS, \
     MINIMUM_AREA, WHITE_THRESH
 
 

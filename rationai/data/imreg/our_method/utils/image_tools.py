@@ -7,8 +7,8 @@ from skimage.transform import rescale
 from skimage.exposure import rescale_intensity
 from skimage.util import invert
 
-from rationai.imreg.our_method.utils.parallel_image_processing import process_image_by_blocks
-from rationai.imreg.magic_constants import COLOR_SEG_KERNEL_SIZE, COLOR_SEG_MAX_DIST, COLOR_SEG_RATIO
+from rationai.data.imreg.our_method.utils.parallel_image_processing import process_image_by_blocks
+from rationai.data.imreg.magic_constants import COLOR_SEG_KERNEL_SIZE, COLOR_SEG_MAX_DIST, COLOR_SEG_RATIO
 
 
 # def si(im, filename="t.png", sc=1.0):

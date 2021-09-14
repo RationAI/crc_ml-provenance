@@ -4,10 +4,10 @@ from skimage.measure import label, regionprops
 from skimage.segmentation import clear_border
 from shapely.affinity import translate
 from shapely.geometry import box
-from rationai.imreg.sample_segmentation.slide_segmentation import segment_slide
-from rationai.imreg.sample_segmentation.ignore_annotation import change_multipolygon_annotation_level
-from rationai.imreg.sample_segmentation.ignore_annotation import draw_multipolygon
-from rationai.imreg.our_method.utils.point_tools import compute_nn
+from rationai.data.imreg.sample_segmentation.slide_segmentation import segment_slide
+from rationai.data.imreg.sample_segmentation.ignore_annotation import change_multipolygon_annotation_level
+from rationai.data.imreg.sample_segmentation.ignore_annotation import draw_multipolygon
+from rationai.data.imreg.our_method.utils.point_tools import compute_nn
 
 
 def _adjust_coord_to_level(coord, level, reverse=False):

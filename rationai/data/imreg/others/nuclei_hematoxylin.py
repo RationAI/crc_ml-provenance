@@ -24,8 +24,8 @@ from skimage.util import img_as_float
 from scipy.ndimage import median_filter
 from shapely.geometry import MultiPoint
 
-from rationai.imreg.our_method.utils.parallel_image_processing import compute_image_features_by_blocks, process_image_by_blocks
-from rationai.imreg.magic_constants import NUCLEI_SEG_COLOR_THR_MAX, NUCLEI_SEG_COLOR_THR_MIN, NUCLEI_SEG_COLOR_THR_STEPS,\
+from rationai.data.imreg.our_method.utils.parallel_image_processing import compute_image_features_by_blocks, process_image_by_blocks
+from rationai.data.imreg.magic_constants import NUCLEI_SEG_COLOR_THR_MAX, NUCLEI_SEG_COLOR_THR_MIN, NUCLEI_SEG_COLOR_THR_STEPS,\
     CE_NUCLEI_MIN_AREA, HE_NUCLEI_MIN_AREA, CE_NUCLEI_MAX_AREA,\
     CYTOKERATIN_OPTIMAL_NUMBER_NUCLEI, CYTOKERATIN_OPTIMAL_NUMBER_NUCLEI_FOR_PIECEWISE, \
     HEMATOXYLIN_OPTIMAL_NUMBER_NUCLEI, HEMATOXYLIN_OPTIMAL_NUMBER_NUCLEI_FOR_PIECEWISE
@@ -239,7 +239,7 @@ def nuclei(he_stain, min_r,max_r,foreground_inten, orig=None):
     #return np.array([[region.centroid,] for region in objProps ], dtype="int32")
 
     print('Number of nuclei = ', len(objProps))
-    from rationai.imreg.our_method.registration_points.segment_nuclei import round
+    from rationai.data.imreg.our_method.registration_points.segment_nuclei import round
     # Display results
     plt.figure(figsize=(20, 10))
     im_input = im_nuclei_stain

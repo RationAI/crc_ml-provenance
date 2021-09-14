@@ -1,6 +1,6 @@
 import argparse
 
-from rationai.imreg.main import ImageRegistration
+from rationai.data.imreg.main import ImageRegistration
 
 parser = argparse.ArgumentParser()
 

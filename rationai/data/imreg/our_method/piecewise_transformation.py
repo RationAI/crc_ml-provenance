@@ -5,7 +5,7 @@ from scipy import spatial
 from sklearn.neighbors import KDTree
 from skimage.transform import PiecewiseAffineTransform, warp
 
-from rationai.imreg.our_method.utils.point_tools import get_array_from_multi_point
+from rationai.data.imreg.our_method.utils.point_tools import get_array_from_multi_point
 
 
 def multipoint_to_skimage_coords(multipoint):

@@ -12,20 +12,20 @@ from shapely.geometry import MultiPolygon
 # Type hints
 from typing import NoReturn
 from typing import Union
-from rationai.imreg.magic_constants import PROCESSING_LEVEL
-from rationai.imreg.sample_segmentation.segment_samples import get_samples_generator
-from rationai.imreg.sample_segmentation.ignore_annotation import draw_multipolygon, draw_polygon
-from rationai.imreg.our_method.piecewise_transformation import piecewise_transformation, transform_image_pwise
-from rationai.imreg.our_method.utils.image_tools import apply_color_segmentation_quick_per_blocks, \
+from rationai.data.imreg.magic_constants import PROCESSING_LEVEL
+from rationai.data.imreg.sample_segmentation.segment_samples import get_samples_generator
+from rationai.data.imreg.sample_segmentation.ignore_annotation import draw_multipolygon, draw_polygon
+from rationai.data.imreg.our_method.piecewise_transformation import piecewise_transformation, transform_image_pwise
+from rationai.data.imreg.our_method.utils.image_tools import apply_color_segmentation_quick_per_blocks, \
     transform_image_by_shapely_transform, get_stain_histomics
-from rationai.imreg.our_method.utils.point_tools import transform_points
-from rationai.imreg.our_method.utils.utils_generic import prepare_dir
-from rationai.imreg.our_method.point_registration.point_registration_computation import compute_point_registration_transform
-from rationai.imreg.our_method.registration_points.registration_points_computation import compute_registration_points
-from rationai.imreg.others.util import compute_stain_matrix_hdab_histomics, compute_stain_matrix_he_histomics
-from rationai.imreg.cytokeratin_mask.cytokeratin_mask_processing import create_cytokeratin_mask, fill_holes, create_he_mask,\
+from rationai.data.imreg.our_method.utils.point_tools import transform_points
+from rationai.data.imreg.our_method.utils.utils_generic import prepare_dir
+from rationai.data.imreg.our_method.point_registration.point_registration_computation import compute_point_registration_transform
+from rationai.data.imreg.our_method.registration_points.registration_points_computation import compute_registration_points
+from rationai.data.imreg.others.util import compute_stain_matrix_hdab_histomics, compute_stain_matrix_he_histomics
+from rationai.data.imreg.cytokeratin_mask.cytokeratin_mask_processing import create_cytokeratin_mask, fill_holes, create_he_mask,\
     mask_remove_he_background
-from rationai.imreg.sample_segmentation.ignore_annotation import read_ignore_annotation_as_multipolygon
+from rationai.data.imreg.sample_segmentation.ignore_annotation import read_ignore_annotation_as_multipolygon
 
 
 class ImageRegistration:

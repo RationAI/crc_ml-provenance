@@ -28,4 +28,4 @@ Command-Line Arguments \
   `--ce`  - path to a .mxrs whole slide image - DAB stain (3,3'-Diaminobenzidine) \
   `--out` - output directory will create a subfolder `<slide_name>` containing `raw` and `masks` folders. Each subfolder will contain results in format `<slide_name>_<tissue_core_id>.png`
 
-`python -m rationai.imreg [--he HE_SLIDE] [--ce DAB_SLIDE] [--out OUT_DIR] [-v --verbose]`
+`python -m rationai.data.data.imreg [--he HE_SLIDE] [--ce DAB_SLIDE] [--out OUT_DIR] [-v --verbose]`

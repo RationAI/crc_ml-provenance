@@ -8,7 +8,7 @@ from skimage.filters.rank import enhance_contrast
 from skimage.measure import label, regionprops
 from skimage.morphology import binary_closing, disk, remove_small_holes, remove_small_objects
 
-from rationai.imreg.magic_constants import HOLES_MAX_AREA, HOLES_MIN_AREA, MASK_MIN_AREA
+from rationai.data.imreg.magic_constants import HOLES_MAX_AREA, HOLES_MIN_AREA, MASK_MIN_AREA
 
 
 def mask_thresholded(stain, thresholding):

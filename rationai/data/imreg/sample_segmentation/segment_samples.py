@@ -1,10 +1,10 @@
 import numpy as np
 import tqdm
 from skimage.color import rgba2rgb
-from rationai.imreg.magic_constants import MIN_SAMPLE_AREA, SEGMENTATION_LEVEL
-from rationai.imreg.sample_segmentation.segment_samples_tools import get_segments, get_ordered_segments, get_segment_from_openslide,\
+from rationai.data.imreg.magic_constants import MIN_SAMPLE_AREA, SEGMENTATION_LEVEL
+from rationai.data.imreg.sample_segmentation.segment_samples_tools import get_segments, get_ordered_segments, get_segment_from_openslide,\
     pad_bounding_box
-from rationai.imreg.our_method.utils.image_tools import to_shape_white_padding
+from rationai.data.imreg.our_method.utils.image_tools import to_shape_white_padding
 
 
 def get_samples_generator(he_openslide, ce_openslide, level, he_ignore_annotation=None, ce_ignore_annotation=None,

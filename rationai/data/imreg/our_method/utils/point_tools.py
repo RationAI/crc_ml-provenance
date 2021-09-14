@@ -3,7 +3,7 @@ import shapely
 from scipy.stats import trim_mean
 from sklearn.neighbors import KDTree
 
-from rationai.imreg.our_method.utils.parallel_image_processing import _process_args_parallel
+from rationai.data.imreg.our_method.utils.parallel_image_processing import _process_args_parallel
 
 
 def get_array_from_multi_point(multi_point):

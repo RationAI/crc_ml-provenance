@@ -2,11 +2,11 @@ import math
 from concurrent.futures import ProcessPoolExecutor
 from memory_profiler import profile
 
-from rationai.imreg.magic_constants import NUMBER_OF_STEPS_GRID_SEARCH_EXP, NUMBER_OF_PARALLEL_GRIDS, \
+from rationai.data.imreg.magic_constants import NUMBER_OF_STEPS_GRID_SEARCH_EXP, NUMBER_OF_PARALLEL_GRIDS, \
     TOP_STEP_SIZE_GRID_EXP, BOT_STEP_SIZE_GRID_EXP
-from rationai.imreg.our_method.utils.point_tools import Point_transform, combine_transforms, transform_points,\
+from rationai.data.imreg.our_method.utils.point_tools import Point_transform, combine_transforms, transform_points,\
     parallel_grid_search_point_transform
-from rationai.imreg.our_method.utils.utils_generic import list_to_chunks
+from rationai.data.imreg.our_method.utils.utils_generic import list_to_chunks
 
 fp = open("data/imreg/logs/log5-translation_grid.log", "w+")
 

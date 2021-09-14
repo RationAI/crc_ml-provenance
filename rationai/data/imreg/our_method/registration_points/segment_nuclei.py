@@ -7,7 +7,7 @@ from skimage.measure import label, regionprops
 from skimage.morphology import remove_small_objects,remove_small_holes
 from skimage.util import img_as_bool
 
-from rationai.imreg.magic_constants import CE_NUCLEI_MAX_AREA, CE_NUCLEI_MIN_AREA, \
+from rationai.data.imreg.magic_constants import CE_NUCLEI_MAX_AREA, CE_NUCLEI_MIN_AREA, \
     CYTOKERATIN_OPTIMAL_NUMBER_NUCLEI, HEMATOXYLIN_OPTIMAL_NUMBER_NUCLEI, \
     NUCLEI_SEG_COLOR_THR_MAX, NUCLEI_SEG_COLOR_THR_MIN, NUCLEI_SEG_COLOR_THR_STEPS, \
     CYTOKERATIN_OPTIMAL_NUMBER_NUCLEI_FOR_PIECEWISE, HEMATOXYLIN_OPTIMAL_NUMBER_NUCLEI_FOR_PIECEWISE

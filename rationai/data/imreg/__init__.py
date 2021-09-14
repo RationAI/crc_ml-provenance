@@ -4,7 +4,7 @@ import os
 if not os.path.exists('data/imreg/logs'):
     os.makedirs('data/imreg/logs')
 
-from rationai.imreg.main import ImageRegistration
+from rationai.data.imreg.main import ImageRegistration
 
 __all__ = [
     'ImageRegistration'

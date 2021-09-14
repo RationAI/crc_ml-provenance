@@ -1,9 +1,9 @@
 import numpy as np
 from memory_profiler import profile
-from rationai.imreg.our_method.point_registration.grid_search_transform import hierarchical_parallel_grid_search_translation, \
+from rationai.data.imreg.our_method.point_registration.grid_search_transform import hierarchical_parallel_grid_search_translation, \
     hierarchical_parallel_grid_search_rotation
-from rationai.imreg.our_method.utils.point_tools import transform_points, combine_transforms, Point_transform
-from rationai.imreg.magic_constants import NUMBER_OF_ANGLE_STEPS, ANGLE_STEP
+from rationai.data.imreg.our_method.utils.point_tools import transform_points, combine_transforms, Point_transform
+from rationai.data.imreg.magic_constants import NUMBER_OF_ANGLE_STEPS, ANGLE_STEP
 
 fp = open("data/imreg/logs/log5-registration.log","w+")
 

@@ -1,7 +1,7 @@
 import numpy as np
 from shapely.geometry import MultiPoint
 
-from rationai.imreg.our_method.registration_points.segment_nuclei import get_nuclei_centers_hematoxylin, \
+from rationai.data.imreg.our_method.registration_points.segment_nuclei import get_nuclei_centers_hematoxylin, \
     get_nuclei_centers_cytokeratin
 
 
