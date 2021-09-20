@@ -10,7 +10,7 @@ coord_maps
     A directory where coordinate maps (data frames) of a dataset file are located.
 
 data_root
-    A folder contaning a data set.
+    A folder containing a data set.
     I.e., a directory containing subfolders with raw files,
     processed dataframes, datasets, etc. for a collection of data.
     (Can be configured.)
