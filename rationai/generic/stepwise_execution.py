@@ -28,9 +28,12 @@ import abc
 import logging
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, NoReturn, Optional
+from typing import Any
+from typing import NoReturn
+from typing import Optional
 
-from rationai.utils import clsutils, DirStructure
+from rationai.utils import clsutils
+from rationai.utils import DirStructure
 
 log = logging.getLogger('step-exec')
 
