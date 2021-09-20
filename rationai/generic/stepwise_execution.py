@@ -39,14 +39,14 @@ log = logging.getLogger('step-exec')
 
 
 def initialize_step(
-        params: dict, step_config: StepConfig, dir_structure: DirStructure
+        shared_config: dict, step_config: StepConfig, dir_structure: DirStructure
 ) -> Optional[StepInterface]:
     """
     Initialize a StepInterface instance.
 
     Parameters
     ----------
-    params : dict
+    shared_config : dict
         Overall parameters of the run.
     step_config : StepConfig
         Step initialization and execution-specific parameters.
@@ -70,9 +70,9 @@ def initialize_step(
         return None
 
     try:
-        return cls.from_params(
-            params=deepcopy(params),
-            self_config=deepcopy(step_config.init_params),
+        return cls.from_config(
+            step_config=step_config,
+            shared_config=deepcopy(shared_config),
             dir_structure=dir_structure
         )
     except Exception as ex:
@@ -270,7 +270,7 @@ class StepInterface(abc.ABC):
 
     Subclass requirements:
         - must implement:
-            - @classmethod from_params(params: dict, self_config: dict)
+            - @classmethod from_config(step_config: StepConfig, shared_config: dict, dir_structure: DirStructure)
             - method continue_from_run()
         - A step is initialized if issubclass(cls, StepInterface) is True
         - A step is run by specifying the method to execute.
@@ -281,21 +281,24 @@ class StepInterface(abc.ABC):
     @classmethod
     def __subclasshook__(cls, subclass):
         return (
-                clsutils.class_has_classmethod(subclass, 'from_params')
-                and clsutils.callable_has_signature(
-                subclass.from_params, ['params', 'self_config', 'dir_structure']
+            clsutils.class_has_classmethod(subclass, 'from_config')
+            and clsutils.callable_has_signature(
+                subclass.from_config,
+                ['step_config', 'shared_config', 'dir_structure']
             )
-                and clsutils.class_has_nonabstract_method(
+            and clsutils.class_has_nonabstract_method(
                 subclass, 'continue_from_run'
             )
-                and clsutils.callable_has_signature(
+            and clsutils.callable_has_signature(
                 subclass.continue_from_run, ['self']
             )
         )
 
     @classmethod
     @abc.abstractmethod
-    def from_params(cls, self_config: dict, params: dict, dir_structure: DirStructure) -> StepInterface:
+    def from_config(
+            cls, step_config: StepConfig, shared_config: dict, dir_structure: DirStructure
+    ) -> StepInterface:
         """
         Factory method used by `StepExecutor` to initialize a step.
 
@@ -303,16 +306,16 @@ class StepInterface(abc.ABC):
 
         Parameters
         ----------
-        self_config : dict
-            Configuration specific for this step.
-        params : dict
+        step_config : StepConfig
+            The step configuration parsed from the general configuration.
+        shared_config : dict
             The general configuration information.
         dir_structure : DirStructure
             The shared data directory structure for the run in which this step
             is to be executed.
         """
         raise NotImplementedError(
-            'Pipeline Step has to implement from_params classmethod'
+            'Pipeline Step has to implement from_config classmethod'
         )
 
     @abc.abstractmethod
@@ -333,7 +336,7 @@ class StepExecutor:
 
     Requirements for classes runnable as "steps":
         1. Implement StepInterface
-        2. Self initialize via from_params factory method.
+        2. Self initialize via from_config factory method.
         3. Contain a method that is runnable with JSON serializable kwargs.
 
     Config usage example:
@@ -352,16 +355,14 @@ class StepExecutor:
     """
     context: dict[str, Optional[StepInterface]]
     current_step_idx: int
-    params: dict[str, Any]
-    step_definitions: dict
+    shared_config: dict[str, Any]
     step_keys: list[str]
     dir_structure: DirStructure
 
-    def __init__(self, step_keys: list[str], step_definitions: dict, params: dict, dir_structure: DirStructure):
+    def __init__(self, shared_config: dict, dir_structure: DirStructure):
         self.current_step_idx = -1  # starting index
-        self.step_keys = step_keys[:]
-        self.step_definitions = deepcopy(step_definitions)
-        self.params = deepcopy(params)
+        self.step_keys = shared_config['ordered_steps'][:]
+        self.shared_config = deepcopy(shared_config)
         self.dir_structure = dir_structure
 
         # Stores step instances for re-usage
@@ -389,7 +390,7 @@ class StepExecutor:
         self.current_step_idx += 1
 
         step_config = StepConfig.from_step_definitions(
-            step_key, self.step_definitions
+            step_key, self.shared_config['step_definitions']
         )
 
         if not step_config:
@@ -436,7 +437,9 @@ class StepExecutor:
         if step_config.is_contextual_step:
             return self._load_contextual_instance(step_config)
 
-        return initialize_step(self.params, step_config, self.dir_structure)
+        return initialize_step(
+            self.shared_config, step_config, self.dir_structure
+        )
 
     def _load_contextual_instance(self, step_config: StepConfig) -> Optional[StepInterface]:
         """
@@ -454,7 +457,9 @@ class StepExecutor:
             to instantiate.
         """
         if step_config.context_key not in self.context:
-            new_instance = initialize_step(self.params, step_config, self.dir_structure)
+            new_instance = initialize_step(
+                self.shared_config, step_config, self.dir_structure
+            )
             log.debug(f'Saving {new_instance.__class__} to context.')
             self.context[step_config.context_key] = new_instance
 
