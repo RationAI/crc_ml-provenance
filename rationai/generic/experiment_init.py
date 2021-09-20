@@ -75,7 +75,7 @@ class ExperimentInitializer:
         parts[0] = '' if parts[0] == '/' else parts[0]
         return Path('/'.join(parts))
 
-    def get_dir_struct(self) -> Type[DirStructure]:
+    def get_dir_struct(self) -> DirStructure:
         """Returns entire DirStructure dictionary containing pathlib Paths"""
         return self.dir_struct
 
