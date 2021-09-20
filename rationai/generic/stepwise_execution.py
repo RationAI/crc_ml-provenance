@@ -64,7 +64,7 @@ class StepInterface(abc.ABC):
         Implementation of the method should ensure that DirStructure object
         contains the paths it needs for the execution of the step.
         """
-        raise NotImplementedError('Pipeline step has to imlement `init_path_variables` method')
+        raise NotImplementedError('Pipeline step has to implement `init_path_variables` method')
 
 
 class StepExecutor:
