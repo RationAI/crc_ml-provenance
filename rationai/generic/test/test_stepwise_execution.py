@@ -64,6 +64,7 @@ class TestInitializeStep(unittest.TestCase):
 
         class StepConfigDummy:
             class_id = 'collections.OrderedDict'
+            step_key = 'test_step'
             init_params = {}
 
         class DirStructDummy:
@@ -78,6 +79,7 @@ class TestInitializeStep(unittest.TestCase):
 
         class StepConfigDummy:
             class_id = 'rationai.generic.test.test_stepwise_execution.StepInterfaceDummy'
+            step_key = 'test_step'
             init_params = {}
 
         class DirStructDummy:
@@ -92,6 +94,7 @@ class TestInitializeStep(unittest.TestCase):
 
         class StepConfigDummy:
             class_id = 'rationai.generic.test.test_stepwise_execution.StepInterfaceErrorRaisingDummy'
+            step_key = 'test_step'
             init_params = {}
 
         class DirStructDummy:
