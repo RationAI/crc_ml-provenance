@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from typing import NoReturn
 from typing import Optional
-from typing import Type
 from typing import Union
 
 from rationai.utils import DirStructure
