@@ -1,6 +1,6 @@
 # If experiment directory has not been provided, create new experiment directory
 ifndef $(OUTPUT_DIR)
-	OUTPUT_DIR := /some/example/path/$(shell python3 scripts/gen.py)
+	OUTPUT_DIR := /some/example/path/$(shell python3 ../scripts/gen.py)
 endif
 
 
