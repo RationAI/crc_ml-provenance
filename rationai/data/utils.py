@@ -13,13 +13,6 @@ from typing import (
 
 Vertices = List[Tuple[float, float]]
 
-
-def mkdir(path: Path, parents=True, exist_ok=False) -> Path:
-    if not path.exists():
-        path.mkdir(parents=parents, exist_ok=exist_ok)
-    return path
-
-
 def open_pil_image(path: Union[str, Path]) -> Optional[Image.Image]:
     """Opens and returns an Image.
     Returns None if Image is corrupted or does not exist."""
@@ -31,8 +24,7 @@ def open_pil_image(path: Union[str, Path]) -> Optional[Image.Image]:
 
 def read_polygons(annotation_filepath: Path,
                   scale_factor: float,
-                  include_keywords: List[str],
-                  exclude_keywords: List[str]) -> Tuple[Vertices, Vertices]:
+                  keywords: List[str]) -> Tuple[Vertices, Vertices]:
     """Utility function to read an annotation XML file and create
     a list of vertices for polygon delimiting the cancerous area.
     """
@@ -40,9 +32,7 @@ def read_polygons(annotation_filepath: Path,
         return [], []
 
     # Read cancer polygon area
-    include_polygons = []
-    exclude_polygons = []
-    all_keywords = include_keywords + exclude_keywords
+    polygons = []
 
     root = ET.parse(str(annotation_filepath)).getroot()
     for anno_tag in root.findall('Annotations/Annotation'):
@@ -50,14 +40,11 @@ def read_polygons(annotation_filepath: Path,
 
         keyword = anno_tag.get('PartOfGroup')
 
-        if keyword in all_keywords:
+        if keyword in keywords:
             for coord in anno_tag.findall('Coordinates/Coordinate'):
                 polygon.append((float(coord.get('X')) / scale_factor,
                                 float(coord.get('Y')) / scale_factor))
 
-        if keyword in include_keywords:
-            include_polygons.append(polygon)
-        elif keyword in exclude_keywords:
-            exclude_polygons.append(polygon)
+        polygons.append(polygon)
 
-    return include_polygons, exclude_polygons
+    return polygons
