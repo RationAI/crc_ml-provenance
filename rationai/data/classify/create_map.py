@@ -1,540 +1,598 @@
+# Standard Imports
+from collections import namedtuple
+from dataclasses import dataclass
+from multiprocessing import Pool
+from typing import Optional
+from typing import Tuple
+from typing import List
+from typing import Iterator
+from pathlib import Path
 import argparse
 import logging
-from enum import Enum
 
-# import cv2
+# Third-party Imports
 import numpy as np
+from nptyping import NDArray
 import pandas as pd
-from multiprocessing import Pool
-from openslide import OpenSlide
-from openslide import OpenSlideError
-from pathlib import Path
+from pandas.core.frame import DataFrame
 from PIL import Image
 from PIL import ImageDraw
 from skimage import color
 from skimage import filters
 from skimage import morphology
-from nptyping import NDArray
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from openslide import OpenSlide
 
-from rationai.data.utils import (
-    mkdir,
-    read_polygons,
-    open_pil_image
-)
+# Local Imports
+from rationai.data.utils import mkdir
+from rationai.data.utils import read_polygons
+from rationai.data.utils import open_pil_image
+from rationai.data.classify.create_map_config import CreateMapConfig
 
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
 
 log = logging.getLogger('slide-converter')
 
-
-class XMLResult(Enum):
-    OK = 0
-    SWITCH_TO_NEGATIVE = 1
-    SKIP_SLIDE = 2
-
-
-# Prostate XML annotation keywords
-# TODO: make configurable
-INCLUDE_ANNOT_KEYWORDS = ['Carcinoma', 'metastases']
-EXCLUDE_ANNOT_KEYWORDS = ['Exclude', 'Another pathology']
-
+@dataclass
+class ROITile:
+    coord_x: int
+    coord_y: int
+    annot_coverage: float
+    center_annot_coverage: float
 
 class SlideConverter:
 
-    def __init__(self, args):
+    def __init__(self, config: CreateMapConfig):
+        self.config = config
+        self.center_filter_np = self.__get_center_filter()
+        self.__prepare_dir_structure()
+        self.config.toJSON(self.config.output_path / 'config.json')
 
-        # Required variables
-        self.data_base_dir = args.base_dir  # data group name
-        self.slide_dir = self.data_base_dir / args.slide_dir  # rgb/ (.mrxs)
-        self.label_dir = self.data_base_dir / args.label_dir  # label/ (.xml)
+    def __prepare_dir_structure(self):
+        # Base output dir
+        self.config.output_path.mkdir(mode=0o770, parents=True, exist_ok=True)
 
-        self.ds_prefix = args.ds_prefix
+        # Create mask directories
+        masks_dir = self.config.output_path / 'masks'
+        masks_dir.mkdir(mode=0o770, parents=True, exist_ok=True)
+        (masks_dir / 'bg' / 'bg_init').mkdir(mode=0o770, parents=True, exist_ok=True)
+        (masks_dir / 'bg' / 'bg_final').mkdir(mode=0o770, parents=True, exist_ok=True)
+        (masks_dir / 'bg' / 'bg_annot').mkdir(mode=0o770, parents=True, exist_ok=True)
+        (masks_dir / 'annotations').mkdir(mode=0o770, parents=True, exist_ok=True)
 
-        # Sampling variables -> subdir: L1-T512-S128-C256-MIN05-MAX10
-        self.level = args.level
-        self.tile_size = args.tile_size
-        self.step_size = args.step_size
-        self.center_size = args.center_size
-        self.min_tissue = args.min_tissue
-        self.max_tissue = args.max_tissue
+        # Create coord maps directories
+        coord_maps_dir = self.config.output_path / 'coord_maps'
+        coord_maps_dir.mkdir(mode=0o770, parents=True, exist_ok=True)
 
-        # Mode variables
-        self.negative_mode = args.negative
-        self.strict_mode = args.strict
-        self.force = args.force
+    def __call__(self, slide_fp: Path) -> None:
+        """Converts slide into a coordinate map of ROI Tiles.
 
-        # Utility variables
-        self.bg_level = args.bg_level
-        self.percent = 0
-        self.MORPHOLOGY_DISK_SIZE = 10
+        Args:
+            slide_fp (Path): Path to WSI file.
+        """
+        self.slide_name = slide_fp.stem
 
-        self.center_filter = self._get_center_filter()
+        annot_fp = self.__get_annotations()
+        oslide_wsi = self.__open_slide(slide_fp)
 
-        # Output directory for coord_maps
-        self.ds_dir = self._create_ds_dir()
+        is_mode_valid = self.__validate_mode()
+        is_wsi_levels_valid = self.__validate_wsi_levels(oslide_wsi)
 
-    def __call__(self, slide_fn: Path):
-        negative_mode = self.negative_mode
-
-        slide_fn = slide_fn.resolve()
-        slide_name = slide_fn.stem
-
-        if (self.ds_dir / f'{slide_name}.gz').exists() and not self.force:
-            log.debug(f'{slide_name}.gz already exists. Skipping.')
-            return
-
-        log.info('Processing: ' + slide_name)
-
-        # Get annotation XML path
-        result, annot_xml_filepath = self._get_xml_filepath(slide_name)
-        if result is XMLResult.SKIP_SLIDE:
-            return None
-        elif result is XMLResult.SWITCH_TO_NEGATIVE:
-            negative_mode = True
-
-        # Open WSI slide
-        try:
-            slide = OpenSlide(str(slide_fn))
-        except OpenSlideError as e:
-            log.warning(f'Could not open slide {slide_fn}: {e}')
-            return
-
-        scale_factor, bg_scale_factor, effective_scale_factor = \
-            self.get_slide_scale_factors(slide)
-
-        # Skip if only single level
-        if slide.level_count < 2:
-            log.warning('Not enough levels. Skipping...')
+        if not (is_mode_valid and is_wsi_levels_valid):
             return None
 
-        # Get background and cancer masks
-        bg_mask = self.get_bg_mask(slide, slide_name, bg_scale_factor, annot_xml_filepath, negative_mode=negative_mode)
-        cancer_mask = self.get_cancer_mask(slide, slide_name, scale_factor, annot_xml_filepath) \
-            if not negative_mode else None
+        bg_mask_img = self.__get_bg_mask(oslide_wsi, annot_fp)
+        annot_mask_img = self.__get_annot_mask(oslide_wsi, annot_fp)
 
-        log.info(f'Processing WSI tiles (tile_size={self.tile_size})')
-        slide_width, slide_height = slide.level_dimensions[self.level]
+        coord_map_df = self.__tile_wsi_to_coord_map(oslide_wsi, bg_mask_img, annot_mask_img)
 
-        offset_map = {
-            'coord_y': [],
+        self.__save_coord_map(coord_map_df)
+
+    def __get_center_filter(self) -> Image.Image:
+        """Creates a binary mask for a tile, with a non-zero center square in the middle.
+
+        Returns:
+            Image.Image: Binary tile mask.
+        """
+        offset_size = int((self.config.tile_size - self.config.center_size) // 2)
+        center_filter = Image.new('L', (self.config.tile_size, self.config.tile_size), 'BLACK')
+        filter_draw = ImageDraw.Draw(center_filter)
+        filter_draw.rectangle(
+            [(offset_size, offset_size),
+             (self.config.tile_size - offset_size, self.config.tile_size - offset_size)], 'WHITE')
+        return center_filter
+
+    def __get_annotations(self) -> Optional[Path]:
+        """Builds a path to annotation file using slide name and supplied annotation dir path.
+
+        Returns:
+            Optional[Path]: Path to annotation file if it exists; otherwise None.
+        """
+        if self.config.negative:
+            return None
+
+        annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml')
+        if annot_fp.exists():
+            return annot_fp
+
+        if not self.config.strict:
+            self.config.negative = True
+        return None
+
+    def __open_slide(self, slide_fp: Path) -> OpenSlide:
+        """Opens WSI slide and returns handler.
+
+        Args:
+            slide_fp (Path): Path to WSI slide.
+
+        Returns:
+            OpenSlide: Handler to opened WSI slide.
+        """
+        return OpenSlide(str(slide_fp.resolve()))
+
+    def __validate_mode(self, annot_fp: Path) -> bool:
+        """Checks requirements for a chosen slide conversion mode.
+
+        Args:
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            bool: True if requirements are met; otherwise False.
+        """
+        if annot_fp is None and self.config.strict:
+            return False
+        return True
+
+    def __validate_wsi_levels(self, oslide_wsi: OpenSlide) -> bool:
+        """Checks if WSI contains enough levels for slide successful slide conversion.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+
+        Returns:
+            bool: True if requirements are met; otherwise False.
+        """
+        max_level = max(self.config.sample_level, self.config.bg_level)
+        if oslide_wsi.level_count < (max_level + 1):
+            return False
+        return True
+
+    def __get_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
+        """Retrieves binary background mask.
+
+        Mask is retrieved from disk if already present and force parameter is not set.
+        Otherwise, the mask is drawn using image processing techniques on a WSI.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            Image.Image: Binary background mask filtering background and highlighting tissue.
+        """
+        bg_mask_fp = self.config.output_path / f'masks/bg/bg_final/{self.slide_name}.PNG'
+        if bg_mask_fp.exists() and not self.config.force:
+            bg_mask_img = self.__load_image_from_file(bg_mask_fp)
+            if bg_mask_img is not None: return bg_mask_img
+
+        bg_mask_img = self.__create_bg_mask(oslide_wsi, annot_fp)
+        self.__save_mask(bg_mask_img, bg_mask_fp)
+        return bg_mask_img
+
+    def __get_annot_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Optional[Image.Image]:
+        """Retrieves binary annotation mask.
+
+        Mask is retrieved from disk if already present and force parameter is not set.
+        Otherwise, the mask is drawn using supplied annotation file.
+        No mask is returned if slide conversion mode is set to 'Negative'.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            Optional[Image.Image]: Binary annotation mask highlighting regions of interest;
+                             None if conversion mode set to 'Negative'
+        """
+        if self.config.negative:
+            return None
+
+        annot_mask_fp = self.config.output_path / f'masks/annotations/{self.slide_name}.PNG'
+        if annot_mask_fp.exists() and not self.config.force:
+            annot_mask_img = self.__load_image_from_file(annot_mask_fp)
+            if annot_mask_img is not None: return annot_mask_img
+
+        annot_mask_img = self.__create_annot_mask(oslide_wsi, annot_fp)
+        self.__save_mask(annot_mask_img, annot_mask_fp)
+        return annot_mask_img
+
+    def __load_image_from_file(self, image_fp: Path) -> Image.Image:
+        """Loads image from disk.
+
+        Args:
+            image_fp (Path): Path to image file.
+
+        Returns:
+            Image.Image: Retrieved image.
+        """
+        return open_pil_image(image_fp)
+
+    def __create_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
+        """Creates binary background mask.
+
+        Background mask is created by combining two masks:
+             1) Mask obtained using image processing techniques applied to WSI
+             2) Mask obtained using annotation file (if exists).
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            Image.Image: Binary background mask.
+        """
+        init_bg_mask_img = self.__get_init_bg_mask(oslide_wsi)
+
+        annot_bg_mask_img = self.__get_annot_bg_mask(oslide_wsi, annot_fp)
+
+        return self.__combine_bg_masks(init_bg_mask_img, annot_bg_mask_img)
+
+    def __get_init_bg_mask(self, oslide_wsi: OpenSlide) -> Image.Image:
+        """Retrieves initial background mask created using image processing techniques.
+
+        Mask is retrieved from disk if already present and force parameter is not set.
+        Otherwise, the mask is drawn using image processing techniques.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+
+        Returns:
+            Image.Image: Binary background mask.
+        """
+        init_bg_mask_fp = self.config.output_path / f'masks/bg/bg_init/{self.slide_name}.PNG'
+        if init_bg_mask_fp.exists() and not self.config.force:
+            init_bg_mask_img = self.__load_image_from_file(init_bg_mask_fp)
+            if init_bg_mask_img is not None: return init_bg_mask_img
+
+        init_bg_mask_img = self.__create_init_bg_mask(oslide_wsi)
+        self.__save_mask(init_bg_mask_img, init_bg_mask_fp)
+        return init_bg_mask_img
+
+    def __create_init_bg_mask(self, oslide_wsi: OpenSlide) -> Image.Image:
+        """Draws binary background mask using image processing techniques.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+
+        Returns:
+            Image.Image: Binary background mask.
+        """
+        wsi_img = oslide_wsi.read_region(
+            location=(0, 0),
+            level=self.config.bg_level,
+            size=oslide_wsi.level_dimensions[self.config.bg_level]).convert('RGB')
+        slide_hsv = color.rgb2hsv(np.array(wsi_img))
+        saturation = slide_hsv[:, :, 1]
+        threshold = filters.threshold_otsu(saturation)
+        high_saturation = (saturation > threshold)
+        disk_object = morphology.disk(self.config.disk_size)
+        mask = morphology.closing(high_saturation, disk_object)
+        mask = morphology.opening(mask, disk_object)
+        return Image.fromarray(mask)
+
+    def __get_annot_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
+        """Retrieves binary background mask created using annotation file.
+
+        Mask is retrieved from disk if already present and force parameter is not set.
+        Otherwise, the mask is drawn using supplied annotation file.
+        No mask is returned if slide conversion mode is set to 'Negative'.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            Image.Image: Binary background mask.
+        """
+        if self.config.negative:
+            return None
+        annot_bg_mask_fp = self.config.output_path / f'masks/bg/bg_annot/{self.slide_name}.PNG'
+        if annot_bg_mask_fp.exists() and not self.config.force:
+            annot_bg_mask_img = self.__load_image_from_file(annot_bg_mask_fp)
+            if annot_bg_mask_img is not None: return annot_bg_mask_img
+
+        annot_bg_mask_img = self.__create_annot_bg_mask(oslide_wsi, annot_fp)
+        self.__save_mask(annot_bg_mask_img, annot_bg_mask_fp)
+        return annot_bg_mask_img
+
+    def __create_annot_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
+        """Draws binary background mask using supplied annotation file.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            Image.Image: Binary background mask.
+        """
+        annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.bg_level]
+        annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.bg_level])
+        canvas_color = 'BLACK' if self.config.strict else 'WHITE'
+        return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor, \
+            include_keywords=self.config.include_keywords, \
+            exclude_keywords=self.config.exclude_keywords, \
+            canvas_color=canvas_color)
+
+    def __draw_annotation_mask(self, annot_fp: Path, size: Tuple[int, int], scale_factor: int, \
+                               include_keywords: List[str], exclude_keywords: List[str], \
+                               canvas_color: str) -> Image.Image:
+        """Draws binary mask using supplied annotation file.
+
+        Args:
+            annot_fp (Path): Path to annotation file.
+            size (Tuple[int, int]): Size of the mask to be drawn.
+            scale_factor (int): Scaling factor for coordinates in annotation file.
+            include_keywords (List[str]): Keywords corresponding to entries in annotation file
+                                          that should be drawn as positive (white) areas.
+            exclude_keywords (List[str]): Keywords corresponding to entries in annotation file
+                                          that should be drawn as negative (black) areas.
+            canvas_color (str): Default canvas color. Describes implicit behaviour:
+                                    'WHITE' - area should be considered as positive unless
+                                              explicitely overruled by annotation file
+                                    'BLACK' - area should be considered as negative unless
+                                              explicitely overruled by annotation file
+
+        Returns:
+            Image.Image: Binary mask.
+        """
+        annot_mask_img, annot_mask_draw = self.__prepare_empty_canvas(size, canvas_color)
+        incl_polygons = read_polygons(annot_fp, scale_factor=scale_factor, \
+                                      keywords=include_keywords)
+        self.__draw_polygons_on_mask(incl_polygons, annot_mask_draw, color='WHITE')
+
+        excl_polygons = read_polygons(annot_fp, scale_factor=scale_factor, \
+                                      keywords=exclude_keywords)
+        self.__draw_polygons_on_mask(excl_polygons, annot_mask_draw, color='BLACK')
+
+        return annot_mask_img
+
+    def __prepare_empty_canvas(self, size: Tuple[int, int], \
+                               bg_color: str) -> Tuple[Image.Image, ImageDraw.ImageDraw]:
+        """Prepares an empty canvas with default colour.
+
+        Args:
+            size (Tuple[int, int]): Size of a canvas.
+            bg_color (str): Default colour of a canvas.
+
+        Returns:
+            Tuple[Image.Image, ImageDraw.ImageDraw]: Empty canvas and handler enabling drawing
+                                                     on the canvas.
+        """
+        canvas = Image.new('L', size=size, color=bg_color)
+        draw = ImageDraw.Draw(canvas)
+        return canvas, draw
+
+    def __combine_bg_masks(self, init_bg_mask_img: Image, annot_bg_mask_img: Image) -> Image.Image:
+        """Combines two binary masks using binary AND operation.
+
+        If slide conversion mode is set to 'Negative', initial background mask is returned.
+
+        Args:
+            init_bg_mask_img (Image): Binary background mask obtained using image processing
+                                      techniques.
+            annot_bg_mask_img (Image): Binary background mask obtained using supplied annotation
+                                       file.
+
+        Returns:
+            Image.Image: Combined binary background mask.
+        """
+        combined_bg_mask = np.array(init_bg_mask_img)
+
+        if not self.config.negative:
+            combined_bg_mask = combined_bg_mask & np.array(annot_bg_mask_img)
+
+        return Image.fromarray(combined_bg_mask.astype(np.uint8) * 255, mode='L')
+
+    def __create_annot_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
+        """Draws binary annotation mask using supplied annotation file.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            annot_fp (Path): Path to annotation file.
+
+        Returns:
+            Image.Image: Binary annotation mask.
+        """
+        annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.sample_level]
+        annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.sample_level])
+        canvas_color = 'BLACK'
+        return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor, \
+            include_keywords=self.config.include_keywords, \
+            exclude_keywords=[], \
+            canvas_color=canvas_color)
+
+    def __save_mask(self, img: Image, output_fp: Path) -> None:
+        """Saves binary mask image on disk.
+
+        Args:
+            img (Image): Binary mask.
+            output_fp (Path): Output filepath.
+        """
+        img.save(str(output_fp), format='PNG')
+
+    def __tile_wsi_to_coord_map(self, oslide_wsi: OpenSlide, bg_mask_img: Image, \
+                                annot_mask_img: Image) -> DataFrame:
+        """Builds a coordinate map dataframe using extracted ROI tiles.
+
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            bg_mask_img (Image): Binary background mask.
+            annot_mask_img (Image): Binary annotation mask.
+
+        Returns:
+            DataFrame: Coordinate map of ROI tiles.
+        """
+        coord_map = {
             'coord_x': [],
+            'coord_y': [],
             'tumor_tile': [],
             'center_tumor_tile': [],
             'slide_name': []
         }
 
-        for coord_y in range(0, slide_height, self.step_size):
-            for coord_x in range(0, slide_width, self.step_size):
+        for roi_tile in self.__roi_cutter(oslide_wsi, bg_mask_img, annot_mask_img):
+            coord_map['coord_x'].append(roi_tile.coord_x)
+            coord_map['coord_y'].append(roi_tile.coord_y)
+            coord_map['tumor_tile'].append(roi_tile.annot_coverage)
+            coord_map['center_tumor_tile'].append(roi_tile.center_annot_coverage)
+            coord_map['slide_name'].append(self.slide_name)
 
-                # Progress meter
-                # NOTE: what is this?
-                # percent = self.calculate_progress(coord_y, coord_x, slide_width, slide_height)
+        return pd.DataFrame.from_dict(coord_map)
 
-                # Retrieve a tile from background mask
-                tile_mask = bg_mask.crop((int(coord_x // effective_scale_factor),
-                                          int(coord_y // effective_scale_factor),
-                                          int((coord_x + self.tile_size) // effective_scale_factor),
-                                          int((coord_y + self.tile_size) // effective_scale_factor)))
+    def __roi_cutter(self, oslide_wsi: OpenSlide, bg_mask_img: Image, \
+                     annot_mask_img: Image) -> Iterator[ROITile]:
+        """Filters extracted tiles based on tissue coverage.
 
-                # Skip to next tile if condition for tissue tile is not met
-                tissue_coverage = self.tissue_percent(
-                    np.array(tile_mask),
-                    int(self.tile_size // effective_scale_factor))
+        Args:
+            oslide_wsi (OpenSlide): Handler to WSI.
+            bg_mask_img (Image): Binary background mask.
+            annot_mask_img (Image): Binary annotation mask.
 
-                if not self.min_tissue <= tissue_coverage <= self.max_tissue:
-                    continue
-
-                tile_label, center_label = self.determine_label(cancer_mask,
-                                                                coord_x,
-                                                                coord_y,
-                                                                negative_mode)
-
-                offset_map['coord_y'].append(coord_y * scale_factor)
-                offset_map['coord_x'].append(coord_x * scale_factor)
-                offset_map['tumor_tile'].append(tile_label)
-                offset_map['center_tumor_tile'].append(center_label)
-                offset_map['slide_name'].append(slide_name)
-
-        offset_df = pd.DataFrame.from_dict(offset_map)
-
-        if len(offset_df) > 0:
-            log.debug(f'Saving {slide_name} (total={len(offset_df)}, '
-                      f'tile_size={self.tile_size}, negative={negative_mode}, strict={self.strict_mode})')
-            offset_df.to_pickle(self.ds_dir / f'{slide_name}.gz', compression='gzip')
-        else:
-            log.warning(f'{slide_name} produced an empty coordinate maps.')
-
-    def _create_ds_dir(self) -> Path:
-        """Creates directory for coord_maps.
-        Name contains dataset prefix and sampling parameters"""
-        def encode_min_max(n: int) -> str:
-            """Encodes float as string.
-            e.g.: 0.75 -> "075"; 1.0 -> "1"
-            """
-            return '0' if n == 0 else str(round(n, 4)).replace('.', '').rstrip('0')
-
-        dataset_name = f'L{self.level}-' \
-                       f'T{self.tile_size}-' \
-                       f'S{self.step_size}-' \
-                       f'C{self.center_size}-' \
-                       f'MIN{encode_min_max(self.min_tissue)}-' \
-                       f'MAX{encode_min_max(self.max_tissue)}'
-
-        if self.ds_prefix:
-            dataset_name = f'{self.ds_prefix}-{dataset_name}'
-
-        ds_dir = self.data_base_dir / 'coord_maps' / dataset_name
-
-        # if ds_dir.exists():
-        #     raise ValueError(f'Dataset "{ds_dir}" already exists')
-        mkdir(ds_dir)
-        return ds_dir
-
-    def _get_xml_filepath(self, slide_name: Union[str, Path]) -> Tuple[XMLResult, Optional[Path]]:
-        # Case 1: Negative slide, no XML is required
-        if self.negative_mode:
-            return XMLResult.OK, None
-
-        annot_xml_filepath = (self.label_dir / slide_name).with_suffix('.xml')
-
-        # Case 2: XML exists
-        if annot_xml_filepath.exists():
-            return XMLResult.OK, annot_xml_filepath.resolve()
-
-        # Case 3: XML does not exist and strict mode
-        if self.strict_mode:
-            log.warning(f'Annotation {annot_xml_filepath.name} does not exist and strict mode is on. Skipping slide...')
-            return XMLResult.SKIP_SLIDE, None
-
-        # Case 4: XML does not exist and not strict mode
-        log.warning(f'Annotation {annot_xml_filepath.name} does not exist. Switching to negative mode...')
-        return XMLResult.SWITCH_TO_NEGATIVE, None
-
-    def _get_center_filter(self):
-        """Creates a square mask in the centre of the tile.
-        The size of the square is given by center_size attribute."""
-        offset_size = int((self.tile_size - self.center_size) // 2)
-        center_filter = Image.new('L', (self.tile_size, self.tile_size), 'BLACK')
-        filter_draw = ImageDraw.Draw(center_filter)
-        filter_draw.rectangle(
-            [(offset_size, offset_size),
-             (self.tile_size - offset_size, self.tile_size - offset_size)], 'WHITE')
-        return center_filter
-
-    def determine_label(self,
-                        cancer_mask: Image,
-                        coord_x: int,
-                        coord_y: int,
-                        negative_mode: bool) -> Tuple[float, bool]:
-        # All tiles are negative for healthy patients
-        if negative_mode:
-            return 0.0, False
-
-        # Retrieve a tile from cancer mask
-        tile_mask = cancer_mask.crop((coord_x,
-                                      coord_y,
-                                      coord_x + self.tile_size,
-                                      coord_y + self.tile_size))
-
-        # DETERMINE TILE LABEL
-        # percentage (to allow dynamic thresholding)
-        tile_label = self.tissue_percent(np.array(tile_mask), self.tile_size)
-        # boolean label: is True if at least one pixel in the center is annotated
-        center_label = self.tissue_percent(
-            np.array(tile_mask) & self.center_filter, 1) > 0
-
-        return tile_label, center_label
-
-    def calculate_progress(self, coord_y, coord_x, slide_width, slide_height):
+        Yields:
+            Iterator[ROITile]: Iterator over extracted ROI tiles meeting all filtering requirements.
+                               ROI Tile contains the following information:
+                                    - coordinates of a tile (top-left pixel)
+                                    - ratio of annotated pixels w.r.t. the whole tile
+                                    - ratio of annotated pixels w.r.t. the center square of the tile
         """
-            Calculate progress as a ratio of processed slide area vs total slide area
-        """
-        total = slide_height * slide_width
-        processed = (coord_y * slide_width + self.center_size * coord_x)
-        percentage = int(processed / total * 100)
+        # Scale Factors
+        bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.bg_level])
+        sampling_scale_factor = int(oslide_wsi.level_downsamples[self.config.sample_level])
+        effective_scale_factor = bg_scale_factor // sampling_scale_factor
 
-        if percentage > self.percent:
-            pass
-            # print('Progress: {:3}%\r'.format(percentage), end='')
+        # Dimensions
+        wsi_width, wsi_height = oslide_wsi.level_dimensions[self.config.sample_level]
 
-        return percentage
-
-    def get_slide_scale_factors(self, slide: OpenSlide) -> Tuple[float, float, float]:
-        scale_factor = int(slide.level_downsamples[self.level])
-        log.debug(f'Level {self.level} scaling: {scale_factor}')
-
-        bg_scale_factor = int(slide.level_downsamples[self.bg_level])
-        log.debug(f'BG Level {self.bg_level} scaling: {bg_scale_factor}')
-
-        effective_scale_factor = bg_scale_factor // scale_factor
-        log.debug(f'Effective scaling: {effective_scale_factor}')
-        return scale_factor, bg_scale_factor, effective_scale_factor
-
-    def tissue_percent(self, tile_mask: NDArray, tile_size: int) -> float:
-        """
-            Calculates the fraction of non-black area vs total area in a mask
-        """
-        ts_count = np.count_nonzero(tile_mask)
-        bg_count = tile_size ** 2
-        return ts_count / bg_count
-
-    def create_cancer_annotation(self,
-                                 annotation_fp: Union[str, Path],
-                                 size: Tuple[int, int],
-                                 scale_factor: float) -> Image:
-        return self.get_annotation_mask(
-            Path(annotation_fp),
-            include_keywords=INCLUDE_ANNOT_KEYWORDS,
-            exclude_keywords=[],
-            size=size,
-            scale_factor=scale_factor,
-            bg_color='BLACK')
-
-    def get_cancer_mask(self,
-                        slide: OpenSlide,
-                        slide_name: str,
-                        scale_factor: float,
-                        annot_xml_filepath: Union[str, Path]) -> Image:
-        # Create mask dir if does not exist
-        cancer_mask_dir = self.data_base_dir / f'masks/annotations-level{self.level}'
-        cancer_mask_filepath = cancer_mask_dir / f'{slide_name}.png'
-
-        if cancer_mask_filepath.exists():
-            img = open_pil_image(cancer_mask_filepath)
-            if img:
-                return img
-
-        mkdir(cancer_mask_dir, exist_ok=True)
-
-        # Create new annotation mask
-        cancer_mask = self.create_cancer_annotation(
-            annot_xml_filepath,
-            size=slide.level_dimensions[self.level],
-            scale_factor=scale_factor)
-        cancer_mask.save(str(cancer_mask_filepath), format='PNG')
-
-        return cancer_mask
-
-    def create_bg_mask(self, slide: OpenSlide, bg_level: int) -> Image:
-        slide_img = slide.read_region(
-            location=(0, 0),
-            level=bg_level,
-            size=slide.level_dimensions[bg_level]).convert('RGB')
-        slide_hsv = color.rgb2hsv(np.array(slide_img))
-        saturation = slide_hsv[:, :, 1]
-        threshold = filters.threshold_otsu(saturation)
-        high_saturation = (saturation > threshold)
-        disk_object = morphology.disk(self.MORPHOLOGY_DISK_SIZE)
-        mask = morphology.closing(high_saturation, disk_object)
-        mask = morphology.opening(mask, disk_object)
-        return Image.fromarray(mask)
-
-    def create_bg_annotation(self,
-                             annotation_fp: Union[str, Path],
-                             size: Tuple[int, int],
-                             scale_factor: float) -> Image:
-        return self.get_annotation_mask(annotation_fp,
-                                        INCLUDE_ANNOT_KEYWORDS,
-                                        EXCLUDE_ANNOT_KEYWORDS,
-                                        size=size,
-                                        scale_factor=scale_factor,
-                                        bg_color='BLACK' if self.strict_mode else 'WHITE')
-
-    def get_bg_mask(self, slide, slide_name, bg_scale_factor, annot_xml_filepath, negative_mode):
-        # Create mask dir if does not exist
-        masks_dir = self.data_base_dir / f'masks/bg-level{self.bg_level}'
-        mkdir(masks_dir, exist_ok=True)
-
-        # COMBINED BACKGROUND MASK PROCESS #
-        final_bg_dir = masks_dir / 'bg_final'
-        final_bg_filepath = final_bg_dir / f'{slide_name}.png'
-        if final_bg_filepath.exists() and not self.force:
-            img = open_pil_image(final_bg_filepath)
-            if img:
-                return img
-
-        mkdir(final_bg_dir, exist_ok=True)
-
-        # BACKGROUND MASK PROCESS #
-        log.debug(f'"{final_bg_filepath}" does not exists. Creating new mask.')
-        bg_mask_dir = masks_dir / 'bg_init'
-        bg_mask_filepath = bg_mask_dir / \
-            f'{slide_name}-bg-level{self.bg_level}-hsv-otsu-disk{self.MORPHOLOGY_DISK_SIZE}-close-open.png'
-        mkdir(bg_mask_dir, exist_ok=True)
-
-        log.debug(f'bg_mask_filepath exits [{bg_mask_filepath.exists()}]: {bg_mask_filepath}')
-        # Can be reused because it depends only on level parameter
-        # which is present directly in the filename.
-        if bg_mask_filepath.exists():
-            log.debug('Init background mask already exists. Loading from disk.')
-            bg_mask = Image.open(str(bg_mask_filepath))
-        else:
-            bg_mask = self.create_bg_mask(slide, self.bg_level)
-            bg_mask.save(str(bg_mask_filepath), format='PNG')
-
-        # ANNOTATION MASK PROCESS #
-        if not negative_mode:
-            annot_dir = masks_dir / 'bg_annot'
-            annot_fp = annot_dir / f'{slide_name}.png'
-
-            if annot_fp.exists() and not self.force:
-                annot_mask = Image.open(str(annot_fp))
-            else:
-                mkdir(annot_dir)
-                annot_mask = self.create_bg_annotation(
-                    annot_xml_filepath,
-                    size=slide.level_dimensions[self.bg_level],
-                    scale_factor=bg_scale_factor)
-                annot_mask.save(str(annot_fp), format='PNG')
-
-        # Combine masks
-        if negative_mode:
-            combined_bg_mask = Image.fromarray(
-                np.array(bg_mask).astype(np.uint8) * 255, mode='L')
-        else:
-            combined_bg_mask = Image.fromarray(
-                (np.array(bg_mask) & np.array(annot_mask)).astype(np.uint8) * 255, mode='L')
-        combined_bg_mask.save(str(final_bg_filepath), format='PNG')
-        return combined_bg_mask
-
-    def get_annotation_mask(self,
-                            annot_filepath: Path,
-                            include_keywords: List[str],
-                            exclude_keywords: List[str],
-                            size: Tuple[int, int],
-                            scale_factor: float = 1,
-                            bg_color: str = 'BLACK') -> Image:
-        """
-            Creates a binary mask for the cancer area (white) from annotation file
-        """
-        log.info('Creating annotation mask.')
-        mask = Image.new('L', size=size, color=bg_color)
-        draw = ImageDraw.Draw(mask)
-
-        incl_polygons, excl_polygons = read_polygons(
-            annot_filepath, scale_factor, include_keywords, exclude_keywords)
-
-        for polygon in incl_polygons:
-            if len(polygon) < 2:
-                log.warning('Polygon skipped because it contains a single vertex.')
+        for (coord_x, coord_y) in self.__tile_cutter(wsi_height, wsi_width):
+            bg_tile_img = self.__crop_mask_to_tile(bg_mask_img, coord_x, coord_y, effective_scale_factor)
+            if not self.__is_tile_contain_tissue(bg_tile_img):
                 continue
-            draw.polygon(xy=polygon, outline=('WHITE'), fill=('WHITE'))
 
-        for polygon in excl_polygons:
-            if len(polygon) < 2:
-                log.warning('Polygon skipped because it contains a single vertex.')
-                continue
-            draw.polygon(xy=polygon, outline=('BLACK'), fill=('BLACK'))
+            annot_tile_img = self.__crop_mask_to_tile(annot_mask_img, coord_x, coord_y, 1)
+            annot_coverage, center_annot_coverage = self.__determine_label(annot_tile_img)
 
-        return mask
+            yield ROITile(coord_x * sampling_scale_factor, \
+                  coord_y * sampling_scale_factor, \
+                  annot_coverage, \
+                  center_annot_coverage)
 
+    def __tile_cutter(self, wsi_height: int, wsi_width: int) -> Iterator[Tuple[int, int]]:
+        """Iterates over tile coordinates of a WSI.
+
+        Args:
+            wsi_height (int): WSI height.
+            wsi_width (int): WSI width.
+
+        Yields:
+            Iterator[Tuple[int, int]]: Iterator over tile coordinates.
+        """
+        for coord_y in range(0, wsi_height, self.config.step_size):
+            for coord_x in range(0, wsi_width, self.config.step_size):
+                yield coord_x, coord_y
+
+    def __crop_mask_to_tile(self, mask_img, coord_x, coord_y, scale_factor) -> Image.Image:
+        """Crops mask to a tile specified by coordinates scaled to appropriate resolution.
+
+        Args:
+            mask_img ([type]): Mask to be cropped.
+            coord_x ([type]): Coordinate along x-axis.
+            coord_y ([type]): Coordinate along y-axis.
+            scale_factor ([type]): Scaling factor for coordinates.
+
+        Returns:
+            Image.Image: Extracted tile.
+        """
+        return mask_img.crop((int(coord_x // scale_factor),
+                              int(coord_y // scale_factor),
+                              int((coord_x + self.config.tile_size) // scale_factor),
+                              int((coord_y + self.config.tile_size) // scale_factor)))
+
+    def __is_tile_contain_tissue(self, tile_img: Image) -> bool:
+        """Checks if tissue ratio in a tile falls within acceptable range.
+
+        Args:
+            tile_img (Image): Extracted tile, where non-zero element is considered a tissue.
+
+        Returns:
+            bool: True if tissue ratio falls within acceptable range; otherwise False.
+        """
+        tile_np = np.array(tile_img)
+        tissue_coverage = self.__calculate_tissue_coverage(tile_np)
+        return self.config.min_tissue <= tissue_coverage <= self.config.max_tissue
+
+    def __calculate_tissue_coverage(self, tile_np: NDArray) -> float:
+        """Calculates ratio of non-zero elements in a tile.
+
+        Args:
+            tile_np (NDArray): Extracted tile.
+
+        Returns:
+            float: Ratio of non-zero elements.
+        """
+        tissue_count = np.count_nonzero(tile_np)
+        all_count = np.size(tile_np)
+        return tissue_count / all_count
+
+    def __determine_label(self, annot_tile_img: Image) -> Tuple[float, float]:
+        """Calculates ratio of annotated (non-zero) elements in
+
+        Args:
+            annot_tile_img (Image): Binary annotation tile.
+
+        Returns:
+            Tuple[float, float]: Tuple of ratios of annotated (non-zero) elements w.r.t. the entire
+            tile and w.r.t. the center area of the tile.
+        """
+        if self.config.negative:
+            return 0.0, 0.0
+
+        annot_tile_np = np.array(annot_tile_img)
+        annot_coverage = self.__calculate_tissue_coverage(annot_tile_np)
+        center_annot_coverage = self.__calculate_tissue_coverage(annot_tile_np & self.center_filter_np)
+
+        return annot_coverage, center_annot_coverage
+
+    def __save_coord_map(self, coord_map_df: DataFrame) -> None:
+        """Saves coordinate map dataframe on a disk.
+
+        Args:
+            coord_map_df (DataFrame): Coordinate map dataframe.
+        """
+        coord_map_fp = self.config.output_path / f'coord_maps/{self.slide_name}.gz'
+        coord_map_df.to_pickle(coord_map_fp, compression='gzip')
 
 def main(args):
-    with Pool(args.max_workers) as p:
-        p.map(SlideConverter(args),
-              (args.base_dir / args.slide_dir).glob(args.pattern))
+    cfg = CreateMapConfig(args.config_fp)
+    with Pool(cfg.max_workers) as p:
+        p.map(SlideConverter(cfg), cfg.slide_dir.glob(cfg.pattern))
     return True
 
 
 if __name__ == '__main__':
 
     description = """
-    This script creates a coordination map for a WSI slide.
+    Slide conversion tool creates coordinate maps (table of coordinates) from the input slides.
 
-    [EXAMPLE USAGE]
-    python3 -m rationai.data.classify.create_map \
-        --base_dir data/Prostate \
-        --slide_dir slides \
-        --ds_prefix my_dataset \
-        --level 1 \
-        --tile_size 512 \
-        --step_size 128 \
-        --center_size 256 \
-        --max_workers 10 \
-        -f
+    Example:
+        python3 create_map.py path/to/config.json
 
-    The coordination map is a pandas table exported and compressed to
-    .gz file which consists of columns:
-        coord_x             - x coordinate of a tile
-        coord_y             - y coordinate of a tille
-        center_tumor_tile   - whether there is cancer within the center square (bool)
-        tumor_tile          - percentage instead of bool
-        slide_name          - the stem of a source WSI filename
-
-    Each row represents a single tile of the slide. Column and row defines
-    the coordinates of the tile, while binary column label indicates whether
-    the tile represents a tile containing a cancer tissue.
-
-    The negative mode - should be used for healthy patient slides. These
-                        slides are generally unannotatedand all tissue
-                        areas are implicitely considered healthy. For this
-                        reason, all XML annotations are ignored and only
-                        background masks are generated and used in segmentation.
-
-    The strict mode - should be used when only explicitely annotated tissue
-                      areas should be present in the output.
-
-    The force mode - causes coordinate maps and intermediate data to be generated again
-                     instead of skipping existing processed coordinate maps
-                     or reusing existing intermediate data.
-                     Should be used when intermediate data already exists for a dataset
-                     generated with a different set of processing parameters.
-                     An exception is reusage of background masks of WSIs which
-                     are not affected by this flag.
+             config_fp - Path to config file
     """
 
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description, \
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    # Required variables
-    parser.add_argument('--base_dir', type=Path, required=True, help='Data collection directory')
-
-    parser.add_argument('--slide_dir', type=Path, default=Path('rgb'),
-                        help='Directory containing slides. (Can be relative to base_dir)')
-    parser.add_argument('--label_dir', type=Path, default=Path('label'),
-                        help='Directory containing annotations. (Can be relative to base_dir)')
-
-    parser.add_argument('--ds_prefix', type=str, required=True,
-                        help='Prefix of a newly created dataset.')
-
-    parser.add_argument('-l', '--level', type=int, default=1, help='Sampling level')
-    parser.add_argument('-t', '--tile_size', type=int, default=512, help='Tile size - the side of a square in pixels.')
-    parser.add_argument('-s', '--step_size', type=int, default=512, help='Window step size (tile overlapping parameter).')
-    parser.add_argument('-c', '--center_size', type=int, default=256,
-                        help='Size of a tile "center" - a tile is positive if a square in its center contains annotated area.')
-    parser.add_argument('--min_tissue', type=float, default=0.5,
-                        help='Minimum tissue proportion required for a tile to be included '
-                             'in a result set.')
-    parser.add_argument('--max_tissue', type=float, default=1.0,
-                        help='Maximum tissue proportion required for a tile to be included '
-                             'in a result set.')
-    parser.add_argument('--max_workers', type=int, default=1,
-                        help='Task parallelism (may consume lots of RAM)')
-
-    parser.add_argument('--bg_level', type=int, default=4,
-                        help='Background level for tissue masks')
-
-    # Mode variables
-    parser.add_argument('-n', '--negative', action='store_true', required=False,
-                        help='Folder only contains negative slides. '
-                             'The algorithm will not require annotations to parse slides.')
-    parser.add_argument('-S', '--strict', action='store_true', required=False,
-                        help='Use only annotated areas. Do not infer negative tiles.')
-    parser.add_argument('-f', '--force', action='store_true', required=False,
-                        help='Causes existing files to be regenerated instead of reused.')
-
-    # Process only files matching the given pattern
-    parser.add_argument('-p', '--pattern', required=False, default='*.mrxs',
-                        help="Limits processing to files matching the pattern. (default: '*.mrxs')")
-
+    # Required arguments
+    parser.add_argument('--config_fp', type=Path, required=True, help='Path to config file.')
     args = parser.parse_args()
-
-    # Annotations are required only if negative mode is NOT set.
-    if not args.negative and args.label_dir is None:
-        raise ValueError('If --negative is not set, --annotations is required.')
-
     main(args)
