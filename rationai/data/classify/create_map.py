@@ -9,6 +9,8 @@ from typing import Iterator
 from pathlib import Path
 import argparse
 import logging
+import copy
+import os
 
 # Third-party Imports
 import numpy as np
@@ -63,6 +65,7 @@ class SlideConverter:
         # Create coord maps directories
         coord_maps_dir = self.config.output_path / 'coord_maps'
         coord_maps_dir.mkdir(mode=0o770, parents=True, exist_ok=True)
+        log.info(f'[{os.getpid()}] Output location: {coord_maps_dir}')
 
     def __call__(self, slide_fp: Path) -> None:
         """Converts slide into a coordinate map of ROI Tiles.
@@ -87,6 +90,7 @@ class SlideConverter:
         coord_map_df = self.__tile_wsi_to_coord_map(oslide_wsi, bg_mask_img, annot_mask_img)
 
         self.__save_coord_map(coord_map_df)
+        oslide_wsi.close()
 
     def __get_center_filter(self) -> Image.Image:
         """Creates a binary mask for a tile, with a non-zero center square in the middle.
@@ -113,10 +117,12 @@ class SlideConverter:
 
         annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml')
         if annot_fp.exists():
+            log.info(f'[{os.getpid()}] Annotation XML found.')
             return annot_fp
 
         if not self.config.strict:
             self.config.negative = True
+        log.info(f'[{os.getpid()}] Annotation XML not found.')
         return None
 
     def __open_slide(self, slide_fp: Path) -> OpenSlide:
@@ -154,6 +160,7 @@ class SlideConverter:
         """
         max_level = max(self.config.sample_level, self.config.bg_level)
         if oslide_wsi.level_count < (max_level + 1):
+            log.error(f'[{os.getpid()}] WSI {self.slide_name} does not contain {max_level + 1} levels.')
             return False
         return True
 
@@ -215,6 +222,7 @@ class SlideConverter:
         Returns:
             Image.Image: Retrieved image.
         """
+        log.info(f'[{os.getpid()}] Opening existing image: {image_fp}.')
         return open_pil_image(image_fp)
 
     def __create_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
@@ -231,6 +239,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
+        log.info(f'[{os.getpid()}] Generating new background mask.')
         init_bg_mask_img = self.__get_init_bg_mask(oslide_wsi)
 
         annot_bg_mask_img = self.__get_annot_bg_mask(oslide_wsi, annot_fp)
@@ -267,6 +276,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
+        log.info(f'[{os.getpid()}] Generating new initial background mask.')
         wsi_img = oslide_wsi.read_region(
             location=(0, 0),
             level=self.config.bg_level,
@@ -315,6 +325,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
+        log.info(f'[{os.getpid()}] Generating new annotation background mask.')
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.bg_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.bg_level])
         canvas_color = 'BLACK' if self.config.strict else 'WHITE'
@@ -403,6 +414,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary annotation mask.
         """
+        log.info(f'[{os.getpid()}] Generating annotation mask.')
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.sample_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.sample_level])
         canvas_color = 'BLACK'
@@ -439,7 +451,7 @@ class SlideConverter:
             'center_tumor_tile': [],
             'slide_name': []
         }
-
+        log.info(f'[{os.getpid()}] Converting slide: {self.slide_name}')
         for roi_tile in self.__roi_cutter(oslide_wsi, bg_mask_img, annot_mask_img):
             coord_map['coord_x'].append(roi_tile.coord_x)
             coord_map['coord_y'].append(roi_tile.coord_y)
@@ -570,11 +582,13 @@ class SlideConverter:
         """
         coord_map_fp = self.config.output_path / f'coord_maps/{self.slide_name}.gz'
         coord_map_df.to_pickle(coord_map_fp, compression='gzip')
+        log.info(f'[{os.getpid()}] Coord map with {len(coord_map_df)} ROI tiles saved at: {coord_map_fp}.')
 
 def main(args):
     cfg = CreateMapConfig(args.config_fp)
+    log.info(f'Creating {cfg.max_workers} workers.')
     with Pool(cfg.max_workers) as p:
-        p.map(SlideConverter(cfg), cfg.slide_dir.glob(cfg.pattern))
+        p.map(SlideConverter(copy.copy(cfg)), cfg.slide_dir.glob(cfg.pattern))
     return True
 
 
