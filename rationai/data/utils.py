@@ -44,7 +44,7 @@ def read_polygons(annotation_filepath: Path,
             for coord in anno_tag.findall('Coordinates/Coordinate'):
                 polygon.append((float(coord.get('X')) / scale_factor,
                                 float(coord.get('Y')) / scale_factor))
-
-        polygons.append(polygon)
+        if polygon:
+            polygons.append(polygon)
 
     return polygons
