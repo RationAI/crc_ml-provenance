@@ -182,7 +182,8 @@ class SlideConverter:
         bg_mask_fp = self.config.output_path / f'masks/bg/bg_final/{self.slide_name}.PNG'
         if bg_mask_fp.exists() and not self.config.force:
             bg_mask_img = open_pil_image(bg_mask_fp)
-            if bg_mask_img is not None: return bg_mask_img
+            if bg_mask_img is not None:
+                return bg_mask_img
 
         bg_mask_img = self.__create_bg_mask(oslide_wsi, annot_fp)
         self.__save_mask(bg_mask_img, bg_mask_fp)
@@ -209,7 +210,8 @@ class SlideConverter:
         annot_mask_fp = self.config.output_path / f'masks/annotations/{self.slide_name}.PNG'
         if annot_mask_fp.exists() and not self.config.force:
             annot_mask_img = open_pil_image(annot_mask_fp)
-            if annot_mask_img is not None: return annot_mask_img
+            if annot_mask_img is not None:
+                return annot_mask_img
 
         annot_mask_img = self.__create_annot_mask(oslide_wsi, annot_fp)
         self.__save_mask(annot_mask_img, annot_mask_fp)
@@ -251,7 +253,8 @@ class SlideConverter:
         init_bg_mask_fp = self.config.output_path / f'masks/bg/bg_init/{self.slide_name}.PNG'
         if init_bg_mask_fp.exists() and not self.config.force:
             init_bg_mask_img = open_pil_image(init_bg_mask_fp)
-            if init_bg_mask_img is not None: return init_bg_mask_img
+            if init_bg_mask_img is not None:
+                return init_bg_mask_img
 
         init_bg_mask_img = self.__create_init_bg_mask(oslide_wsi)
         self.__save_mask(init_bg_mask_img, init_bg_mask_fp)
@@ -299,7 +302,8 @@ class SlideConverter:
         annot_bg_mask_fp = self.config.output_path / f'masks/bg/bg_annot/{self.slide_name}.PNG'
         if annot_bg_mask_fp.exists() and not self.config.force:
             annot_bg_mask_img = open_pil_image(annot_bg_mask_fp)
-            if annot_bg_mask_img is not None: return annot_bg_mask_img
+            if annot_bg_mask_img is not None:
+                return annot_bg_mask_img
 
         annot_bg_mask_img = self.__create_annot_bg_mask(oslide_wsi, annot_fp)
         self.__save_mask(annot_bg_mask_img, annot_bg_mask_fp)
