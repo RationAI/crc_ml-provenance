@@ -351,7 +351,7 @@ class SlideConverter:
                                           that should be drawn as negative (black) areas.
             canvas_color (str): Default canvas color. Describes implicit behaviour:
                                     'WHITE' - area should be considered as positive unless
-                                              explicitely overruled by annotation file
+                                              explicitly overruled by annotation file
                                     'BLACK' - area should be considered as negative unless
                                               explicitely overruled by annotation file
 
