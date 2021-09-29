@@ -1,5 +1,4 @@
 # Standard Imports
-from collections import namedtuple
 from dataclasses import dataclass
 from multiprocessing import Pool
 from typing import Optional
