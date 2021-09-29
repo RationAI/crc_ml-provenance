@@ -1,0 +1,25 @@
+{
+  "data": {
+    "slide_dir": "/mnt/data/scans/AI scans/Prostata/Prospective test cases",
+    "label_dir": "/mnt/data/scans/AI scans/Prostata/Prospective test cases",
+    "tile_size": 512,
+    "center_size": 256,
+    "sample_level": 2,
+    "bg_level": 5
+  },
+  "converter": {
+    "pattern": "*-1.mrxs",
+    "output_path": "/mnt/data/home/matejg/Project/histopat/test_output",
+    "step_size": 128,
+    "include_keywords": ["Carcinoma"],
+    "exclude_keywords": ["Exclude"],
+    "min_tissue": 0.50,
+    "max_tissue": 1.00,
+    "disk_size": 10,
+    "negative_mode": false,
+    "strict_mode": true,
+    "force": false,
+    "max_workers": 1
+  }
+}
+
