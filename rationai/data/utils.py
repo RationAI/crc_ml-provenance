@@ -14,8 +14,14 @@ from typing import (
 Vertices = List[Tuple[float, float]]
 
 def open_pil_image(path: Union[str, Path]) -> Optional[Image.Image]:
-    """Opens and returns an Image.
-    Returns None if Image is corrupted or does not exist."""
+    """Loads image from disk.
+
+    Args:
+        image_fp (Path): Path to image file.
+
+    Returns:
+        Image.Image: Retrieved image.
+    """
     try:
         return Image.open(str(path))
     except (UnidentifiedImageError, FileNotFoundError):

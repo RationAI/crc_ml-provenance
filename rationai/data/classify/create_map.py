@@ -49,7 +49,7 @@ class SlideConverter:
         self.config = config
         self.center_filter_np = self.__get_center_filter()
         self.__prepare_dir_structure()
-        self.config.toJSON(self.config.output_path / 'config.json')
+        self.config.to_json(self.config.output_path / 'config.json')
 
     def __prepare_dir_structure(self):
         # Base output dir
@@ -181,7 +181,7 @@ class SlideConverter:
         """
         bg_mask_fp = self.config.output_path / f'masks/bg/bg_final/{self.slide_name}.PNG'
         if bg_mask_fp.exists() and not self.config.force:
-            bg_mask_img = self.__load_image_from_file(bg_mask_fp)
+            bg_mask_img = open_pil_image(bg_mask_fp)
             if bg_mask_img is not None: return bg_mask_img
 
         bg_mask_img = self.__create_bg_mask(oslide_wsi, annot_fp)
@@ -208,24 +208,12 @@ class SlideConverter:
 
         annot_mask_fp = self.config.output_path / f'masks/annotations/{self.slide_name}.PNG'
         if annot_mask_fp.exists() and not self.config.force:
-            annot_mask_img = self.__load_image_from_file(annot_mask_fp)
+            annot_mask_img = open_pil_image(annot_mask_fp)
             if annot_mask_img is not None: return annot_mask_img
 
         annot_mask_img = self.__create_annot_mask(oslide_wsi, annot_fp)
         self.__save_mask(annot_mask_img, annot_mask_fp)
         return annot_mask_img
-
-    def __load_image_from_file(self, image_fp: Path) -> Image.Image:
-        """Loads image from disk.
-
-        Args:
-            image_fp (Path): Path to image file.
-
-        Returns:
-            Image.Image: Retrieved image.
-        """
-        log.info(f'[{self.slide_name}] Opening existing image: {image_fp}.')
-        return open_pil_image(image_fp)
 
     def __create_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
         """Creates binary background mask.
@@ -262,7 +250,7 @@ class SlideConverter:
         """
         init_bg_mask_fp = self.config.output_path / f'masks/bg/bg_init/{self.slide_name}.PNG'
         if init_bg_mask_fp.exists() and not self.config.force:
-            init_bg_mask_img = self.__load_image_from_file(init_bg_mask_fp)
+            init_bg_mask_img = open_pil_image(init_bg_mask_fp)
             if init_bg_mask_img is not None: return init_bg_mask_img
 
         init_bg_mask_img = self.__create_init_bg_mask(oslide_wsi)
@@ -310,7 +298,7 @@ class SlideConverter:
             return None
         annot_bg_mask_fp = self.config.output_path / f'masks/bg/bg_annot/{self.slide_name}.PNG'
         if annot_bg_mask_fp.exists() and not self.config.force:
-            annot_bg_mask_img = self.__load_image_from_file(annot_bg_mask_fp)
+            annot_bg_mask_img = open_pil_image(annot_bg_mask_fp)
             if annot_bg_mask_img is not None: return annot_bg_mask_img
 
         annot_bg_mask_img = self.__create_annot_bg_mask(oslide_wsi, annot_fp)
@@ -331,13 +319,13 @@ class SlideConverter:
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.bg_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.bg_level])
         canvas_color = 'BLACK' if self.config.strict else 'WHITE'
-        return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor, \
-            include_keywords=self.config.include_keywords, \
-            exclude_keywords=self.config.exclude_keywords, \
+        return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor,
+            include_keywords=self.config.include_keywords,
+            exclude_keywords=self.config.exclude_keywords,
             canvas_color=canvas_color)
 
-    def __draw_annotation_mask(self, annot_fp: Path, size: Tuple[int, int], scale_factor: int, \
-                               include_keywords: List[str], exclude_keywords: List[str], \
+    def __draw_annotation_mask(self, annot_fp: Path, size: Tuple[int, int], scale_factor: int,
+                               include_keywords: List[str], exclude_keywords: List[str],
                                canvas_color: str) -> Image.Image:
         """Draws binary mask using supplied annotation file.
 
@@ -359,19 +347,19 @@ class SlideConverter:
             Image.Image: Binary mask.
         """
         annot_mask_img, annot_mask_draw = self.__prepare_empty_canvas(size, canvas_color)
-        incl_polygons = read_polygons(annot_fp, scale_factor=scale_factor, \
+        incl_polygons = read_polygons(annot_fp, scale_factor=scale_factor,
                                       keywords=include_keywords)
         log.debug(f'[{self.slide_name}] Include polygons ({include_keywords}): {incl_polygons}')
         self.__draw_polygons_on_mask(incl_polygons, annot_mask_draw, polygon_color='WHITE')
 
-        excl_polygons = read_polygons(annot_fp, scale_factor=scale_factor, \
+        excl_polygons = read_polygons(annot_fp, scale_factor=scale_factor,
                                       keywords=exclude_keywords)
         log.debug(f'[{self.slide_name}] Exclude polygons ({exclude_keywords}): {excl_polygons}')
         self.__draw_polygons_on_mask(excl_polygons, annot_mask_draw, polygon_color='BLACK')
 
         return annot_mask_img
 
-    def __prepare_empty_canvas(self, size: Tuple[int, int], \
+    def __prepare_empty_canvas(self, size: Tuple[int, int],
                                bg_color: str) -> Tuple[Image.Image, ImageDraw.ImageDraw]:
         """Prepares an empty canvas with default colour.
 
@@ -387,8 +375,8 @@ class SlideConverter:
         draw = ImageDraw.Draw(canvas)
         return canvas, draw
 
-    def __draw_polygons_on_mask(self, polygons: List[List[float]], \
-                                canvas_draw: ImageDraw.ImageDraw, \
+    def __draw_polygons_on_mask(self, polygons: List[List[float]],
+                                canvas_draw: ImageDraw.ImageDraw,
                                 polygon_color: str) -> None:
         """Draws polygons on a canvas based on provided annotation file.
 
@@ -437,9 +425,9 @@ class SlideConverter:
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.sample_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.sample_level])
         canvas_color = 'BLACK'
-        return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor, \
-            include_keywords=self.config.include_keywords, \
-            exclude_keywords=[], \
+        return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor,
+            include_keywords=self.config.include_keywords,
+            exclude_keywords=[],
             canvas_color=canvas_color)
 
     def __save_mask(self, img: Image, output_fp: Path) -> None:
@@ -451,7 +439,7 @@ class SlideConverter:
         """
         img.save(str(output_fp), format='PNG')
 
-    def __tile_wsi_to_coord_map(self, oslide_wsi: OpenSlide, bg_mask_img: Image, \
+    def __tile_wsi_to_coord_map(self, oslide_wsi: OpenSlide, bg_mask_img: Image,
                                 annot_mask_img: Image) -> DataFrame:
         """Builds a coordinate map dataframe using extracted ROI tiles.
 
@@ -481,7 +469,7 @@ class SlideConverter:
 
         return pd.DataFrame.from_dict(coord_map)
 
-    def __roi_cutter(self, oslide_wsi: OpenSlide, bg_mask_img: Image, \
+    def __roi_cutter(self, oslide_wsi: OpenSlide, bg_mask_img: Image,
                      annot_mask_img: Image) -> Iterator[ROITile]:
         """Filters extracted tiles based on tissue coverage.
 
@@ -513,9 +501,9 @@ class SlideConverter:
             annot_tile_img = self.__crop_mask_to_tile(annot_mask_img, coord_x, coord_y, 1)
             annot_coverage, center_annot_coverage = self.__determine_label(annot_tile_img)
 
-            yield ROITile(coord_x * sampling_scale_factor, \
-                  coord_y * sampling_scale_factor, \
-                  annot_coverage, \
+            yield ROITile(coord_x * sampling_scale_factor,
+                  coord_y * sampling_scale_factor,
+                  annot_coverage,
                   center_annot_coverage)
 
     def __tile_cutter(self, wsi_height: int, wsi_width: int) -> Iterator[Tuple[int, int]]:
@@ -532,8 +520,8 @@ class SlideConverter:
             for coord_x in range(0, wsi_width, self.config.step_size):
                 yield coord_x, coord_y
 
-    def __crop_mask_to_tile(self, mask_img: Optional[Image.Image], \
-                            coord_x: int, coord_y: int, \
+    def __crop_mask_to_tile(self, mask_img: Optional[Image.Image],
+                            coord_x: int, coord_y: int,
                             scale_factor: int) -> Optional[Image.Image]:
         """Crops mask to a tile specified by coordinates scaled to appropriate resolution.
 
@@ -630,7 +618,7 @@ if __name__ == '__main__':
              config_fp - Path to config file
     """
 
-    parser = argparse.ArgumentParser(description=description, \
+    parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # Required arguments

@@ -102,7 +102,7 @@ class CreateMapConfig(ConfigProto):
             assert self.label_dir is not None, "Strict mode requires a valid annotation file."
         return strict_enabled
 
-    def toJSON(self, output_path):
+    def to_json(self, output_path):
         json_dict = {}
         json_dict['data'] = {}
         json_dict['converter'] = {}
