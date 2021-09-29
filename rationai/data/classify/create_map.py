@@ -25,7 +25,6 @@ from skimage import morphology
 from openslide import OpenSlide
 
 # Local Imports
-from rationai.data.utils import mkdir
 from rationai.data.utils import read_polygons
 from rationai.data.utils import open_pil_image
 from rationai.data.classify.create_map_config import CreateMapConfig
@@ -34,6 +33,9 @@ from rationai.data.classify.create_map_config import CreateMapConfig
 Image.MAX_IMAGE_PIXELS = None
 
 log = logging.getLogger('slide-converter')
+logging.basicConfig(level=logging.INFO,
+                   format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
+                   datefmt='%d.%m.%Y %H:%M:%S')
 
 @dataclass
 class ROITile:
@@ -65,7 +67,6 @@ class SlideConverter:
         # Create coord maps directories
         coord_maps_dir = self.config.output_path / 'coord_maps'
         coord_maps_dir.mkdir(mode=0o770, parents=True, exist_ok=True)
-        log.info(f'[{os.getpid()}] Output location: {coord_maps_dir}')
 
     def __call__(self, slide_fp: Path) -> None:
         """Converts slide into a coordinate map of ROI Tiles.
@@ -78,7 +79,7 @@ class SlideConverter:
         annot_fp = self.__get_annotations()
         oslide_wsi = self.__open_slide(slide_fp)
 
-        is_mode_valid = self.__validate_mode()
+        is_mode_valid = self.__validate_mode(annot_fp)
         is_wsi_levels_valid = self.__validate_wsi_levels(oslide_wsi)
 
         if not (is_mode_valid and is_wsi_levels_valid):
@@ -117,12 +118,13 @@ class SlideConverter:
 
         annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml')
         if annot_fp.exists():
-            log.info(f'[{os.getpid()}] Annotation XML found.')
+            log.debug(f'[{self.slide_name}] Annotation XML found.')
             return annot_fp
 
+        log.warning(f'[{self.slide_name}] Annotation XML not found.')
         if not self.config.strict:
             self.config.negative = True
-        log.info(f'[{os.getpid()}] Annotation XML not found.')
+            log.warning(f'Setting negative flag to {self.config.negative}.')
         return None
 
     def __open_slide(self, slide_fp: Path) -> OpenSlide:
@@ -134,6 +136,7 @@ class SlideConverter:
         Returns:
             OpenSlide: Handler to opened WSI slide.
         """
+        logging.debug(f'[{self.slide_name}] Opening slide: {str(slide_fp.resolve())}')
         return OpenSlide(str(slide_fp.resolve()))
 
     def __validate_mode(self, annot_fp: Path) -> bool:
@@ -160,7 +163,7 @@ class SlideConverter:
         """
         max_level = max(self.config.sample_level, self.config.bg_level)
         if oslide_wsi.level_count < (max_level + 1):
-            log.error(f'[{os.getpid()}] WSI {self.slide_name} does not contain {max_level + 1} levels.')
+            log.error(f'[{self.slide_name}] WSI does not contain {max_level + 1} levels.')
             return False
         return True
 
@@ -222,7 +225,7 @@ class SlideConverter:
         Returns:
             Image.Image: Retrieved image.
         """
-        log.info(f'[{os.getpid()}] Opening existing image: {image_fp}.')
+        log.info(f'[{self.slide_name}] Opening existing image: {image_fp}.')
         return open_pil_image(image_fp)
 
     def __create_bg_mask(self, oslide_wsi: OpenSlide, annot_fp: Path) -> Image.Image:
@@ -239,7 +242,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
-        log.info(f'[{os.getpid()}] Generating new background mask.')
+        log.info(f'[{self.slide_name}] Generating new background mask.')
         init_bg_mask_img = self.__get_init_bg_mask(oslide_wsi)
 
         annot_bg_mask_img = self.__get_annot_bg_mask(oslide_wsi, annot_fp)
@@ -276,7 +279,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
-        log.info(f'[{os.getpid()}] Generating new initial background mask.')
+        log.info(f'[{self.slide_name}] Generating new initial background mask.')
         wsi_img = oslide_wsi.read_region(
             location=(0, 0),
             level=self.config.bg_level,
@@ -325,7 +328,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
-        log.info(f'[{os.getpid()}] Generating new annotation background mask.')
+        log.info(f'[{self.slide_name}] Generating new annotation background mask.')
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.bg_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.bg_level])
         canvas_color = 'BLACK' if self.config.strict else 'WHITE'
@@ -359,11 +362,13 @@ class SlideConverter:
         annot_mask_img, annot_mask_draw = self.__prepare_empty_canvas(size, canvas_color)
         incl_polygons = read_polygons(annot_fp, scale_factor=scale_factor, \
                                       keywords=include_keywords)
-        self.__draw_polygons_on_mask(incl_polygons, annot_mask_draw, color='WHITE')
+        log.debug(f'[{self.slide_name}] Include polygons ({include_keywords}): {incl_polygons}')
+        self.__draw_polygons_on_mask(incl_polygons, annot_mask_draw, polygon_color='WHITE')
 
         excl_polygons = read_polygons(annot_fp, scale_factor=scale_factor, \
                                       keywords=exclude_keywords)
-        self.__draw_polygons_on_mask(excl_polygons, annot_mask_draw, color='BLACK')
+        log.debug(f'[{self.slide_name}] Exclude polygons ({exclude_keywords}): {excl_polygons}')
+        self.__draw_polygons_on_mask(excl_polygons, annot_mask_draw, polygon_color='BLACK')
 
         return annot_mask_img
 
@@ -382,6 +387,21 @@ class SlideConverter:
         canvas = Image.new('L', size=size, color=bg_color)
         draw = ImageDraw.Draw(canvas)
         return canvas, draw
+
+    def __draw_polygons_on_mask(self, polygons: List[List[float]], \
+                                canvas_draw: ImageDraw.ImageDraw, \
+                                polygon_color: str) -> None:
+        """Draws polygons on a canvas based on provided annotation file.
+
+        Args:
+            polygons (List[List[float]]): List of polygons extracted from annotation file.
+            canvas_draw (ImageDraw.ImageDraw): ImageDraw reference to canvas.
+        """
+        for polygon in polygons:
+            if len(polygon) < 3:
+                log.warning(f'[{self.slide_name}] Polygon {polygon} skipped because it contains less than 3 vertices.')
+                continue
+            canvas_draw.polygon(xy=polygon, outline=(polygon_color), fill=(polygon_color))
 
     def __combine_bg_masks(self, init_bg_mask_img: Image, annot_bg_mask_img: Image) -> Image.Image:
         """Combines two binary masks using binary AND operation.
@@ -414,7 +434,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary annotation mask.
         """
-        log.info(f'[{os.getpid()}] Generating annotation mask.')
+        log.info(f'[{self.slide_name}] Generating annotation mask.')
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.sample_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.sample_level])
         canvas_color = 'BLACK'
@@ -451,13 +471,14 @@ class SlideConverter:
             'center_tumor_tile': [],
             'slide_name': []
         }
-        log.info(f'[{os.getpid()}] Converting slide: {self.slide_name}')
+        log.info(f'[{self.slide_name}] Initiating slide conversion.')
         for roi_tile in self.__roi_cutter(oslide_wsi, bg_mask_img, annot_mask_img):
             coord_map['coord_x'].append(roi_tile.coord_x)
             coord_map['coord_y'].append(roi_tile.coord_y)
             coord_map['tumor_tile'].append(roi_tile.annot_coverage)
             coord_map['center_tumor_tile'].append(roi_tile.center_annot_coverage)
             coord_map['slide_name'].append(self.slide_name)
+        log.info(f'[{self.slide_name}] Slide conversion complete.')
 
         return pd.DataFrame.from_dict(coord_map)
 
@@ -512,18 +533,22 @@ class SlideConverter:
             for coord_x in range(0, wsi_width, self.config.step_size):
                 yield coord_x, coord_y
 
-    def __crop_mask_to_tile(self, mask_img, coord_x, coord_y, scale_factor) -> Image.Image:
+    def __crop_mask_to_tile(self, mask_img: Optional[Image.Image], \
+                            coord_x: int, coord_y: int, \
+                            scale_factor: int) -> Optional[Image.Image]:
         """Crops mask to a tile specified by coordinates scaled to appropriate resolution.
 
         Args:
-            mask_img ([type]): Mask to be cropped.
-            coord_x ([type]): Coordinate along x-axis.
-            coord_y ([type]): Coordinate along y-axis.
-            scale_factor ([type]): Scaling factor for coordinates.
+            mask_img (Optional[Image.Image]): Image to be cropped.
+            coord_x (int): Coordinate along x-axis.
+            coord_y (int): Coordinate along y-axis.
+            scale_factor (int): Used for scaling coordinates.
 
         Returns:
-            Image.Image: Extracted tile.
+            Optional[Image.Image]: Cropped tiled or None
         """
+        if mask_img is None:
+            return None
         return mask_img.crop((int(coord_x // scale_factor),
                               int(coord_y // scale_factor),
                               int((coord_x + self.config.tile_size) // scale_factor),
@@ -580,15 +605,18 @@ class SlideConverter:
         Args:
             coord_map_df (DataFrame): Coordinate map dataframe.
         """
+        log.info(f'[{self.slide_name}] Saving coord map.')
         coord_map_fp = self.config.output_path / f'coord_maps/{self.slide_name}.gz'
         coord_map_df.to_pickle(coord_map_fp, compression='gzip')
-        log.info(f'[{os.getpid()}] Coord map with {len(coord_map_df)} ROI tiles saved at: {coord_map_fp}.')
+        log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved at: {coord_map_fp}.')
 
 def main(args):
     cfg = CreateMapConfig(args.config_fp)
     log.info(f'Creating {cfg.max_workers} workers.')
-    with Pool(cfg.max_workers) as p:
-        p.map(SlideConverter(copy.copy(cfg)), cfg.slide_dir.glob(cfg.pattern))
+    #with Pool(cfg.max_workers) as p:
+    #    p.map(SlideConverter(copy.copy(cfg)), cfg.slide_dir.glob(cfg.pattern))
+    for slide_fp in cfg.slide_dir.glob(cfg.pattern):
+        SlideConverter(copy.copy(cfg))(slide_fp)
     return True
 
 
