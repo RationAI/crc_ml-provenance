@@ -95,7 +95,7 @@ class TreeSampler:
     def __build_sampling_tree(self, data_source, index_levels):
         raise NotImplemented()
 
-class RandomSampler(TreeSampler):
+class RandomTreeSampler(TreeSampler):
     """
         RandomSampler samples randomly 'epoch_size' entries.
         Supports multi-level sampling by including 'index_level'.
@@ -117,7 +117,7 @@ class RandomSampler(TreeSampler):
             result.append(node.data.sample().to_dict())
         return result
 
-class SequentialSampler(TreeSampler):
+class SequentialTreeSampler(TreeSampler):
     """
         SequentialSampler traverses all leaves once and returns their data content.
         Supports multi-level sampling by including 'index_level'.
