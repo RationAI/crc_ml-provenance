@@ -341,7 +341,7 @@ class SlideConverter:
                                     'WHITE' - area should be considered as positive unless
                                               explicitly overruled by annotation file
                                     'BLACK' - area should be considered as negative unless
-                                              explicitely overruled by annotation file
+                                              explicitly overruled by annotation file
 
         Returns:
             Image.Image: Binary mask.
