@@ -13,4 +13,4 @@ clean:
 	@echo "Cleaning temporary masks."
 
 run:
-	$(PYTHON) -m rationai.data.classify.create_map --config_fp $(CONFIG_FILE)
+	@echo "This runs the pipeline."
