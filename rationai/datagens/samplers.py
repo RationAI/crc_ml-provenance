@@ -8,6 +8,9 @@ import pandas as pd
 from pandas.core.frame import DataFrame
 import numpy as np
 
+# Local Imports
+from rationai.datagens.datasources import DataSource
+
 log = logging.getLogger('samplers')
 logging.basicConfig(level=logging.INFO,
                    format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
@@ -92,8 +95,26 @@ class TreeSampler:
         self.data_source = data_source
         self.sampling_tree = self.__build_sampling_tree(data_source, index_levels)
 
-    def __build_sampling_tree(self, data_source, index_levels):
-        raise NotImplemented()
+    def __build_sampling_tree(self, data_source: DataSource,
+                              index_levels: List[src]) -> SamplingTree:
+        """Builds a SamplingTree from the provided DataSource.
+
+        Function requires that the DataSource.data is a list of paths to DataFrame objects.
+
+        Args:
+            data_source (DataSource): DataSource containing paths to input files
+            index_levels (List[src]): List of column names appearing in the input DataFrames.
+                                      These column names are then used to multi-level sampling
+                                      tree. Column names are processed in order of appearance.
+
+        Returns:
+            SamplingTree: SamplingTree data structure.
+        """
+        df = pd.concat([pd.read_pickle(input_file) for input_file in data_source.source])
+        sampling_tree = SamplingTree(df)
+        for index_level in index_levels:
+            sampling_tree.split(index_level)
+        return sampling_tree
 
 class RandomTreeSampler(TreeSampler):
     """
