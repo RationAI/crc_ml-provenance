@@ -9,7 +9,6 @@ from pathlib import Path
 import argparse
 import logging
 import copy
-import os
 
 # Third-party Imports
 import numpy as np
@@ -45,8 +44,10 @@ class ROITile:
 
 class SlideConverter:
 
-    def __init__(self, config: CreateMapConfig):
+    def __init__(self, config: CreateMapConfig, group_name: str, dataset_h5: pd.HDFStore):
         self.config = config
+        self.group_name = group_name
+        self.dataset_h5 = dataset_h5
         self.center_filter_np = self.__get_center_filter()
         self.__prepare_dir_structure()
         self.config.to_json(self.config.output_path / 'config.json')
@@ -89,7 +90,7 @@ class SlideConverter:
 
         coord_map_df = self.__tile_wsi_to_coord_map(oslide_wsi, bg_mask_img, annot_mask_img)
 
-        self.__save_coord_map(coord_map_df)
+        self.__save_coord_map(coord_map_df, slide_fp, annot_fp)
         oslide_wsi.close()
 
     def __get_center_filter(self) -> Image.Image:
@@ -115,7 +116,7 @@ class SlideConverter:
         if self.config.negative:
             return None
 
-        annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml')
+        annot_fp = self.__find_annotation_file()
         if annot_fp.exists():
             log.debug(f'[{self.slide_name}] Annotation XML found.')
             return annot_fp
@@ -124,6 +125,18 @@ class SlideConverter:
         if not self.config.strict:
             self.config.negative = True
             log.warning(f'Setting negative flag to {self.config.negative}.')
+        return None
+
+    def __find_annotation_file(self) -> Optional[Path]:
+        """Searches for annotation file in the list of directories.
+
+        Returns:
+            Optional[Path]: Path to annotation file; otherwise None
+        """
+        for label_dir in self.config.input_data[self.group_name]['label_dirs']:
+            filepath = (label_dir / self.slide_name).with_suffix('.xml')
+            if filepath.exists():
+                return filepath
         return None
 
     def __open_slide(self, slide_fp: Path) -> OpenSlide:
@@ -590,25 +603,38 @@ class SlideConverter:
 
         return annot_coverage, center_annot_coverage
 
-    def __save_coord_map(self, coord_map_df: DataFrame) -> None:
-        """Saves coordinate map dataframe on a disk.
+    def __save_coord_map(self, coord_map_df: DataFrame, slide_fp: Path, annot_fp: Path) -> None:
+        log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
+        dataset_slide_key = f'{self.group_name}/{self.slide_name}'
+        self.dataset_h5.append(dataset_slide_key, coord_map_df)
+        self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
 
-        Args:
-            coord_map_df (DataFrame): Coordinate map dataframe.
-        """
-        log.info(f'[{self.slide_name}] Saving coord map.')
-        coord_map_fp = self.config.output_path / f'coord_maps/{self.slide_name}.gz'
-        coord_map_df.to_pickle(coord_map_fp, compression='gzip')
-        log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved at: {coord_map_fp}.')
+    def __save_metadata(self, dataset_slide_key: str, slide_fp: Path, annot_fp: Path) -> None:
+        storer = self.dataset_h5.get_storer(dataset_slide_key)
+        storer.attrs.tile_size = self.config.tile_size
+        storer.attrs.center_size = self.config.center_size
+        storer.attrs.slide_fp = slide_fp
+        storer.attrs.annot_fp = annot_fp
+        storer.attrs.sample_level = self.config.sample_level
 
 def main(args):
     cfg = CreateMapConfig(args.config_fp)
     log.info(f'Creating {cfg.max_workers} workers.')
-    #with Pool(cfg.max_workers) as p:
-    #    p.map(SlideConverter(copy.copy(cfg)), cfg.slide_dir.glob(cfg.pattern))
-    for slide_fp in cfg.slide_dir.glob(cfg.pattern):
-        SlideConverter(copy.copy(cfg))(slide_fp)
-    return True
+
+    coord_dataset = pd.HDFStore(cfg.output_path, 'w')
+
+    if True:
+        for group_name, input_dirs in cfg.slide_dirs.items():
+            for input_dir in input_dirs:
+                    for slide_fp in input_dir.glob(cfg.pattern):
+                        SlideConverter(copy.copy(cfg), group_name, coord_dataset)(slide_fp)
+    else:
+        for group_name, input_dirs in cfg.slide_dirs.items():
+            for input_dir in input_dirs:
+                with Pool(cfg.max_workers) as p:
+                    p.map(SlideConverter(copy.copy(cfg), group_name, coord_dataset), cfg.slide_dir.glob(cfg.pattern))
+
+    coord_dataset.close()
 
 
 if __name__ == '__main__':

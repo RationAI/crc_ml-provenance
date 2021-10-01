@@ -3,6 +3,7 @@ import json
 from multiprocessing import Value
 from pathlib import Path
 from typing import Optional
+from typing import List
 
 # Local Imports
 from rationai.utils.config import ConfigProto
@@ -12,8 +13,7 @@ class CreateMapConfig(ConfigProto):
         self.config_fp = config_fp
 
         # Input Path Parameters
-        self.slide_dir = None
-        self.label_dir = None
+        self.input_data = None
         self.pattern = None
 
         # Output Path Parameters
@@ -49,10 +49,9 @@ class CreateMapConfig(ConfigProto):
         with open(config_fp, 'r') as cfg_finput:
             config = json.load(cfg_finput)
 
-        # Shared data parameters
+        # Data parameters
         data_config = config['data']
-        self.slide_dir = self.__validate_path(Path(data_config['slide_dir']), required=True)
-        self.label_dir = self.__validate_path(Path(data_config['label_dir']), required=False)
+        self.input_data = data_config['input_data']
         self.tile_size = int(data_config['tile_size'])
         self.center_size = int(data_config['center_size'])
         self.sample_level = int(data_config['sample_level'])
@@ -73,22 +72,6 @@ class CreateMapConfig(ConfigProto):
         self.force = bool(converter_config['force'])
         self.max_workers = int(converter_config['max_workers'])
 
-    def __validate_path(self, path: Optional[Path], required: bool) -> Optional[Path]:
-        """Checks if path exists if specified.
-
-        Args:
-            path (Optional[Path]): Path to annotation file; or None
-            required (bool): Required parameters cannot be None.
-
-        Returns:
-            Optional[Path]: Path to annotation file; or None
-        """
-        if required:
-            assert path is not None
-        if path is not None:
-            assert path.exists(), f'Path {path} does not exist.'
-        return path
-
     def __validate_strict(self, strict_enabled: bool) -> bool:
         """Strict mode requires an annotation file to produce meaningful results.
 
@@ -108,8 +91,7 @@ class CreateMapConfig(ConfigProto):
         json_dict['converter'] = {}
 
         data_json_dict = json_dict['data']
-        data_json_dict['slide_dir'] = str(self.slide_dir)
-        data_json_dict['label_dir'] = str(self.label_dir)
+        data_json_dict['input_data'] = self.input_data
         data_json_dict['tile_size'] = self.tile_size
         data_json_dict['center_size'] = self.center_size
         data_json_dict['sample_level'] = self.sample_level
@@ -123,7 +105,7 @@ class CreateMapConfig(ConfigProto):
         converter_json_dict['exclude_keywords'] = self.exclude_keywords
         converter_json_dict['min_tissue'] = self.min_tissue
         converter_json_dict['max_tissue'] = self.max_tissue
-        converter_json_dict['disk_size'] = self.disk_size 
+        converter_json_dict['disk_size'] = self.disk_size
         converter_json_dict['negative_mode'] = self.negative
         converter_json_dict['strict_mode'] = self.strict
         converter_json_dict['force'] = self.force
