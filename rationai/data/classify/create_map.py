@@ -44,9 +44,8 @@ class ROITile:
 
 class SlideConverter:
 
-    def __init__(self, config: CreateMapConfig, group_name: str, dataset_h5: pd.HDFStore):
+    def __init__(self, config: CreateMapConfig, dataset_h5: pd.HDFStore):
         self.config = config
-        self.group_name = group_name
         self.dataset_h5 = dataset_h5
         self.center_filter_np = self.__get_center_filter()
         self.__prepare_dir_structure()
@@ -113,30 +112,18 @@ class SlideConverter:
         Returns:
             Optional[Path]: Path to annotation file if it exists; otherwise None.
         """
-        if self.config.negative:
+        if self.config.negative_mode:
             return None
 
-        annot_fp = self.__find_annotation_file()
+        annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml')
         if annot_fp.exists():
             log.debug(f'[{self.slide_name}] Annotation XML found.')
             return annot_fp
 
         log.warning(f'[{self.slide_name}] Annotation XML not found.')
-        if not self.config.strict:
-            self.config.negative = True
-            log.warning(f'Setting negative flag to {self.config.negative}.')
-        return None
-
-    def __find_annotation_file(self) -> Optional[Path]:
-        """Searches for annotation file in the list of directories.
-
-        Returns:
-            Optional[Path]: Path to annotation file; otherwise None
-        """
-        for label_dir in self.config.input_data[self.group_name]['label_dirs']:
-            filepath = (label_dir / self.slide_name).with_suffix('.xml')
-            if filepath.exists():
-                return filepath
+        if not self.config.strict_mode:
+            self.config.negative_mode = True
+            log.warning(f'Setting negative flag to {self.config.negative_mode}.')
         return None
 
     def __open_slide(self, slide_fp: Path) -> OpenSlide:
@@ -160,7 +147,7 @@ class SlideConverter:
         Returns:
             bool: True if requirements are met; otherwise False.
         """
-        if annot_fp is None and self.config.strict:
+        if annot_fp is None and self.config.strict_mode:
             return False
         return True
 
@@ -217,7 +204,7 @@ class SlideConverter:
             Optional[Image.Image]: Binary annotation mask highlighting regions of interest;
                              None if conversion mode set to 'Negative'
         """
-        if self.config.negative:
+        if self.config.negative_mode:
             return None
 
         annot_mask_fp = self.config.output_path / f'masks/annotations/{self.slide_name}.PNG'
@@ -310,7 +297,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
-        if self.config.negative:
+        if self.config.negative_mode:
             return None
         annot_bg_mask_fp = self.config.output_path / f'masks/bg/bg_annot/{self.slide_name}.PNG'
         if annot_bg_mask_fp.exists() and not self.config.force:
@@ -335,7 +322,7 @@ class SlideConverter:
         log.info(f'[{self.slide_name}] Generating new annotation background mask.')
         annot_bg_mask_size = oslide_wsi.level_dimensions[self.config.bg_level]
         annot_bg_scale_factor = int(oslide_wsi.level_downsamples[self.config.bg_level])
-        canvas_color = 'BLACK' if self.config.strict else 'WHITE'
+        canvas_color = 'BLACK' if self.config.strict_mode else 'WHITE'
         return self.__draw_annotation_mask(annot_fp, annot_bg_mask_size, annot_bg_scale_factor,
             include_keywords=self.config.include_keywords,
             exclude_keywords=self.config.exclude_keywords,
@@ -423,7 +410,7 @@ class SlideConverter:
         """
         combined_bg_mask = np.array(init_bg_mask_img)
 
-        if not self.config.negative:
+        if not self.config.negative_mode:
             combined_bg_mask = combined_bg_mask & np.array(annot_bg_mask_img)
 
         return Image.fromarray(combined_bg_mask.astype(np.uint8) * 255, mode='L')
@@ -594,7 +581,7 @@ class SlideConverter:
             Tuple[float, float]: Tuple of ratios of annotated (non-zero) elements w.r.t. the entire
             tile and w.r.t. the center area of the tile.
         """
-        if self.config.negative:
+        if self.config.negative_mode:
             return 0.0, 0.0
 
         annot_tile_np = np.array(annot_tile_img)
@@ -605,7 +592,7 @@ class SlideConverter:
 
     def __save_coord_map(self, coord_map_df: DataFrame, slide_fp: Path, annot_fp: Path) -> None:
         log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
-        dataset_slide_key = f'{self.group_name}/{self.slide_name}'
+        dataset_slide_key = f'{self.config.group}/{self.slide_name}'
         self.dataset_h5.append(dataset_slide_key, coord_map_df)
         self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
 
@@ -618,21 +605,16 @@ class SlideConverter:
         storer.attrs.sample_level = self.config.sample_level
 
 def main(args):
-    cfg = CreateMapConfig(args.config_fp)
-    log.info(f'Creating {cfg.max_workers} workers.')
+    for cfg in CreateMapConfig(args.config_fp):
+        coord_dataset = pd.HDFStore(cfg.output_path, 'w')
 
-    coord_dataset = pd.HDFStore(cfg.output_path, 'w')
-
-    if True:
-        for group_name, input_dirs in cfg.slide_dirs.items():
-            for input_dir in input_dirs:
-                    for slide_fp in input_dir.glob(cfg.pattern):
-                        SlideConverter(copy.copy(cfg), group_name, coord_dataset)(slide_fp)
-    else:
-        for group_name, input_dirs in cfg.slide_dirs.items():
-            for input_dir in input_dirs:
-                with Pool(cfg.max_workers) as p:
-                    p.map(SlideConverter(copy.copy(cfg), group_name, coord_dataset), cfg.slide_dir.glob(cfg.pattern))
+        if True:
+            for slide_fp in cfg.slide_dir.glob(cfg.pattern):
+                SlideConverter(copy.deepcopy(cfg), coord_dataset)(slide_fp)
+        else:
+            log.info(f'Spawning {cfg.max_workers} workers.')
+            with Pool(cfg.max_workers) as p:
+                p.map(SlideConverter(copy.deepcopy(cfg), coord_dataset), cfg.slide_dir.glob(cfg.pattern))
 
     coord_dataset.close()
 
