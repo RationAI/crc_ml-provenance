@@ -60,7 +60,7 @@ class CreateMapConfig(ConfigProto):
             config = json.load(json_r)['slide-converter']
 
         # Set config to default state
-        self.__set_options(config.pop('_global').items())
+        self.__set_options(config.pop('_global'))
 
         # Prepare iterator variable
         self._groups = config
