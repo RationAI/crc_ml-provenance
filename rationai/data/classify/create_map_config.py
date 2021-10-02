@@ -9,7 +9,9 @@ from typing import List
 # Local Imports
 from rationai.utils.config import ConfigProto
 
+# Logger
 log = logging.getLogger('create_map_config')
+
 
 class CreateMapConfig(ConfigProto):
     def __init__(self, config_fp):
@@ -56,11 +58,13 @@ class CreateMapConfig(ConfigProto):
         self._cur_group_configs = []
 
     def __iter__(self):
+        log.info('Populating default options.')
         with open(self.config_fp, 'r') as json_r:
             config = json.load(json_r)['slide-converter']
 
         # Set config to default state
-        self.__set_options(config.pop('_global').items())
+        self.__set_options(config.pop('_global'))
+        self._default_config = {}
 
         # Prepare iterator variable
         self._groups = config
@@ -69,14 +73,15 @@ class CreateMapConfig(ConfigProto):
     def __next__(self):
         if not (self._groups or self._cur_group_configs):
             raise StopIteration
-
         # For each input dir we only want to override
         # attributes explicitely configured in JSON file.
         self.__reset_to_default()
         if not self._cur_group_configs:
             self.__get_next_group()
         self.__set_options(self._cur_group_configs.pop())
+        self.__validate_options()
 
+        log.info(f'Now processing ({self.group}):{self.slide_dir}')
         return self
 
     def __set_options(self, config):
@@ -101,5 +106,10 @@ class CreateMapConfig(ConfigProto):
         self.group = group
         self._cur_group_configs = configs
 
-
+    def __validate_options(self):
+        # Path attributes
+        self.slide_dir = Path(self.slide_dir)
+        if self.label_dir:
+            self.label_dir = Path(self.label_dir)
+        self.output_path = Path(self.output_path)
 

@@ -12,6 +12,8 @@ import copy
 
 # Third-party Imports
 import numpy as np
+import warnings
+import tables
 from nptyping import NDArray
 import pandas as pd
 from pandas.core.frame import DataFrame
@@ -30,6 +32,9 @@ from rationai.data.classify.create_map_config import CreateMapConfig
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
 
+# Suppress tables names warning
+warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
+
 log = logging.getLogger('slide-converter')
 logging.basicConfig(level=logging.INFO,
                    format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
@@ -43,29 +48,12 @@ class ROITile:
     center_annot_coverage: float
 
 class SlideConverter:
+    dataset_h5 = None
 
-    def __init__(self, config: CreateMapConfig, dataset_h5: pd.HDFStore):
+    def __init__(self, config: CreateMapConfig):
         self.config = config
-        self.dataset_h5 = dataset_h5
         self.center_filter_np = self.__get_center_filter()
-        self.__prepare_dir_structure()
-        self.config.to_json(self.config.output_path / 'config.json')
-
-    def __prepare_dir_structure(self):
-        # Base output dir
-        self.config.output_path.mkdir(mode=0o770, parents=True, exist_ok=True)
-
-        # Create mask directories
-        masks_dir = self.config.output_path / 'masks'
-        masks_dir.mkdir(mode=0o770, parents=True, exist_ok=True)
-        (masks_dir / 'bg' / 'bg_init').mkdir(mode=0o770, parents=True, exist_ok=True)
-        (masks_dir / 'bg' / 'bg_final').mkdir(mode=0o770, parents=True, exist_ok=True)
-        (masks_dir / 'bg' / 'bg_annot').mkdir(mode=0o770, parents=True, exist_ok=True)
-        (masks_dir / 'annotations').mkdir(mode=0o770, parents=True, exist_ok=True)
-
-        # Create coord maps directories
-        coord_maps_dir = self.config.output_path / 'coord_maps'
-        coord_maps_dir.mkdir(mode=0o770, parents=True, exist_ok=True)
+        # TODO: Copy config to output_path
 
     def __call__(self, slide_fp: Path) -> None:
         """Converts slide into a coordinate map of ROI Tiles.
@@ -591,13 +579,14 @@ class SlideConverter:
         return annot_coverage, center_annot_coverage
 
     def __save_coord_map(self, coord_map_df: DataFrame, slide_fp: Path, annot_fp: Path) -> None:
-        log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
-        dataset_slide_key = f'{self.config.group}/{self.slide_name}'
-        self.dataset_h5.append(dataset_slide_key, coord_map_df)
-        self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
+        if len(coord_map_df) > 0:
+            log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
+            dataset_slide_key = f'{self.config.group}/{self.slide_name}'
+            SlideConverter.dataset_h5.append(dataset_slide_key, coord_map_df)
+            self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
 
     def __save_metadata(self, dataset_slide_key: str, slide_fp: Path, annot_fp: Path) -> None:
-        storer = self.dataset_h5.get_storer(dataset_slide_key)
+        storer = SlideConverter.dataset_h5.get_storer(dataset_slide_key)
         storer.attrs.tile_size = self.config.tile_size
         storer.attrs.center_size = self.config.center_size
         storer.attrs.slide_fp = slide_fp
@@ -605,18 +594,17 @@ class SlideConverter:
         storer.attrs.sample_level = self.config.sample_level
 
 def main(args):
+    SlideConverter.dataset_h5 = pd.HDFStore((args.output_dir / args.output_dir.name).with_suffix('.h5'), 'w')
     for cfg in CreateMapConfig(args.config_fp):
-        coord_dataset = pd.HDFStore(cfg.output_path, 'w')
-
-        if True:
-            for slide_fp in cfg.slide_dir.glob(cfg.pattern):
-                SlideConverter(copy.deepcopy(cfg), coord_dataset)(slide_fp)
+        if False:
+            for slide_fp in list(cfg.slide_dir.glob(cfg.pattern))[:2]:
+                SlideConverter(copy.deepcopy(cfg), dataset_h5)(slide_fp)
         else:
             log.info(f'Spawning {cfg.max_workers} workers.')
             with Pool(cfg.max_workers) as p:
-                p.map(SlideConverter(copy.deepcopy(cfg), coord_dataset), cfg.slide_dir.glob(cfg.pattern))
+                p.map(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:2])
 
-    coord_dataset.close()
+    SlideConverter.dataset_h5.close()
 
 
 if __name__ == '__main__':
@@ -635,5 +623,6 @@ if __name__ == '__main__':
 
     # Required arguments
     parser.add_argument('--config_fp', type=Path, required=True, help='Path to config file.')
+    parser.add_argument('--output_dir', type=Path, required=True, help='Path to output directory.')
     args = parser.parse_args()
     main(args)
