@@ -6,6 +6,7 @@ from typing import Tuple
 from typing import List
 from typing import Iterator
 from pathlib import Path
+from datetime import datetime
 import argparse
 import logging
 import copy
@@ -589,8 +590,8 @@ class SlideConverter:
         storer = SlideConverter.dataset_h5.get_storer(dataset_slide_key)
         storer.attrs.tile_size = self.config.tile_size
         storer.attrs.center_size = self.config.center_size
-        storer.attrs.slide_fp = slide_fp
-        storer.attrs.annot_fp = annot_fp
+        storer.attrs.slide_fp = str(slide_fp)
+        storer.attrs.annot_fp = str(annot_fp)
         storer.attrs.sample_level = self.config.sample_level
 
 def main(args):
