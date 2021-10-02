@@ -49,12 +49,18 @@ class ROITile:
     center_annot_coverage: float
 
 class SlideConverter:
+    """Worker Object for tile extraction from WSI.
+
+       Class (static) variable `dataset_h5` is a workaround for multiprocessing to work.
+       HDFStore file handler does not support multiple write access. Thus a single file
+       handler needs to be passed. This filehandler cannot be pickled and therefore cannot
+       be stored as an instance variable or passed as an argument to the `__call__` function.
+    """
     dataset_h5 = None
 
     def __init__(self, config: CreateMapConfig):
         self.config = config
         self.center_filter_np = self.__get_center_filter()
-        # TODO: Copy config to output_path
 
     def __call__(self, slide_fp: Path) -> None:
         """Converts slide into a coordinate map of ROI Tiles.
@@ -445,18 +451,16 @@ class SlideConverter:
             DataFrame: Coordinate map of ROI tiles.
         """
         coord_map = {
-            'coord_x': [],
-            'coord_y': [],
-            'tumor_tile': [],
-            'center_tumor_tile': [],
-            'slide_name': []
+            'coord_x': [],      # (int)  x-coordinate of a top-left pixel of the tile
+            'coord_y': [],      # (int)  y-coordinate of a top-left pixel of the tile
+            'label': [],        # (bool) cancer present in the center area of the tile
+            'slide_name': []    # (str)  slide identifier (filename)
         }
         log.info(f'[{self.slide_name}] Initiating slide conversion.')
         for roi_tile in self.__roi_cutter(oslide_wsi, bg_mask_img, annot_mask_img):
             coord_map['coord_x'].append(roi_tile.coord_x)
             coord_map['coord_y'].append(roi_tile.coord_y)
-            coord_map['tumor_tile'].append(roi_tile.annot_coverage)
-            coord_map['center_tumor_tile'].append(roi_tile.center_annot_coverage)
+            coord_map['label'].append(roi_tile.center_annot_coverage)
             coord_map['slide_name'].append(self.slide_name)
         log.info(f'[{self.slide_name}] Slide conversion complete.')
 
@@ -492,12 +496,11 @@ class SlideConverter:
                 continue
 
             annot_tile_img = self.__crop_mask_to_tile(annot_mask_img, coord_x, coord_y, 1)
-            annot_coverage, center_annot_coverage = self.__determine_label(annot_tile_img)
+            label = self.__determine_label(annot_tile_img)
 
             yield ROITile(coord_x * sampling_scale_factor,
                   coord_y * sampling_scale_factor,
-                  annot_coverage,
-                  center_annot_coverage)
+                  label)
 
     def __tile_cutter(self, wsi_height: int, wsi_width: int) -> Iterator[Tuple[int, int]]:
         """Iterates over tile coordinates of a WSI.
@@ -544,21 +547,21 @@ class SlideConverter:
             bool: True if tissue ratio falls within acceptable range; otherwise False.
         """
         tile_np = np.array(tile_img)
-        tissue_coverage = self.__calculate_tissue_coverage(tile_np)
+        tissue_coverage = self.__calculate_tissue_coverage(tile_np, self.config.tile_size)
         return self.config.min_tissue <= tissue_coverage <= self.config.max_tissue
 
-    def __calculate_tissue_coverage(self, tile_np: NDArray) -> float:
+    def __calculate_tissue_coverage(self, tile_np: NDArray, size: int) -> float:
         """Calculates ratio of non-zero elements in a tile.
 
         Args:
             tile_np (NDArray): Extracted tile.
+            size (int): length of a single side of a square area
 
         Returns:
             float: Ratio of non-zero elements.
         """
         tissue_count = np.count_nonzero(tile_np)
-        all_count = np.size(tile_np)
-        return tissue_count / all_count
+        return tissue_count / (size*size)
 
     def __determine_label(self, annot_tile_img: Image) -> Tuple[float, float]:
         """Calculates ratio of annotated (non-zero) elements in
@@ -574,12 +577,23 @@ class SlideConverter:
             return 0.0, 0.0
 
         annot_tile_np = np.array(annot_tile_img)
-        annot_coverage = self.__calculate_tissue_coverage(annot_tile_np)
-        center_annot_coverage = self.__calculate_tissue_coverage(annot_tile_np & self.center_filter_np)
+        center_annot_coverage = self.__calculate_tissue_coverage(
+            annot_tile_np & self.center_filter_np,
+            self.config.center_size
+        )
 
-        return annot_coverage, center_annot_coverage
+        return center_annot_coverage
 
     def __save_coord_map(self, coord_map_df: DataFrame, slide_fp: Path, annot_fp: Path) -> None:
+        """Saves the non-empty coord_map DataFrame into the HDFStore using the
+           file handler. The key of a table is: <group>/<slide_name>.
+           Metadata is stored with each table.
+
+        Args:
+            coord_map_df (DataFrame): Coordinate map dataframe.
+            slide_fp (Path): WSI filepath.
+            annot_fp (Path): XML Annotation filepath.
+        """
         if len(coord_map_df) > 0:
             log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
             dataset_slide_key = f'{self.config.group}/{self.slide_name}'
@@ -587,6 +601,18 @@ class SlideConverter:
             self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
 
     def __save_metadata(self, dataset_slide_key: str, slide_fp: Path, annot_fp: Path) -> None:
+        """Saves the following metadata with the table:
+                - tile_size      size of the extracted tiles
+                - center_size    size of the labelled center area
+                - slide_fp       WSI filepath
+                - annot_fp       XML Annotation filepath
+                - sample_level   resolution level at which tiles were sampled
+
+        Args:
+            dataset_slide_key (str): Key under which the table is saved.
+            slide_fp (Path): WSI filepath.
+            annot_fp (Path): XML Annotation filepath
+        """
         storer = SlideConverter.dataset_h5.get_storer(dataset_slide_key)
         storer.attrs.tile_size = self.config.tile_size
         storer.attrs.center_size = self.config.center_size
@@ -595,18 +621,16 @@ class SlideConverter:
         storer.attrs.sample_level = self.config.sample_level
 
 def main(args):
+    # Get file handler to the output dataset file
     SlideConverter.dataset_h5 = pd.HDFStore((args.output_dir / args.output_dir.name).with_suffix('.h5'), 'w')
+
+    # Spawn worker for each slide; maximum `max_workers` simultaneous workers.
     for cfg in CreateMapConfig(args.config_fp):
-        if False:
-            for slide_fp in list(cfg.slide_dir.glob(cfg.pattern))[:2]:
-                SlideConverter(copy.deepcopy(cfg), dataset_h5)(slide_fp)
-        else:
-            log.info(f'Spawning {cfg.max_workers} workers.')
-            with Pool(cfg.max_workers) as p:
-                p.map(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:2])
+        log.info(f'Spawning {cfg.max_workers} workers.')
+        with Pool(cfg.max_workers) as p:
+            p.map(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:2])
 
     SlideConverter.dataset_h5.close()
-
 
 if __name__ == '__main__':
 
