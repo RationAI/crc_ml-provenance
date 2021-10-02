@@ -6,12 +6,15 @@ from typing import Tuple
 from typing import List
 from typing import Iterator
 from pathlib import Path
+from datetime import datetime
 import argparse
 import logging
 import copy
 
 # Third-party Imports
 import numpy as np
+import warnings
+import tables
 from nptyping import NDArray
 import pandas as pd
 from pandas.core.frame import DataFrame
@@ -29,6 +32,9 @@ from rationai.data.classify.create_map_config import CreateMapConfig
 
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
+
+# Suppress tables names warning
+warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
 
 log = logging.getLogger('slide-converter')
 logging.basicConfig(level=logging.INFO,
@@ -49,7 +55,7 @@ class SlideConverter:
         self.dataset_h5 = dataset_h5
         self.center_filter_np = self.__get_center_filter()
         self.__prepare_dir_structure()
-        self.config.to_json(self.config.output_path / 'config.json')
+        # TODO: Copy config to output_path
 
     def __prepare_dir_structure(self):
         # Base output dir
@@ -592,31 +598,35 @@ class SlideConverter:
 
     def __save_coord_map(self, coord_map_df: DataFrame, slide_fp: Path, annot_fp: Path) -> None:
         log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
-        dataset_slide_key = f'{self.config.group}/{self.slide_name}'
-        self.dataset_h5.append(dataset_slide_key, coord_map_df)
-        self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
+        if len(coord_map_df) > 0:
+            dataset_slide_key = f'{self.config.group}/{self.slide_name}'
+            self.dataset_h5.append(dataset_slide_key, coord_map_df)
+            self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
 
     def __save_metadata(self, dataset_slide_key: str, slide_fp: Path, annot_fp: Path) -> None:
         storer = self.dataset_h5.get_storer(dataset_slide_key)
         storer.attrs.tile_size = self.config.tile_size
         storer.attrs.center_size = self.config.center_size
-        storer.attrs.slide_fp = slide_fp
-        storer.attrs.annot_fp = annot_fp
+        storer.attrs.slide_fp = str(slide_fp)
+        storer.attrs.annot_fp = str(annot_fp)
         storer.attrs.sample_level = self.config.sample_level
 
 def main(args):
+    dataset_h5 = None
     for cfg in CreateMapConfig(args.config_fp):
-        coord_dataset = pd.HDFStore(cfg.output_path, 'w')
+        # TODO: Should the dir creation be here?
+        cfg.output_path.mkdir(mode=0o770,parents=True, exist_ok=True)
+        dataset_h5 = dataset_h5 or pd.HDFStore((cfg.output_path / cfg.output_path.name).with_suffix('.h5'), 'w')
 
-        if True:
-            for slide_fp in cfg.slide_dir.glob(cfg.pattern):
-                SlideConverter(copy.deepcopy(cfg), coord_dataset)(slide_fp)
+        if False:
+            for slide_fp in list(cfg.slide_dir.glob(cfg.pattern))[:2]:
+                SlideConverter(copy.deepcopy(cfg), dataset_h5)(slide_fp)
         else:
             log.info(f'Spawning {cfg.max_workers} workers.')
             with Pool(cfg.max_workers) as p:
-                p.map(SlideConverter(copy.deepcopy(cfg), coord_dataset), cfg.slide_dir.glob(cfg.pattern))
+                p.map(SlideConverter(copy.deepcopy(cfg), dataset_h5), cfg.slide_dir.glob(cfg.pattern))
 
-    coord_dataset.close()
+    dataset_h5.close()
 
 
 if __name__ == '__main__':
