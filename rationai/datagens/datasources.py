@@ -1,51 +1,99 @@
 # Standard Imports
 from __future__ import annotations
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
 from typing import Union
 from typing import Tuple
-from typing import Any
+from typing import Optional
+from enum import Enum
 
 # Third-party Imports
 from sklearn.model_selection import train_test_split
 import pandas as pd
-import h5py
+from pandas.io.pytables import HDFStore
 
 
 # Local Imports
 
-class DataSource:
-    def __init__(self, dataset_fp: Path, source: List):
-        self.dataset_fp = dataset_fp
-        self.source = source
 
-    def __len__(self):
-        return len(self.source)
+class DataSource(ABC):
+    @abstractmethod
+    def __init__(self):
+        raise NotImplementedError
 
-    def loadDataset(dataset_fp: Path, *args: Any, **kwargs: Any) -> List[DataSource]:
-        if dataset_fp.suffix == '.gz':
-            return HDF5_DataSource.loadDataset(dataset_fp, *args, **kwargs)
-        return ValueError(f'Unknown file format: {dataset_fp.suffix}.')
+    @abstractmethod
+    def loadDataset(self):
+        raise NotImplementedError
 
+    @abstractmethod
     def split(self):
         raise NotImplementedError
 
 
 class HDF5_DataSource(DataSource):
-    def loadDataset(dataset_fp: Path, keys: List[str]) -> List[HDF5_DataSource]:
-        dataset_hdf5 = h5py.File(dataset_fp, 'r')
-        datasources = []
+    def __init__(self, dataset_fp: Path, tables: List[str], source: HDFStore):
+        self.dataset_fp = dataset_fp
+        self.tables = tables
+        self.source = source
+
+    def loadDataset(dataset_fp: Path, keys: List[str]) -> HDF5_DataSource:
+        """Loads the dataset as a union of all tables across specified keys.
+
+        Args:
+            dataset_fp (Path): Path to the HDF5 dataset.
+            keys (List[str]): Keys that should be included in the result set.
+
+        Returns:
+            HDF5_DataSource: DataSource
+        """
+        source = pd.HDFStore(dataset_fp, 'r')
+
+        tables = []
         for key in keys:
-            datasources.append(HDF5_DataSource(dataset_fp, dataset_hdf5[key]))
-        return datasources
+            tables += [node._v_pathname for node in source.get_node(str(key))]
 
-    def split(self, new_size: Union[int, float],
-              stratify: bool) -> Tuple[HDF5_DataSource, HDF5_DataSource]:
-        dataset_hdf5 = h5py.File(self.dataset_fp, 'r')
+        return HDF5_DataSource(dataset_fp, tables=tables, source=source)
 
-        stratify_list = None
-        if stratify and ('stratify' in dataset_hdf5.data.attrs):
-            stratify_list = dataset_hdf5.data.attrs['stratify'].tolist()
+    def split(self, sizes: List[float], key: Optional[str]) -> List[HDF5_DataSource]:
+        """Partition the DataSource into N partitions. The size of each partition is defined by
+        `sizes` parameter. Key defines how the DataSource is split.
 
-        src1, src2 = train_test_split(self.source, test_size=new_size, stratify=stratify_list)
-        return HDF5_DataSource(self.dataset_fp, src1), HDF5_DataSource(self.dataset_fp, src2)
+        Args:
+            sizes (List[float]): Defines size of new DataSource as a fraction of the old one.
+            key (Optional[str]): When `None` the DataSource is split on the HDF5 key of each table.
+                If specified, the value of metadata attribute key is used.
+
+        Returns:
+            List[HDF5_DataSource]: List of DataSource partitions.
+        """
+        data_sources = []
+        tables = self.tables
+        n_tables = len(self.tables)
+        for size in sizes[:-1]:
+            if key is None:
+                stratify = [table_key.rsplit('/', 1)[0] for table_key in tables]
+            else:
+                stratify = [
+                    self.source.get_storer(table_key).attrs[key] for table_key in tables
+                ]
+            new_tables, tables = train_test_split(
+                tables,
+                train_size=int(n_tables*size),
+                stratify=stratify
+            )
+            data_sources.append(
+                HDF5_DataSource(
+                    self.dataset_fp,
+                    new_tables,
+                    self.source
+                )
+            )
+        data_sources.append(
+                HDF5_DataSource(
+                    self.dataset_fp,
+                    tables,
+                    self.source
+                )
+            )
+        return data_sources
