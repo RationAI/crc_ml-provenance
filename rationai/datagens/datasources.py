@@ -23,7 +23,7 @@ class DataSource(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def loadDataset(self):
+    def load_dataset(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -46,7 +46,7 @@ class HDF5_DataSource(DataSource):
         except AttributeError:
             return {}
 
-    def loadDataset(dataset_fp: Path, keys: List[str]) -> HDF5_DataSource:
+    def load_dataset(dataset_fp: Path, keys: List[str]) -> HDF5_DataSource:
         """Loads the dataset as a union of all tables across specified keys.
 
         Args:
