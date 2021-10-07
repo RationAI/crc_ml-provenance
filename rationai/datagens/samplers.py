@@ -1,7 +1,10 @@
 # Standard Imports
+from dataclasses import dataclass
 from typing import Optional
 from typing import List
 import logging
+from numpy.random.mtrand import sample
+from abc import ABC
 
 # Third-party Imports
 import pandas as pd
@@ -15,6 +18,10 @@ log = logging.getLogger('samplers')
 logging.basicConfig(level=logging.INFO,
                    format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
                    datefmt='%d.%m.%Y %H:%M:%S')
+
+@dataclass
+class SampledEntry(ABC):
+    entry: dict
 
 class SamplingTree:
     """
@@ -90,27 +97,38 @@ class Node:
         return f'Node({self.name})'
 
 class TreeSampler:
-    def __init__(self, data_source, index_levels=[]):
+
+    @dataclass
+    class SampledEntry:
+        entry: dict
+        metadata: dict
+
+    def __init__(self, data_source: DataSource, index_levels: List[str] = []):
         self.index_levels = index_levels
         self.data_source = data_source
         self.sampling_tree = self.__build_sampling_tree(data_source, index_levels)
 
-    def __build_sampling_tree(self, data_source: DataSource,
-                              index_levels: List[src]) -> SamplingTree:
+    def __build_sampling_tree(self,
+                              data_source: DataSource,
+                              index_levels: List[str]) -> SamplingTree:
         """Builds a SamplingTree from the provided DataSource.
 
         Function requires that the DataSource.data is a list of paths to DataFrame objects.
 
         Args:
             data_source (DataSource): DataSource containing paths to input files
-            index_levels (List[src]): List of column names appearing in the input DataFrames.
+            index_levels (List[str]): List of column names appearing in the input DataFrames.
                                       These column names are then used to multi-level sampling
                                       tree. Column names are processed in order of appearance.
 
         Returns:
             SamplingTree: SamplingTree data structure.
         """
-        df = pd.concat([pd.read_pickle(input_file) for input_file in data_source.source])
+        df = pd.concat([
+            self.data_source.get_table(table_key)
+            .assign(_table_key=table_key)
+            for table_key in data_source.source
+        ])
         sampling_tree = SamplingTree(df)
         for index_level in index_levels:
             sampling_tree.split(index_level)
@@ -121,13 +139,17 @@ class RandomTreeSampler(TreeSampler):
         RandomSampler samples randomly 'epoch_size' entries.
         Supports multi-level sampling by including 'index_level'.
     """
-    def __init__(self, epoch_size: int, data_source, index_levels: List[str] = []):
+    def __init__(self, epoch_size: int, data_source: DataSource, index_levels: List[str] = []):
         super().__init__(data_source, index_levels)
         self.size = epoch_size
 
-    def sample(self) -> None:
-        """Returns randomly sampled entry. At every node a child branch is chosen
-           uniformly from all children of the current node.
+    def sample(self) -> List[TreeSampler.SampledEntry]:
+        """Returns a list of sampled entries of size equal to `RandomTreeSampler.size`.
+
+        At every node a child branch is chosen uniformly from all children of the current node.
+
+        Returns:
+            List[TreeSampler.SampledEntry]: [description]
         """
         result = []
         for _ in range(self.size):
@@ -135,7 +157,15 @@ class RandomTreeSampler(TreeSampler):
             while node.children:
                 idx = np.random.randint(low=0, high=len(node.children))
                 node = node.children[idx]
-            result.append(node.data.sample().to_dict())
+
+            entry = node.data.sample().to_dict('records')[0]
+            metadata = self.data_source.get_metadata(entry['_table_key'])
+
+            sampled_entry = TreeSampler.SampledEntry(
+                entry=entry,
+                metadata=metadata
+            )
+            result.append(sampled_entry)
         return result
 
 class SequentialTreeSampler(TreeSampler):
@@ -147,14 +177,22 @@ class SequentialTreeSampler(TreeSampler):
         super().__init__(data_source, index_levels)
         self.active_node = self.sampling_tree.leaf
 
-    def sample(self) -> Optional[List]:
+    def sample(self) -> Optional[List[TreeSampler.SampledEntry]]:
         """Returns the content of currently active SamplerTree node.
 
         Returns:
-            Optional[List]: List of sampled entries.
+            Optional[List[TreeSampler.SampledEntry]]: List of sampled entries.
         """
         if self.active_node is not None:
-            return self.active_node.data.to_dict('records')
+            result = []
+            for entry in self.active_node.data.to_dict('records'):
+                metadata = self.data_source.get_metadata(entry['_table_key'])
+                sampled_entry = TreeSampler.SampledEntry(
+                    entry=entry,
+                    metadata=metadata
+                )
+                result.append(sampled_entry)
+            return result
         return None
 
     def next(self) -> None:
