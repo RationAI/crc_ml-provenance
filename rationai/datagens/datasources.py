@@ -37,6 +37,15 @@ class HDF5_DataSource(DataSource):
         self.tables = tables
         self.source = source
 
+    def get_table(self, table_key):
+        return self.source.select(table_key)
+
+    def get_metadata(self, key: str) -> Optional[dict]:
+        try:
+            return self.source.get_storer(key).attrs.metadata
+        except AttributeError:
+            return {}
+
     def loadDataset(dataset_fp: Path, keys: List[str]) -> HDF5_DataSource:
         """Loads the dataset as a union of all tables across specified keys.
 
