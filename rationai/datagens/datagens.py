@@ -45,19 +45,19 @@ class GeneratorDatagen:
 
     def __build_generator_from_template(self, generator_config, data_source_dict) -> Generator:
         definition = generator_config['definition']
-        sampler_class = get_class('rationai.datagens.samplers', definition['sampler'])
-        augmenter_class = get_class('rationai.datagens.augmenters', definition['augmenter'])
-        extractor_class = get_class('rationai.datagens.extractors', definition['extractor'])
-        generator_class = get_class('rationai.datagens.generators', definition['generator'])
+        sampler_class = get_class(definition['sampler'])
+        augmenter_class = get_class(definition['augmenter'])
+        extractor_class = get_class(definition['extractor'])
+        generator_class = get_class(definition['generator'])
+
+        data_source = data_source_dict[definition['data_source']]
 
         components_config = generator_config['configuration']
-        sampler = self.__build_sampler_from_template(sampler_class, components_config['sampler'])
+        sampler = self.__build_sampler_from_template(sampler_class, data_source, components_config['sampler'])
         augmenter = self.__build_augmenter_from_template(augmenter_class, components_config['augmenter'])
         extractor = self.__build_extractor_from_template(extractor_class, augmenter, components_config['extractor'])
 
-        data_source = data_source_dict[definition['data_source']]
-        return generator_class(data_source, sampler, extractor)
-
+        return generator_class(sampler, extractor)
 
     def __build_data_sources_from_template(
         self,
