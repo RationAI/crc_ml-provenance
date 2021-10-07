@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Tuple
 from typing import Any
+from typing import List
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from numpy.lib.index_tricks import nd_grid
@@ -18,66 +19,38 @@ from PIL import Image
 
 # Local Imports
 from rationai.datagens.augmenters import Augmenter
+from rationai.datagens.samplers import SampledEntry
 
 class Extractor(ABC):
 
     @abstractmethod
     def __call__(self):
-        """Process sampled entry into valid network input (and output)"""
-
-    @abstractmethod
-    def __parse_entry(self):
-        """Parse sampled entry"""
-
-    @abstractmethod
-    def __process_entry(self):
-        """Process parsed entry into valid network input (and output)"""
+        """Process sampled entries into valid network input (and output)"""
 
 class OpenslideExtractor(Extractor):
-    def __init__(self, slide_dir: Path, tile_size: int, sample_level: int, augmenter: Augmenter):
-
-        @dataclass
-        class ParsedEntry:
-            slide_name: str
-            coords: Tuple[int, int]
-            label: bool
-
-        self.slide_dir = slide_dir
-        self.tile_size = tile_size
+    def __init__(self, augmenter: Augmenter, threshold: float):
         self.augmenter = augmenter
-        self.sample_level = sample_level
+        self.threshold = threshold
 
-    def __call__(self, entries: List[dict]) -> Tuple[NDArray, NDArray]:
-        """Converts a single entry into network input/label tuple.
+    def __call__(self, sampled_entries: List[SampledEntry]) -> Tuple[NDArray, NDArray]:
+        """Converts entries into network input/label tuple.
 
         Args:
             entries (List[dict]): Entries from a DataFrame
 
         Returns:
-            Tuple[NDArray, NDArray]: Network input/Label tuple
+            Tuple[NDArray, NDArray]: Network inputs and labels.
         """
-        for entry in entries:
-            parsed_entry = self.__parse_entry(entry)
-            x, y = self.__process_entry(parsed_entry)
+        inputs, labels = [], []
+        for sampled_entry in sampled_entries:
+            x, y = self.__process_entry(sampled_entry)
             x, y = self.__augment_input(x, y)
             x, y = self.__normalize_input(x, y)
-            return x, y
+            inputs.append(x)
+            labels.append(y)
+        return np.array(inputs), np.array(labels)
 
-    def __parse_entry(self, entry: dict) -> OpenslideExtractor.ParsedEntry:
-        """Parses entry from DataFrame.
-
-        Args:
-            entry (dict): Single entry
-
-        Returns:
-            OpenslideExtractor.ParsedEntry: Parsed entry
-        """
-        slide_name = entry['slide_name']
-        coords = (entry['coord_x'], entry['coord_y'])
-        label = entry['label']
-        return self.ParsedEntry(slide_name, coords, label)
-
-    def __process_entry(self, parsed_entry: OpenslideExtractor.ParsedEntry) -> Tuple[NDArray, NDArray]:
+    def __process_entry(self, sampled_entry: SampledEntry) -> Tuple[NDArray, NDArray]:
         """Extracts a tile from a slide at coordinates specified by the parsed entry.
 
         Args:
@@ -86,9 +59,15 @@ class OpenslideExtractor(Extractor):
         Returns:
             Tuple[NDArray, NDArray]: Input/label tuple
         """
-        wsi = self.__open_slide(parsed_entry.slide_name)
-        x = self.__extract_tile(wsi, parsed_entry.coords)
-        return x, parsed_entry.label
+        wsi = self.__open_slide(sampled_entry.data['slide_name'])
+        x = self.__extract_tile(wsi,
+            (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
+            sampled_entry.metadata['tile_size'],
+            sampled_entry.metadata['sampled_level']
+        )
+        y = sampled_entry.entry['center_tumor_tile'] > self.threshold
+        wsi.close()
+        return x, y
 
     def __open_slide(self, slide_name: str) -> OpenSlide:
         """Opens slide witha given name in `slide_dir` directory.
@@ -103,26 +82,35 @@ class OpenslideExtractor(Extractor):
         wsi = openslide.open_slide(slide_fp)
         return wsi
 
-    def __extract_tile(self, wsi: OpenSlide, coords: Tuple[int, int]) -> NDArray:
-        """Extracts an image from a slide using the supplied coordinate values.
+    def __extract_tile(
+        self,
+        wsi: OpenSlide,
+        coords: Tuple[int, int],
+        tile_size: int,
+        level: int) -> NDArray:
+        """Extracts a tile from a slide using the supplied coordinate values.
 
         Args:
             wsi (OpenSlide): File handler to WSI
             coords (Tuple[int, int]): (x,y) coordinates of a tile to be extracted
-                                            at OpenSlide level 0 resolution.
+                at OpenSlide level 0 resolution.
+            tile_size (int): Size of the tile to be extracted.
+            level (int): Resolution level from which tile should be extracted.
 
         Returns:
-            NDArray: Extracted tile
+            NDArray: RGB Tile represented as numpy array.
         """
         bg_tile = Image.new('RGB', self.tile_size, '#FFFFFF')
         im_tile = wsi.read_region(
-            location=coords, level=self.sample_level, size=self.tile_size
+            location=coords, level=level, size=tile_size
         )
         bg_tile.paste(im_tile, None, im_tile)
         return np.array(bg_tile)
 
     def __normalize_input(self, x: NDArray, y: NDArray) -> Tuple[NDArray]:
         """Normalizes images pixel values from [0-255] to [0-1] range.
+
+        TODO: Maybe make this part of an augmenter?
 
         Args:
             x (NDArray): Network input
