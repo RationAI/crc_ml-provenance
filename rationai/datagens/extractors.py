@@ -59,7 +59,7 @@ class OpenslideExtractor(Extractor):
         Returns:
             Tuple[NDArray, NDArray]: Input/label tuple
         """
-        wsi = self.__open_slide(sampled_entry.data['slide_name'])
+        wsi = self.__open_slide(sampled_entry.metadata['slide_fp'])
         x = self.__extract_tile(wsi,
             (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
             sampled_entry.metadata['tile_size'],
@@ -69,7 +69,7 @@ class OpenslideExtractor(Extractor):
         wsi.close()
         return x, y
 
-    def __open_slide(self, slide_name: str) -> OpenSlide:
+    def __open_slide(self, slide_fp: Path) -> OpenSlide:
         """Opens slide witha given name in `slide_dir` directory.
 
         Args:
@@ -78,7 +78,6 @@ class OpenslideExtractor(Extractor):
         Returns:
             OpenSlide: File handler to WSI
         """
-        slide_fp = str((self.slide_dir / slide_name).with_suffix('.mrxs'))
         wsi = openslide.open_slide(slide_fp)
         return wsi
 
