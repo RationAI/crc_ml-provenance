@@ -27,6 +27,10 @@ class DataSource(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_metadata(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def split(self):
         raise NotImplementedError
 
