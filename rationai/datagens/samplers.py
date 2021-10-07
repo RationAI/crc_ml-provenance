@@ -137,7 +137,7 @@ class RandomTreeSampler(TreeSampler):
     """
     def __init__(self, epoch_size: int, data_source: DataSource, index_levels: List[str] = []):
         super().__init__(data_source, index_levels)
-        self.size = epoch_size
+        self.epoch_size: epoch_size
 
     def sample(self) -> List[SampledEntry]:
         """Returns a list of sampled entries of size equal to `RandomTreeSampler.size`.
@@ -148,7 +148,7 @@ class RandomTreeSampler(TreeSampler):
             List[SampledEntry]: [description]
         """
         result = []
-        for _ in range(self.size):
+        for _ in range(self.epoch_size):
             node = self.sampling_tree.root
             while node.children:
                 idx = np.random.randint(low=0, high=len(node.children))
