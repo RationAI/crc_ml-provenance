@@ -20,8 +20,9 @@ logging.basicConfig(level=logging.INFO,
                    datefmt='%d.%m.%Y %H:%M:%S')
 
 @dataclass
-class SampledEntry(ABC):
+class SampledEntry:
     entry: dict
+    metadata: dict
 
 class SamplingTree:
     """
@@ -98,11 +99,6 @@ class Node:
 
 class TreeSampler:
 
-    @dataclass
-    class SampledEntry:
-        entry: dict
-        metadata: dict
-
     def __init__(self, data_source: DataSource, index_levels: List[str] = []):
         self.index_levels = index_levels
         self.data_source = data_source
@@ -143,13 +139,13 @@ class RandomTreeSampler(TreeSampler):
         super().__init__(data_source, index_levels)
         self.size = epoch_size
 
-    def sample(self) -> List[TreeSampler.SampledEntry]:
+    def sample(self) -> List[SampledEntry]:
         """Returns a list of sampled entries of size equal to `RandomTreeSampler.size`.
 
         At every node a child branch is chosen uniformly from all children of the current node.
 
         Returns:
-            List[TreeSampler.SampledEntry]: [description]
+            List[SampledEntry]: [description]
         """
         result = []
         for _ in range(self.size):
@@ -161,7 +157,7 @@ class RandomTreeSampler(TreeSampler):
             entry = node.data.sample().to_dict('records')[0]
             metadata = self.data_source.get_metadata(entry['_table_key'])
 
-            sampled_entry = TreeSampler.SampledEntry(
+            sampled_entry = SampledEntry(
                 entry=entry,
                 metadata=metadata
             )
@@ -177,17 +173,17 @@ class SequentialTreeSampler(TreeSampler):
         super().__init__(data_source, index_levels)
         self.active_node = self.sampling_tree.leaf
 
-    def sample(self) -> Optional[List[TreeSampler.SampledEntry]]:
+    def sample(self) -> Optional[List[SampledEntry]]:
         """Returns the content of currently active SamplerTree node.
 
         Returns:
-            Optional[List[TreeSampler.SampledEntry]]: List of sampled entries.
+            Optional[List[SampledEntry]]: List of sampled entries.
         """
         if self.active_node is not None:
             result = []
             for entry in self.active_node.data.to_dict('records'):
                 metadata = self.data_source.get_metadata(entry['_table_key'])
-                sampled_entry = TreeSampler.SampledEntry(
+                sampled_entry = SampledEntry(
                     entry=entry,
                     metadata=metadata
                 )
