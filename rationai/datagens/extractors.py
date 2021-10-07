@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Tuple
-from typing import Any
+from typing import Optional
 from typing import List
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -28,7 +28,7 @@ class Extractor(ABC):
         """Process sampled entries into valid network input (and output)"""
 
 class OpenslideExtractor(Extractor):
-    def __init__(self, augmenter: Augmenter, threshold: float):
+    def __init__(self, augmenter: Optional[Augmenter], threshold: float):
         self.augmenter = augmenter
         self.threshold = threshold
 
@@ -44,7 +44,8 @@ class OpenslideExtractor(Extractor):
         inputs, labels = [], []
         for sampled_entry in sampled_entries:
             x, y = self.__process_entry(sampled_entry)
-            x, y = self.__augment_input(x, y)
+            if self.augmenter is not None:
+                x, y = self.__augment_input(x, y)
             x, y = self.__normalize_input(x, y)
             inputs.append(x)
             labels.append(y)
@@ -99,7 +100,7 @@ class OpenslideExtractor(Extractor):
         Returns:
             NDArray: RGB Tile represented as numpy array.
         """
-        bg_tile = Image.new('RGB', self.tile_size, '#FFFFFF')
+        bg_tile = Image.new('RGB', (self.tile_size, self.tile_size), '#FFFFFF')
         im_tile = wsi.read_region(
             location=coords, level=level, size=tile_size
         )

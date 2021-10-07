@@ -45,18 +45,22 @@ class GeneratorDatagen:
 
     def __build_generator_from_template(self, generator_config, data_source_dict) -> Generator:
         definition = generator_config['definition']
-        sampler_class = get_class(definition['sampler'])
-        augmenter_class = get_class(definition['augmenter'])
-        extractor_class = get_class(definition['extractor'])
-        generator_class = get_class(definition['generator'])
+        components_config = generator_config['configuration']
 
         data_source = data_source_dict[definition['data_source']]
 
-        components_config = generator_config['configuration']
+        sampler_class = get_class(definition['sampler'])
         sampler = self.__build_sampler_from_template(sampler_class, data_source, components_config['sampler'])
-        augmenter = self.__build_augmenter_from_template(augmenter_class, components_config['augmenter'])
+
+        augmenter = None
+        if definition['augmenter'] is not None:
+            augmenter_class = get_class(definition['augmenter'])
+            augmenter = self.__build_augmenter_from_template(augmenter_class, components_config['augmenter'])
+
+        extractor_class = get_class(definition['extractor'])
         extractor = self.__build_extractor_from_template(extractor_class, augmenter, components_config['extractor'])
 
+        generator_class = get_class(definition['generator'])
         return generator_class(sampler, extractor)
 
     def __build_data_sources_from_template(
