@@ -106,9 +106,8 @@ class GeneratorDatagen:
 
         return dict(zip(data_source_config['names'], data_sources))
 
-    def __build_augmenter_from_template(self):
-        # TODO: Once Augmenter class is known.
-        pass
+    def __build_augmenter_from_template(self, augmenter_class: type, augmenter_config: dict):
+        return augmenter_class(**augmenter_config)
 
     def __build_sampler_from_template(self, sampler_class: type, sampler_config: dict):
         return sampler_class(**sampler_config)
