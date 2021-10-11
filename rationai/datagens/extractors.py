@@ -6,9 +6,6 @@ from typing import Optional
 from typing import List
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from numpy.lib.index_tricks import nd_grid
-
-from numpy.lib.shape_base import tile
 
 # Third-party Imports
 import openslide

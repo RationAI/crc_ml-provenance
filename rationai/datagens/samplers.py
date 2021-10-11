@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Optional
 from typing import List
 import logging
-from numpy.random.mtrand import sample
 from abc import ABC
 
 # Third-party Imports
