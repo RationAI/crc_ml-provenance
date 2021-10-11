@@ -7,6 +7,7 @@ from pathlib import Path
 
 # Local Imports
 from rationai.datagens.datagens_config import DatagenConfig
+from rationai.utils.config import ConfigProto
 from rationai.datagens.datasources import DataSource
 from rationai.datagens.generators import Generator
 from rationai.utils.class_handler import get_class
@@ -19,7 +20,7 @@ class Datagen(ABC):
         """Class Constructor"""
 
     @abstractmethod
-    def __build_from_template(self):
+    def build_from_template(self):
         """Build generator from template"""
 
 class GeneratorDatagen:
@@ -114,3 +115,18 @@ class GeneratorDatagen:
 
     def __build_extractor_from_template(self, extractor_class: type, extractor_config: dict):
         return extractor_class(**extractor_config)
+
+    class Config(ConfigProto):
+
+        def __init__(self, json_filepath, json_dict=None):
+            super().__init__(json_filepath, json_dict)
+
+            self.data_sources_config = None
+            self.generators_config = None
+
+        def __parse(self, config_fp):
+            with open(config_fp, 'r') as cfg_finput:
+                config = json.load(cfg_finput)
+
+            self.data_source_config = config['data_sources']
+            self.generators_config = config['generators']
