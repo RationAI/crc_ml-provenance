@@ -10,7 +10,6 @@ from pathlib import Path
 
 import imgaug
 import imgaug.augmenters as iaa
-import numpy as np
 
 from rationai.utils.config import ConfigProto
 
@@ -22,22 +21,46 @@ class AugmentInterface(abc.ABC):
     """
 
     @abc.abstractmethod
-    def __call__(self, *args, **kwargs):
+    def __call__(self, **kwargs):
         """Called by an extractor to perform data augmentation."""
         raise NotImplementedError('Override __call__ method to perform a data transformation')
 
 
-class SlideAugmenter(AugmentInterface):
+class ImgAugAugmenter(AugmentInterface):
     """Uses image augmenter: imgaug.augmenters.iaa
 
-    For information about what augmentations are used, see `SlideAugmenterConfig` class.
+    This class should not be used directly, but subclassed.
+
+    Attributes
+    ----------
+    augmenter : imgaug.augmenters.meta.Augmenter
+        The augmenter containing image transformation configuration, used when the __call__ method is used.
+    """
+    def __init__(self):
+        self.augmenter = iaa.Noop()
+
+    def __call__(self, **kwargs):
+        """Augments input image(s).
+
+        Return
+        ------
+        # TODO: Check the return type
+        """
+        return self.augmenter.augment(**kwargs)
+
+
+class ImageAugmenter(ImgAugAugmenter):
+    """
+    For information about what augmentations are used, see `ImageAugmenterConfig` class.
 
     Attributes
     ----------
     augmenter : imgaug.augmenters.Sequential
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
-    def __init__(self, config: SlideAugmenterConfig):
+
+    def __init__(self, config: ImageAugmenterConfig):
+        super().__init__()
         self.augmenter = iaa.Sequential([
             iaa.Fliplr(config.horizontal_flip_proba, name='horizontal'),
             iaa.Flipud(config.vertical_flip_proba, name='vertical'),
@@ -51,31 +74,16 @@ class SlideAugmenter(AugmentInterface):
             iaa.geometric.Rot90(k=config.rotate_90_deg_interval, name='rotate90')
         ])
 
-    def __call__(self, *args, **kwargs) -> np.ndarray | imgaug.augmentables.batches.UnnormalizedBatch:
-        """Augments input image(s) using flips, rotations, and changes in brightness, saturation, hue, and contrast.
 
-        Single image arg calls:
-            iaa.Sequential.augment_image(img)
-
-        Otherwise *args and **kwargs are passed:
-            iaa.Sequential(*args, **kwargs)
-
-        The second option accepts two images thus, is suitable for segmentation use case to perform the same
-        augmentation on pairs of images.
-
-        Return
-        ------
-        # TODO: Check the return type
-        """
-        if len(args) == 1 and len(kwargs) == 0:
-            return self.augmenter.augment_image(*args)
-        return self.augmenter(*args, **kwargs)
+class NoOpImageAugmenter(ImgAugAugmenter):
+    """This is the class to be used when no image augmentation operation is to be done."""
+    pass
 
 
 # Config classes
 
 @dataclass
-class SlideAugmenterConfig(ConfigProto):
+class ImageAugmenterConfig(ConfigProto):
     # noinspection PyUnresolvedReferences
     """
     Configuration parser and wrapper for SlideAugmenter.
@@ -109,7 +117,7 @@ class SlideAugmenterConfig(ConfigProto):
     rotate_90_deg_interval: tuple[int, int] = (0, 1)
 
     @classmethod
-    def parse(cls, config_path: Path) -> SlideAugmenterConfig:
+    def parse(cls, config_path: Path) -> ImageAugmenterConfig:
         """
         Parse SlideAugmenter configuration from a JSON file.
 
@@ -120,7 +128,7 @@ class SlideAugmenterConfig(ConfigProto):
 
         Return
         ------
-        SlideAugmenterConfig
+        ImageAugmenterConfig
             An initialized instance of the config wrapper.
         """
         with open(config_path, 'r') as file_input:
