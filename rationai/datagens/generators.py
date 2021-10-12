@@ -1,12 +1,15 @@
 import logging
 from time import time
-from typing import Type, Tuple, Any, Optional, NoReturn
+from typing import Tuple
+from typing import NoReturn
 
 import numpy as np
-import pandas as pd
-
 from tensorflow.keras.utils import Sequence
 from torch.utils.data import Dataset
+
+from rationai.datagens.extractors import Extractor
+from rationai.datagens.samplers import SampledEntry
+from rationai.datagens.samplers import TreeSampler
 
 
 log = logging.getLogger('generators')
@@ -16,34 +19,23 @@ class BaseGenerator:
     """
     Base class for data generators.
 
-    # TODO: Add proper type annotations when ready
-
     Attributes
     ----------
-    sampler : 'SamplerBase'
+    sampler : TreeSampler
         Implementation of the sampling logic.
-    extractor : 'ExtractorBase'
+    extractor : Extractor
         Handles extraction of the samples from actual data.
-    batch_size : int
-        The number of samples in extracted batches.
     epoch_samples : pandas.DataFrame
         The sampled data points of the currently generated epoch.
     """
 
-    # TODO: Add proper type annotations when ready
-    def __init__(self, sampler: 'SamplerBase', extractor: 'ExtractorBase'):
+    def __init__(self, sampler: TreeSampler, extractor: Extractor):
         self.sampler = sampler
         self.extractor = extractor
-        self.epoch_samples: list['SampledEntry'] = []
+        self.epoch_samples: list[SampledEntry] = []
 
-    # TODO: Connect annotations when ready.
-    def _generate_samples(self) -> list['SampledEntry']:
+    def _generate_samples(self) -> list[SampledEntry]:
         """Get a sampled epoch as a pandas dataframe.
-
-        Parameters
-        ----------
-        num_samples : int
-            Number of samples in the epoch.
 
         Return
         ------
@@ -59,7 +51,7 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
     Implements the interface between Keras and the custom sampling & extraction.
     """
 
-    def __init__(self, sampler: 'SamplerBase', extractor: 'ExtractorBase'):
+    def __init__(self, sampler: TreeSampler, extractor: Extractor):
         super().__init__(sampler, extractor)
         self.batch_size = None
         self.epoch_samples = self._generate_samples()
@@ -98,7 +90,7 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
     Implements the interface between PyTorch and the custom sampling & extraction.
     """
 
-    def __init__(self, sampler: 'SamplerBase', extractor: 'ExtractorBase'):
+    def __init__(self, sampler: TreeSampler, extractor: Extractor):
         super().__init__(sampler, extractor)
 
     def __len__(self) -> int:

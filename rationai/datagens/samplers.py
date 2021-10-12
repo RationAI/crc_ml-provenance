@@ -1,28 +1,28 @@
 # Standard Imports
-from dataclasses import dataclass
-from typing import Optional
-from typing import List
 import logging
-from numpy.random.mtrand import sample
-from abc import ABC
+from dataclasses import dataclass
+from typing import List
+from typing import Optional
 
 # Third-party Imports
-import pandas as pd
-from pandas.core.frame import DataFrame
 import numpy as np
+import pandas as pd
+from numpy.random.mtrand import sample
 
 # Local Imports
 from rationai.datagens.datasources import DataSource
 
 log = logging.getLogger('samplers')
 logging.basicConfig(level=logging.INFO,
-                   format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
-                   datefmt='%d.%m.%Y %H:%M:%S')
+                    format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
+                    datefmt='%d.%m.%Y %H:%M:%S')
+
 
 @dataclass
 class SampledEntry:
     entry: dict
     metadata: dict
+
 
 class SamplingTree:
     """
@@ -38,6 +38,7 @@ class SamplingTree:
         - The order of columns in which the SamplingTree defines the final form
           of the SamplingTree.
     """
+
     def __init__(self, df):
         root_node = Node('ROOT', df)
         self.root = root_node
@@ -63,6 +64,7 @@ class SamplingTree:
             prev_node.children[-1].next = cur_node.children[0]
         self.split_cols.append(col)
 
+
 class Node:
     """
         Node object for SamplingTree.
@@ -74,6 +76,7 @@ class Node:
         All children nodes are chained via 'next' reference to allow
         quick traversal of all leaf nodes.
     """
+
     def __init__(self, name, df):
         self.node_name = name
         self.data = df
@@ -95,12 +98,17 @@ class Node:
         self.next = None
 
     def __repr__(self):
-        return f'Node({self.name})'
+        return f'Node({self.node_name})'
+
 
 class TreeSampler:
+    """
+    TODO: Add abstract method 'sample'.
+    TODO: Add abstract method 'on_epoch_end'.
+    """
 
-    def __init__(self, data_source: DataSource, index_levels: List[str] = []):
-        self.index_levels = index_levels
+    def __init__(self, data_source: DataSource, index_levels: List[str] = None):
+        self.index_levels = [] if index_levels is None else index_levels
         self.data_source = data_source
         self.sampling_tree = self.__build_sampling_tree(data_source, index_levels)
 
@@ -122,7 +130,7 @@ class TreeSampler:
         """
         df = pd.concat([
             self.data_source.get_table(table_key)
-            .assign(_table_key=table_key)
+                .assign(_table_key=table_key)
             for table_key in data_source.source
         ])
         sampling_tree = SamplingTree(df)
@@ -130,14 +138,16 @@ class TreeSampler:
             sampling_tree.split(index_level)
         return sampling_tree
 
+
 class RandomTreeSampler(TreeSampler):
     """
         RandomSampler samples randomly 'epoch_size' entries.
         Supports multi-level sampling by including 'index_level'.
     """
-    def __init__(self, epoch_size: int, data_source: DataSource, index_levels: List[str] = []):
+
+    def __init__(self, epoch_size: int, data_source: DataSource, index_levels: List[str] = None):
         super().__init__(data_source, index_levels)
-        self.epoch_size: epoch_size
+        self.epoch_size = epoch_size
 
     def sample(self) -> List[SampledEntry]:
         """Returns a list of sampled entries of size equal to `RandomTreeSampler.size`.
@@ -164,12 +174,14 @@ class RandomTreeSampler(TreeSampler):
             result.append(sampled_entry)
         return result
 
+
 class SequentialTreeSampler(TreeSampler):
     """
         SequentialSampler traverses all leaves once and returns their data content.
         Supports multi-level sampling by including 'index_level'.
     """
-    def __init__(self, data_source, index_levels: List[str] = []):
+
+    def __init__(self, data_source, index_levels: List[str] = None):
         super().__init__(data_source, index_levels)
         self.active_node = self.sampling_tree.leaf
 
