@@ -1,0 +1,50 @@
+{
+    "datagen": {
+        "datasource": "rationai.datagens.datasources.HDF5_DataSource",
+        "splits": [
+            {
+                "groups": ["train"],
+                "split_names": ["train", "valid"],
+                "split_probas": [0.7, 0.3]
+            }
+        ],
+        "generators": {
+            "train": {
+                "components": {
+                    "sampler": "rationai.datagens.samplers.RandomTreeSampler",
+                    "augmenter": "rationai.datagens.augmenters.ImageAugmenter",
+                    "extractor": "rationai.datagens.extractors.OpenslideExtractor"
+                },
+                "config": {
+                    "sampler": {},
+                    "augmenter": {},
+                    "extractor": {}
+                }
+            },
+            "valid": {
+                "components": {
+                    "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                    "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                    "extractor": "rationai.datagens.extractors.OpenslideExtractor"
+                },
+                "config": {
+                    "sampler": {},
+                    "augmenter": {},
+                    "extractor": {}
+                }
+            }
+        }
+    },
+    "experiment": {
+        "components": {
+            "train_gen": "train",
+            "valid_gen": "valid",
+            "executor": "rationai.training.executors.keras_executors.KerasExecutor",
+            "model": "rationai.training.models.keras_models.VGG16BinaryClassifier"
+        },
+        "config": {
+            "executor": {},
+            "model": {}
+        }
+    }
+}
