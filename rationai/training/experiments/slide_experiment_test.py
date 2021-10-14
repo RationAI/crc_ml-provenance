@@ -11,7 +11,7 @@ from rationai.datagens.datagens import Datagen
 from rationai.datagens.datagens import DatagenConfig
 
 
-class WSIBinaryClassifierExperiment(Experiment):
+class WSIBinaryClassifierTest(Experiment):
     def __init__(self, config):
         self.config = config
         self.generators_dict = None
@@ -28,24 +28,6 @@ class WSIBinaryClassifierExperiment(Experiment):
                     entire whole slides.
         """
         self.__setup()
-        self.__train()
-        self.__test()
-
-    def __train(self):
-        """Defines high-level training procedure.
-        """
-        train_gen = self.generators_dict[self.config.train_gen]
-        valid_gen = self.generators_dict[self.config.valid_gen]
-        _ = self.executor.fit(
-            self.model,
-            train_gen,
-            valid_gen,
-            **self.config.train_config
-        )
-
-    def __test(self):
-        """Defines high-level testing procedure.
-        """
         test_gen = self.generators_dict[self.config.test_gen]
         while test_gen is not None:
             net_predicts = self.executor.predict(
@@ -93,12 +75,9 @@ class WSIBinaryClassifierExperiment(Experiment):
             self.executor_config = None
 
             # Generator Selection
-            self.train_gen = None
-            self.valid_gen = None
             self.test_gen = None
 
             # ML Configuration
-            self.train_config = None
             self.test_config = None
 
         def __parse(self):
@@ -114,20 +93,17 @@ class WSIBinaryClassifierExperiment(Experiment):
             self.executor_config = None
 
             # Generator Selection
-            self.train_gen = None
-            self.valid_gen = None
             self.test_gen = None
 
             # ML Configuration
-            self.train_config = None
             self.test_config = None
 
 
 if __name__=='__main__':
     json_filepath = ...
-    config = WSIBinaryClassifierExperiment.Config(
+    config = WSIBinaryClassifierTest.Config(
         json_dict=None,
         json_filepath=json_filepath
     )
-    WSIBinaryClassifierExperiment(config).run()
+    WSIBinaryClassifierTest(config).run()
 
