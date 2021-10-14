@@ -1,31 +1,33 @@
 # Standard Imports
 from __future__ import annotations
-from pathlib import Path
-from typing import Tuple
-from typing import Optional
-from typing import List
-from dataclasses import dataclass
+
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 # Third-party Imports
-import openslide
-from openslide import OpenSlide
 import numpy as np
-from nptyping import NDArray
+import openslide
 from PIL import Image
+from nptyping import NDArray
+from openslide import OpenSlide
 
 # Local Imports
-from rationai.datagens.augmenters import Augmenter
+from rationai.datagens.augmenters import ImgAugAugmenter
 from rationai.datagens.samplers import SampledEntry
+
 
 class Extractor(ABC):
 
     @abstractmethod
-    def __call__(self):
+    def __call__(self, sampled_entries: List[SampledEntry]):
         """Process sampled entries into valid network input (and output)"""
 
+
 class OpenslideExtractor(Extractor):
-    def __init__(self, augmenter: Optional[Augmenter], threshold: float):
+    def __init__(self, augmenter: Optional[ImgAugAugmenter], threshold: float):
         self.augmenter = augmenter
         self.threshold = threshold
 
@@ -59,16 +61,17 @@ class OpenslideExtractor(Extractor):
         """
         wsi = self.__open_slide(sampled_entry.metadata['slide_fp'])
         x = self.__extract_tile(wsi,
-            (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
-            sampled_entry.metadata['tile_size'],
-            sampled_entry.metadata['sampled_level']
-        )
+                                (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
+                                sampled_entry.metadata['tile_size'],
+                                sampled_entry.metadata['sampled_level']
+                                )
         y = sampled_entry.entry['center_tumor_tile'] > self.threshold
         wsi.close()
         return x, y
 
-    def __open_slide(self, slide_fp: Path) -> OpenSlide:
-        """Opens slide witha given name in `slide_dir` directory.
+    @staticmethod
+    def __open_slide(slide_fp: Path) -> OpenSlide:
+        """Opens slide of a given name in `slide_dir` directory.
 
         Args:
             slide_name (str): Name of a slide.
@@ -80,11 +83,11 @@ class OpenslideExtractor(Extractor):
         return wsi
 
     def __extract_tile(
-        self,
-        wsi: OpenSlide,
-        coords: Tuple[int, int],
-        tile_size: int,
-        level: int) -> NDArray:
+            self,
+            wsi: OpenSlide,
+            coords: Tuple[int, int],
+            tile_size: int,
+            level: int) -> NDArray:
         """Extracts a tile from a slide using the supplied coordinate values.
 
         Args:
@@ -104,7 +107,8 @@ class OpenslideExtractor(Extractor):
         bg_tile.paste(im_tile, None, im_tile)
         return np.array(bg_tile)
 
-    def __normalize_input(self, x: NDArray, y: NDArray) -> Tuple[NDArray]:
+    @staticmethod
+    def __normalize_input(x: NDArray, y: NDArray) -> Tuple[NDArray, NDArray]:
         """Normalizes images pixel values from [0-255] to [0-1] range.
 
         TODO: Maybe make this part of an augmenter?
