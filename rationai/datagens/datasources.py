@@ -5,7 +5,7 @@ TODO: Missing docstring.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 from typing import Optional
 
 # Third-party Imports
@@ -78,25 +78,44 @@ class HDF5DataSource(DataSource):
         except AttributeError:
             return {}
 
-    # FIXME: This is currently not defined as a classmethod, so it is missing 'self'.
-    def load_dataset(dataset_fp: Path, keys: List[str]) -> HDF5DataSource:
+    @staticmethod
+    def load_dataset(
+        dataset_fp: Path,
+        keys: List[str],
+        names: List[str],
+        split_probas: List[float] = [1.0],
+        split_on: Optional[List[str]] = None) -> Dict[HDF5DataSource]:
         """Loads the dataset as a union of all tables across specified keys.
 
         Args:
             dataset_fp (Path): Path to the HDF5 dataset.
             keys (List[str]): Keys that should be included in the result set.
+            names (List[str]): Keys under which datasources will be saved. If
+                more than one is present, the datasource will be split.
+            split_probas (List[float], optional): Split probabilities.
+                Defaults to [1.0].
+            split_on (Optional[List[str]], optional): Metadata attributes on
+                which to split the datasource. Defaults to None.
 
         Returns:
-            HDF5DataSource: DataSource
+            Dict[HDF5DataSource]: Dictionary of datasources.
         """
         source = pd.HDFStore(dataset_fp, 'r')
 
         tables = []
         for key in keys:
-            # FIXME: If _v_pathname is to be used on the outside, don't make it protected.
             tables += [node._v_pathname for node in source.get_node(str(key))]
 
-        return HDF5DataSource(dataset_fp, tables=tables, source=source)
+        data_source = HDF5DataSource(dataset_fp, tables=tables, source=source)
+        if len(names) == 1:
+            return {names[0]: data_source}
+
+        data_sources = data_source.split(
+            sizes=split_probas,
+            key=split_on
+        )
+        return dict(zip(names, data_sources))
+
 
     def split(self, sizes: List[float], key: Optional[str]) -> List[HDF5DataSource]:
         """Partition the DataSource into N partitions. The size of each partition is defined by
