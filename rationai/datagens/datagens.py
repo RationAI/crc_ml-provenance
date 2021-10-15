@@ -1,6 +1,69 @@
-"""
-TODO: Missing docstring
-"""
+    """Datagens are builders, that are able to compose a data feeding entity
+    for a particular experiment. Datagen specifies which parts are necessary
+    to build it. The parameters for these components are then supplied in
+    a config file.
+
+    Generally, the schema for datagens is divided into two parts:
+        • definitions - defines classes for each component
+        • configs - defines parameters for each component
+
+    Examples:
+
+    "datagen": {
+        "data_sources": {
+            "_class": "rationai.datagens.datasources.HDF5DataSource",
+            "_data": "/histopat/data/dataset.h5",
+            "definitions": {
+                "train_valid": {
+                    "keys": ["train"],
+                    "names": ["train", "valid"],
+                    "split_probas": [0.8, 0.2],
+                    "split_on": null
+                }
+            }
+        },
+        "generators": {
+            "train_generator": {
+                "
+                "components": {
+                    "sampler": "rationai.datagens.samplers.RandomTreeSampler",
+                    "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                    "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                },
+                "config": {
+                    "sampler": {
+                        "epoch_size": 10000,
+                        "index_levels": ["label", "slide_name"]
+                    },
+                    "augmenter": {},
+                    "extractor": {
+                        "threshold": 0.5
+                    },
+                }
+            },
+            "valid_generator": {
+                "components": {
+                    "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                    "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                    "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                },
+                "config": {
+                    "sampler": {
+                        "index_levels": ["label", "slide_name"]
+                    },
+                    "augmenter": {},
+                    "extractor": {
+                        "threshold": 0.5
+                    },
+                }
+            }
+        }
+    }
+
+    Returns:
+        Datagen: Datagen entity
+    """
+
 # Standard Imports
 from __future__ import annotations
 
@@ -87,24 +150,20 @@ class GeneratorDatagen:
             self,
             data_source_configs: dict) -> dict[str, DataSource]:
         # Get DataSource class
-        # FIXME: This passes two args to the method, but one is expected.
-        data_source_class = get_class(
-            'rationai.datagens.datasources',
-            data_source_configs['_class']
-        )
+        data_source_class = get_class(data_source_configs['_class'])
 
         # Load dataset path
         dataset_path = data_source_configs['_data']
 
         # Construct DataSource from templates
         data_sources = {}
-        for _, data_source_config in data_source_configs.items():
+        for _, data_source_config in data_source_configs['definitions'].items():
             data_sources_dict = self.__build_data_source_from_template(
                 data_source_class,
                 dataset_path,
                 data_source_config
             )
-            # TODO: I'm unfamiliar with this operator.
+            # Merge dictionaries
             data_sources = data_sources | data_sources_dict
         return data_sources
 
@@ -113,22 +172,13 @@ class GeneratorDatagen:
             data_source_class: Type[DataSource],
             dataset_path: Path,
             data_source_config: dict) -> dict[str, DataSource]:
-        # FIXME: DataSource does not define any arguments for load_dataset
-        #        Are there to be arguments? And are they to be these specific two?
-        data_source = data_source_class.load_dataset(
+
+        data_source_dict = data_source_class.load_dataset(
             dataset_fp=dataset_path,
-            keys=data_source_config['keys']
+            **data_source_config
         )
 
-        if len(data_source_config['names']) == 1:
-            return {data_source_config['names'][0]: data_source}
-
-        data_sources = data_source.split(
-            sizes=data_source_config['split_probas'],
-            key=data_source_config['split_on']
-        )
-
-        return dict(zip(data_source_config['names'], data_sources))
+        return data_source_dict
 
     @staticmethod
     def __build_augmenter_from_template(augmenter_class: type, augmenter_config: dict):
