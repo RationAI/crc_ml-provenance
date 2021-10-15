@@ -31,11 +31,11 @@ class OpenslideExtractor(Extractor):
         self.augmenter = augmenter
         self.threshold = threshold
 
-    def __call__(self, sampled_entries: List[SampledEntry]) -> Tuple[NDArray, NDArray]:
+    def __call__(self, sampled_entries: List[SampledEntry]) -> Tuple[np.ndarray, np.ndarray]:
         """Converts entries into network input/label tuple.
 
         Args:
-            entries (List[dict]): Entries from a DataFrame
+            sampled_entries (List[dict]): Entries from a DataFrame
 
         Returns:
             Tuple[NDArray, NDArray]: Network inputs and labels.
@@ -54,7 +54,7 @@ class OpenslideExtractor(Extractor):
         """Extracts a tile from a slide at coordinates specified by the parsed entry.
 
         Args:
-            parsed_entry (OpenslideExtractor.ParsedEntry): Parsed entry
+            sampled_entry (OpenslideExtractor.ParsedEntry): Parsed entry
 
         Returns:
             Tuple[NDArray, NDArray]: Input/label tuple
@@ -87,7 +87,7 @@ class OpenslideExtractor(Extractor):
             wsi: OpenSlide,
             coords: Tuple[int, int],
             tile_size: int,
-            level: int) -> NDArray:
+            level: int) -> np.ndarray:
         """Extracts a tile from a slide using the supplied coordinate values.
 
         Args:

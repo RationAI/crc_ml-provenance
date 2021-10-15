@@ -1,4 +1,10 @@
+"""
+TODO: Missing docstring
+"""
 # Standard Imports
+from __future__ import annotations
+
+import json
 from abc import ABC
 from abc import abstractmethod
 from pathlib import Path
@@ -6,29 +12,40 @@ from pathlib import Path
 # Third-party Imports
 
 # Local Imports
-from rationai.datagens.datagens_config import DatagenConfig
+from typing import Type
+
 from rationai.utils.config import ConfigProto
 from rationai.datagens.datasources import DataSource
-from rationai.datagens.generators import Generator
+from rationai.datagens.generators import BaseGenerator
 from rationai.utils.class_handler import get_class
 
 
 class Datagen(ABC):
+    """
+    TODO: Missing docstring.
+    """
 
     @abstractmethod
     def __init__(self):
-        """Class Constructor"""
+        ...
 
     @abstractmethod
     def build_from_template(self):
-        """Build generator from template"""
+        """Build generator from template TODO: Generator only? Or anything else potentially?"""
+
 
 class GeneratorDatagen:
+    """
+    TODO: Missing docstring.
+    """
 
-    def __init__(self, config: DatagenConfig):
+    def __init__(self, config: GeneratorDatagen.Config):
         self.config = config
 
     def build_from_template(self):
+        """
+        TODO: Missing docstring.
+        """
         data_sources_cfg = self.config['data_sources']
         data_sources_dict = self.__build_data_sources_from_template(data_sources_cfg)
 
@@ -37,20 +54,21 @@ class GeneratorDatagen:
 
         return generators_dict
 
-    def __build_generators_from_template(self, generators_config, data_sources_dict) -> dict[str, Generator]:
+    def __build_generators_from_template(self, generators_config, data_sources_dict) -> dict[str, BaseGenerator]:
         generators = {}
         for generator_name, generator_config in generators_config.items():
             generator = self.__build_generator_from_template(generator_config, data_sources_dict)
             generators[generator_name] = generator
         return generators
 
-    def __build_generator_from_template(self, generator_config, data_source_dict) -> Generator:
+    def __build_generator_from_template(self, generator_config, data_source_dict) -> BaseGenerator:
         definition = generator_config['definition']
         components_config = generator_config['configuration']
 
         data_source = data_source_dict[definition['data_source']]
 
         sampler_class = get_class(definition['sampler'])
+        # FIXME: This passes three args to the method, but two are expected.
         sampler = self.__build_sampler_from_template(sampler_class, data_source, components_config['sampler'])
 
         augmenter = None
@@ -59,15 +77,17 @@ class GeneratorDatagen:
             augmenter = self.__build_augmenter_from_template(augmenter_class, components_config['augmenter'])
 
         extractor_class = get_class(definition['extractor'])
+        # FIXME: This passes three args to the method, but two are expected.
         extractor = self.__build_extractor_from_template(extractor_class, augmenter, components_config['extractor'])
 
         generator_class = get_class(definition['generator'])
         return generator_class(sampler, extractor)
 
     def __build_data_sources_from_template(
-        self,
-        data_source_configs: dict) -> dict[str, DataSource]:
+            self,
+            data_source_configs: dict) -> dict[str, DataSource]:
         # Get DataSource class
+        # FIXME: This passes two args to the method, but one is expected.
         data_source_class = get_class(
             'rationai.datagens.datasources',
             data_source_configs['_class']
@@ -76,7 +96,7 @@ class GeneratorDatagen:
         # Load dataset path
         dataset_path = data_source_configs['_data']
 
-        # Construct DataSource from teplates
+        # Construct DataSource from templates
         data_sources = {}
         for _, data_source_config in data_source_configs.items():
             data_sources_dict = self.__build_data_source_from_template(
@@ -84,14 +104,17 @@ class GeneratorDatagen:
                 dataset_path,
                 data_source_config
             )
+            # TODO: I'm unfamiliar with this operator.
             data_sources = data_sources | data_sources_dict
         return data_sources
 
+    @staticmethod
     def __build_data_source_from_template(
-        self,
-        data_source_class: type,
-        dataset_path: Path,
-        data_source_config: dict) -> dict[str, DataSource]:
+            data_source_class: Type[DataSource],
+            dataset_path: Path,
+            data_source_config: dict) -> dict[str, DataSource]:
+        # FIXME: DataSource does not define any arguments for load_dataset
+        #        Are there to be arguments? And are they to be these specific two?
         data_source = data_source_class.load_dataset(
             dataset_fp=dataset_path,
             keys=data_source_config['keys']
@@ -107,16 +130,22 @@ class GeneratorDatagen:
 
         return dict(zip(data_source_config['names'], data_sources))
 
-    def __build_augmenter_from_template(self, augmenter_class: type, augmenter_config: dict):
+    @staticmethod
+    def __build_augmenter_from_template(augmenter_class: type, augmenter_config: dict):
         return augmenter_class(**augmenter_config)
 
-    def __build_sampler_from_template(self, sampler_class: type, sampler_config: dict):
+    @staticmethod
+    def __build_sampler_from_template(sampler_class: type, sampler_config: dict):
         return sampler_class(**sampler_config)
 
-    def __build_extractor_from_template(self, extractor_class: type, extractor_config: dict):
+    @staticmethod
+    def __build_extractor_from_template(extractor_class: type, extractor_config: dict):
         return extractor_class(**extractor_config)
 
     class Config(ConfigProto):
+        """
+        TODO: Missing docstring.
+        """
 
         def __init__(self, json_filepath, json_dict=None):
             super().__init__(json_filepath, json_dict)

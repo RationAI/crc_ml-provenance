@@ -39,14 +39,14 @@ class ImgAugAugmenter(AugmentInterface):
     def __init__(self):
         self.augmenter = iaa.Noop()
 
-    def __call__(self, **kwargs):
+    def __call__(self, *args, **kwargs):
         """Augments input image(s).
 
         Return
         ------
         # TODO: Check the return type
         """
-        return self.augmenter.augment(**kwargs)
+        return self.augmenter.augment(*args, **kwargs)
 
 
 class ImageAugmenter(ImgAugAugmenter):
@@ -134,6 +134,8 @@ class ImageAugmenterConfig(ConfigProto):
         with open(config_path, 'r') as file_input:
             config = json.load(file_input)
 
+        # TODO: Should this be a file or a passed dictionary?
+        #       My vote's on a dict.
         augmenter_config = config['extractor']['augmenter']
 
         parsed_config = dict(

@@ -1,3 +1,6 @@
+"""
+TODO: Missing docstring.
+"""
 import logging
 from time import time
 from typing import Tuple
@@ -57,6 +60,9 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
         self.epoch_samples = self._generate_samples()
 
     def set_batch_size(self, batch_size: int):
+        """
+        TODO: Missing docstring.
+        """
         self.batch_size = batch_size
 
     def __len__(self) -> int:
@@ -79,7 +85,11 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
         return self.extractor(self.epoch_samples[index * self.batch_size:(index + 1) * self.batch_size])
 
     def on_epoch_end(self) -> NoReturn:
+        """
+        TODO: Missing docstring.
+        """
         t0 = time()
+        # TODO: Decide how to rework this.
         self.epoch_samples = self.sampler.on_epoch_end()
         log.info(f'Keras generator resampled on epoch end ({int(time() - t0)}s)')
 
@@ -112,6 +122,10 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
         return self.extractor(self.epoch_samples[index])
 
     def on_epoch_end(self) -> NoReturn:
+        """
+        TODO: Missing docstring.
+        """
         t0 = time()
+        # TODO: Decide how to rework this.
         self.epoch_samples = self.sampler.on_epoch_end()
         log.info(f'PyTorch generator resampled on epoch end ({int(time() - t0)}s)')
