@@ -1,42 +1,53 @@
-"""
-Data augmenter definitions.
-"""
+"""Data augmenter definitions."""
+# Standard Imports
 from __future__ import annotations
 
 import abc
-import json
-from dataclasses import dataclass
-from pathlib import Path
+from typing import NoReturn
 
+# Third-party Imports
 import imgaug
 import imgaug.augmenters as iaa
 
+# Local Imports
 from rationai.utils.config import ConfigProto
 
 
-class AugmentInterface(abc.ABC):
+class BaseAugmenter(abc.ABC):
     """Interface for data augmentation.
 
     If augmentation is turned on, an extractor calls its __call__ method after tile extraction.
+
+    Attributes
+    ----------
+    config : rationai.utils.config.ConfigProto
+        Configuration of the augmenter.
     """
+    def __init__(self, config: ConfigProto):
+        self.config = config
+        self.config.parse()
 
     @abc.abstractmethod
-    def __call__(self, **kwargs):
+    def __call__(self, *args, **kwargs):
         """Called by an extractor to perform data augmentation."""
         raise NotImplementedError('Override __call__ method to perform a data transformation')
 
 
-class ImgAugAugmenter(AugmentInterface):
+class ImgAugAugmenter(BaseAugmenter):
     """Uses image augmenter: imgaug.augmenters.iaa
 
     This class should not be used directly, but subclassed.
 
     Attributes
     ----------
+    config : rationai.utils.config.ConfigProto
+        Configuration of the augmenter.
     augmenter : imgaug.augmenters.meta.Augmenter
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
-    def __init__(self):
+
+    def __init__(self, config: ConfigProto):
+        super().__init__(config)
         self.augmenter = iaa.Noop()
 
     def __call__(self, *args, **kwargs):
@@ -50,103 +61,104 @@ class ImgAugAugmenter(AugmentInterface):
 
 
 class ImageAugmenter(ImgAugAugmenter):
-    """
-    For information about what augmentations are used, see `ImageAugmenterConfig` class.
+    """For information about what augmentations are used, see `ImageAugmenterConfig` class.
 
     Attributes
     ----------
+    config : rationai.datagens.ImageAugmenter.Config
+        Parsed ImageAugmenter configuration.
     augmenter : imgaug.augmenters.Sequential
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
 
-    def __init__(self, config: ImageAugmenterConfig):
-        super().__init__()
+    def __init__(self, config: Config):
+        super().__init__(config)
+
+        # noinspection PyUnresolvedReferences
         self.augmenter = iaa.Sequential([
-            iaa.Fliplr(config.horizontal_flip_proba, name='horizontal'),
-            iaa.Flipud(config.vertical_flip_proba, name='vertical'),
-            iaa.AddToBrightness(add=config.brightness_add_range, name='brightness'),
+            iaa.Fliplr(self.config.horizontal_flip_proba, name='horizontal'),
+            iaa.Flipud(self.config.vertical_flip_proba, name='vertical'),
+            iaa.AddToBrightness(add=self.config.brightness_add_range, name='brightness'),
             iaa.AddToHueAndSaturation(
-                value_saturation=config.saturation_add_range,
-                value_hue=config.hue_add_range,
+                value_saturation=self.config.saturation_add_range,
+                value_hue=self.config.hue_add_range,
                 name='hue_and_saturation'
             ),
-            iaa.GammaContrast(gamma=config.contrast_scale_range, per_channel=False, name='contrast'),
-            iaa.geometric.Rot90(k=config.rotate_90_deg_interval, name='rotate90')
+            iaa.GammaContrast(gamma=self.config.contrast_scale_range, name='contrast'),
+            iaa.geometric.Rot90(k=self.config.rotate_90_deg_interval, name='rotate90')
         ])
+
+    class Config(ConfigProto):
+        # noinspection PyUnresolvedReferences
+        """Configuration parser and wrapper for ImageAugmenter.
+
+        Attributes
+        ----------
+        config : dict
+            The dictionary containing the configuration to be parsed.
+        horizontal_flip_proba : float
+            Probability that an image will be flipped horizontally.
+        vertical_flip_proba : float
+            Probability that an image will be flipped vertically.
+        brightness_add_range : tuple(float, float)
+            Range from which to add to image brightness.
+        saturation_add_range : tuple(float, float)
+            Range from which to add to image saturation.
+        hue_add_range : tuple(float, float)
+            Range from which to add to image hue.
+        contrast_scale_range : tuple(float, float)
+            Range from which to choose scaling factor for contrast augmentation.
+        rotate_90_deg_interval : tuple(int, int)
+            Discrete interval from which to choose number of 90 degree rotations performed on an image.
+        """
+
+        # noinspection PyTypeChecker
+        def __init__(self, json_dict: dict):
+            super().__init__(json_dict)
+            self.horizontal_flip_proba: float = None
+            self.vertical_flip_proba: float = None
+            self.brightness_add_range: tuple[float, float] = None
+            self.saturation_add_range: tuple[float, float] = None
+            self.hue_add_range: tuple[float, float] = None
+            self.contrast_scale_range: tuple[float, float] = None
+            self.rotate_90_deg_interval: tuple[int, int] = None
+
+        def parse(self) -> NoReturn:
+            """Parse SlideAugmenter configuration."""
+            self.horizontal_flip_proba = float(self.config['horizontal_flip'])
+            self.vertical_flip_proba = float(self.config['vertical_flip'])
+            self.brightness_add_range = tuple(self.config['brightness_range'])
+            self.saturation_add_range = tuple(self.config['saturation_range'])
+            self.hue_add_range = tuple(self.config['hue_range'])
+            self.contrast_scale_range = tuple(self.config['contrast_range'])
+            self.rotate_90_deg_interval = tuple(self.config['rotate_interval'])
 
 
 class NoOpImageAugmenter(ImgAugAugmenter):
     """This is the class to be used when no image augmentation operation is to be done."""
-    pass
 
+    def __init__(self, config: Config):
+        super().__init__(config)
 
-# Config classes
+    class Config(ConfigProto):
+        # noinspection PyUnresolvedReferences
+        """Configuration parser and wrapper for NoOpImageAugmenter.
 
-@dataclass
-class ImageAugmenterConfig(ConfigProto):
-    # noinspection PyUnresolvedReferences
-    """
-    Configuration parser and wrapper for SlideAugmenter.
-
-    Attributes
-    ----------
-    config_path : pathlib.Path
-        The path to the parsed configuration file.
-    horizontal_flip_proba : float
-        Probability that an image will be flipped horizontally.
-    vertical_flip_proba : float
-        Probability that an image will be flipped vertically.
-    brightness_add_range : tuple(float, float)
-        Range from which to add to image brightness.
-    saturation_add_range : tuple(float, float)
-        Range from which to add to image saturation.
-    hue_add_range : tuple(float, float)
-        Range from which to add to image hue.
-    contrast_scale_range : tuple(float, float)
-        Range from which to choose scaling factor for contrast augmentation.
-    rotate_90_deg_interval : tuple(int, int)
-        Discrete interval from which to choose number of 90 degree rotations performed on an image.
-    """
-    config_path: Path
-    horizontal_flip_proba: float = 0.
-    vertical_flip_proba: float = 0.
-    brightness_add_range: tuple[float, float] = (0., 0.)
-    saturation_add_range: tuple[float, float] = (0., 0.)
-    hue_add_range: tuple[float, float] = (0., 0.)
-    contrast_scale_range: tuple[float, float] = (0., 0.)
-    rotate_90_deg_interval: tuple[int, int] = (0, 1)
-
-    @classmethod
-    def parse(cls, config_path: Path) -> ImageAugmenterConfig:
-        """
-        Parse SlideAugmenter configuration from a JSON file.
-
-        Parameters
+        Attributes
         ----------
-        config_path : pathlib.Path
-            The path to the configuration JSON file to parse.
-
-        Return
-        ------
-        ImageAugmenterConfig
-            An initialized instance of the config wrapper.
+        config : dict
+            The dictionary containing the configuration to be parsed. Note that this is ignored, no matter what
+            configuration is passed to the constructor.
         """
-        with open(config_path, 'r') as file_input:
-            config = json.load(file_input)
 
-        # TODO: Should this be a file or a passed dictionary?
-        #       My vote's on a dict.
-        augmenter_config = config['extractor']['augmenter']
+        def __init__(self, json_dict: dict):
+            empty_configuration = dict(json_dict)
+            empty_configuration.clear()
+            super().__init__(empty_configuration)
 
-        parsed_config = dict(
-            config_path=config_path,
-            horizontal_flip_proba=float(augmenter_config['horizontal_flip']),
-            vertical_flip_proba=float(augmenter_config['vertical_flip']),
-            brightness_add_range=tuple(augmenter_config['brightness_range']),
-            saturation_add_range=tuple(augmenter_config['saturation_range']),
-            hue_add_range=tuple(augmenter_config['hue_range']),
-            contrast_scale_range=tuple(augmenter_config['contrast_range']),
-            rotate_90_deg_interval=tuple(augmenter_config['rotate_interval'])
-        )
+        def parse(self) -> NoReturn:
+            """Parse NoOpImageAugmenter configuration.
 
-        return cls(**parsed_config)
+            No configuration is to be parsed.
+            """
+            pass

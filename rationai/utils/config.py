@@ -14,6 +14,11 @@ class ConfigProto:
     """ConfigProto consumes and parses JSON configuration file.
 
     Base class for configuration parsing classes.
+
+    Attributes
+    ----------
+    config : dict
+        The dictionary containing the configuration to be parsed.
     """
     def __init__(self, json_dict: dict):
         self.config = json_dict
