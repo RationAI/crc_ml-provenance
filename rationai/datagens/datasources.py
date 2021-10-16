@@ -13,109 +13,133 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 from pandas.io.pytables import HDFStore
 
-
 # Local Imports
+from rationai.utils.config import ConfigProto
 
 
 class DataSource(ABC):
-    """
-    TODO: Missing docstring.
-    """
+    """Abstract class for DataSource. It defines required methods."""
     @abstractmethod
     def __init__(self):
         raise NotImplementedError
 
     @abstractmethod
-    # FIXME: If this is supposed to be a static or class method, self should not be present, but proper annotation
-    #        should.
-    # TODO: Should this accept parameters? If so, they should be defined here.
-    def load_dataset(self):
-        """
-        TODO: Missing docstring.
+    def get_table(self) -> pd.DataFrame:
+        """Retrieves full dataset defined by this data source.
+
+        Returns:
+            pd.DataFrame: Full dataset.
         """
         raise NotImplementedError
 
     @abstractmethod
-    # TODO: Should this accept parameters? If so, they should be defined here.
-    def get_metadata(self):
-        """
-        TODO: Missing docstring.
+    def load_dataset(self, dataset_fp: Path, config: ConfigProto) -> Dict[str, DataSource]:
+        """Instantiate datasources from source dataset file and supplied
+        configuration. Returns dictionary of datasources.
+
+        Args:
+            dataset_fp (Path): Source dataset file.
+            config (ConfigProto): Datasource configuration file.
+
+        Returns:
+            Dict[str, DataSource]: Dictionary of datasources.
         """
         raise NotImplementedError
 
     @abstractmethod
-    # TODO: Should this accept parameters? If so, they should be defined here.
-    def split(self):
+    def get_metadata(self, entry: dict) -> dict:
+        """Retrieves metadata for a entry.
+
+        Args:
+            entry (dict): Entry as a dictionary.
+
+        Returns:
+            dict: Metadata
         """
-        TODO: Missing docstring.
+        raise NotImplementedError
+
+    @abstractmethod
+    def split(self, sizes: List[float], key: Optional[str]) -> List[DataSource]:
+        """Splits datasource into N parts, where N is len(sizes)==len(key).
+
+        Args:
+            sizes (List[float]): Defines size of the split dataset as a fraction
+                of the original dataset. Must sum to one.
+            key (Optional[str]): Key based on which to split the datasource.
+
+        Returns:
+            List[DataSource]: List of split datasources.
         """
         raise NotImplementedError
 
 
 class HDF5DataSource(DataSource):
-    """
-    TODO: Missing docstring.
-    """
-    def __init__(self, dataset_fp: Path, tables: List[str], source: HDFStore):
-        self.dataset_fp = dataset_fp
-        self.tables = tables
-        self.source = source
+    """DataSource for loading HDF5 Storage Files"""
+    def __init__(self):
+        self.dataset_fp = None
+        self.tables = None
+        self.source = None
 
-    def get_table(self, table_key):
-        """
-        TODO: Missing docstring.
-        TODO: This should be reworked.
-        """
-        return self.source.select(table_key)
+    def get_table(self) -> pd.DataFrame:
+        """Retrieves table stored at a given table key path.
 
-    def get_metadata(self, key: str) -> Optional[dict]:
+        Args:
+            table_key (str): Path within a HDF5 file to a table.
+
+        Returns:
+            (pd.DataFrame): DataFrame stored at given path.
         """
-        TODO: Missing docstring.
-        TODO: This should be reworked.
+        return pd.concat([
+            self.source.select(table_key)
+                .assign(_table_key=table_key)
+            for table_key in self.source
+        ])
+
+    def get_metadata(self, entry: dict) -> dict:
+        """Retrieves table metadata belonging to an entry from that table.
+        The table key is stored automatically to a table on get_table() call.
+
+        Args:
+            entry (dict): Entry from a table.
+
+        Returns:
+            dict: Metadata from a table.
         """
         try:
-            return self.source.get_storer(key).attrs.metadata
+            return self.source.get_storer(entry['table_key']).attrs.metadata
         except AttributeError:
             return {}
 
-    @staticmethod
-    def load_dataset(
-        dataset_fp: Path,
-        keys: List[str],
-        names: List[str],
-        split_probas: List[float] = [1.0],
-        split_on: Optional[List[str]] = None) -> Dict[HDF5DataSource]:
+    @classmethod
+    def load_dataset(self, dataset_fp: Path, config: ConfigProto) -> Dict[HDF5DataSource]:
         """Loads the dataset as a union of all tables across specified keys.
 
         Args:
-            dataset_fp (Path): Path to the HDF5 dataset.
-            keys (List[str]): Keys that should be included in the result set.
-            names (List[str]): Keys under which datasources will be saved. If
-                more than one is present, the datasource will be split.
-            split_probas (List[float], optional): Split probabilities.
-                Defaults to [1.0].
-            split_on (Optional[List[str]], optional): Metadata attributes on
-                which to split the datasource. Defaults to None.
+            dataset_fp (Path): Path to dataset.
+            config (ConfigProto): HDF5 DataSource ConfigProto
 
         Returns:
-            Dict[HDF5DataSource]: Dictionary of datasources.
+            Dict[HDF5DataSource]: Dictionary of datasets.
         """
+        data_source = self()
+        data_source.dataset_fp = dataset_fp
+
         source = pd.HDFStore(dataset_fp, 'r')
+        data_source.source = source
 
         tables = []
-        for key in keys:
+        for key in config.keys:
             tables += [node._v_pathname for node in source.get_node(str(key))]
+        data_source.tables = tables
 
-        data_source = HDF5DataSource(dataset_fp, tables=tables, source=source)
-        if len(names) == 1:
-            return {names[0]: data_source}
+        if len(config.names) == 1:
+            return {config.names[0]: data_source}
 
         data_sources = data_source.split(
-            sizes=split_probas,
-            key=split_on
+            sizes=config.split_probas,
+            key=config.split_on
         )
-        return dict(zip(names, data_sources))
-
+        return dict(zip(config.names, data_sources))
 
     def split(self, sizes: List[float], key: Optional[str]) -> List[HDF5DataSource]:
         """Partition the DataSource into N partitions. The size of each partition is defined by
@@ -159,3 +183,19 @@ class HDF5DataSource(DataSource):
                 )
             )
         return data_sources
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            self.config = json_dict
+            self.dataset_fp = None
+            self.keys = None
+            self.names = None
+            self.split_probas = None
+            self.split_on = None
+
+        def parse(self):
+            self.dataset_fp = self.config['_data']
+            self.keys = self.config['keys']
+            self.names = self.config['names']
+            self.split_probas = self.config['split_probas'] or [1.0]
+            self.split_on = self.config['split_on']

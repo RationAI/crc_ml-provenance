@@ -1,27 +1,21 @@
-"""
-TODO: Missing docstring.
-"""
+# Standard Imports
+
+# Third-party Imports
 import json
+
+# Local Imports
 
 
 class ConfigProto:
-    """
-    TODO: Missing docstring.
-    """
-    def __init__(self, json_filepath, json_dict=None):
-        self.json_filepath = json_filepath
-        if json_dict is None:
-            self.json_dict = self.__load_from_file(json_filepath)
+    """ConfigProto consumes and parses JSON configuration file."""
+    def __init__(self, json_dict: dict):
+        self.config = json_dict
 
-        # TODO: Should this be here? With what parameters?
-        self.__parse(None)  # TODO: replace None with proper params
-
-    @staticmethod
-    def __load_from_file(json_filepath):
+    @classmethod
+    def load_from_file(self, json_filepath):
         with open(json_filepath, 'r') as json_finput:
-            return json.load(json_finput)
+            json_config = json.load(json_finput)
+        return self(json_config)
 
-    # TODO: Why is this method private?
-    #       What should be the parameters?
-    def __parse(self, config_fp):
+    def parse(self, config_fp):
         raise NotImplemented("ConfigProto.parse() not implemented.")
