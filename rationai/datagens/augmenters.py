@@ -20,34 +20,40 @@ class BaseAugmenter(abc.ABC):
 
     Attributes
     ----------
-    config : rationai.utils.config.ConfigProto
-        Configuration of the augmenter.
+    config : rationai.datagens.BaseAugmenter.Config
+        The configuration parser for augmenter.
     """
-    def __init__(self, config: ConfigProto):
-        self.config = config
+    def __init__(self, config_dict: dict):
+        self.config = self.Config(config_dict)
         self.config.parse()
+        pass
 
     @abc.abstractmethod
     def __call__(self, *args, **kwargs):
         """Called by an extractor to perform data augmentation."""
         raise NotImplementedError('Override __call__ method to perform a data transformation')
 
+    class Config(ConfigProto):
+        """Each Augmenter should implement a nested Config class to process its configuration"""
+        pass
+
 
 class ImgAugAugmenter(BaseAugmenter):
+    # noinspection PyUnresolvedReferences
     """Uses image augmenter: imgaug.augmenters.iaa
 
     This class should not be used directly, but subclassed.
 
     Attributes
     ----------
-    config : rationai.utils.config.ConfigProto
-        Configuration of the augmenter.
+    config : rationai.datagens.BaseAugmenter.Config
+        The configuration parser for augmenter.
     augmenter : imgaug.augmenters.meta.Augmenter
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
 
-    def __init__(self, config: ConfigProto):
-        super().__init__(config)
+    def __init__(self, config_dict: dict):
+        super().__init__(config_dict)
         self.augmenter = iaa.Noop()
 
     def __call__(self, *args, **kwargs):
@@ -61,6 +67,7 @@ class ImgAugAugmenter(BaseAugmenter):
 
 
 class ImageAugmenter(ImgAugAugmenter):
+    # noinspection PyUnresolvedReferences
     """For information about what augmentations are used, see `ImageAugmenterConfig` class.
 
     Attributes
@@ -71,8 +78,8 @@ class ImageAugmenter(ImgAugAugmenter):
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
 
-    def __init__(self, config: Config):
-        super().__init__(config)
+    def __init__(self, config_dict: dict):
+        super().__init__(config_dict)
 
         # noinspection PyUnresolvedReferences
         self.augmenter = iaa.Sequential([
@@ -137,8 +144,8 @@ class ImageAugmenter(ImgAugAugmenter):
 class NoOpImageAugmenter(ImgAugAugmenter):
     """This is the class to be used when no image augmentation operation is to be done."""
 
-    def __init__(self, config: Config):
-        super().__init__(config)
+    def __init__(self, config_dict: dict):
+        super().__init__(config_dict)
 
     class Config(ConfigProto):
         # noinspection PyUnresolvedReferences

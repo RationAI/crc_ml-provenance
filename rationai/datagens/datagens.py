@@ -1,68 +1,70 @@
-    """Datagens are builders, that are able to compose a data feeding entity
-    for a particular experiment. Datagen specifies which parts are necessary
-    to build it. The parameters for these components are then supplied in
-    a config file.
+"""Datagen definitions.
 
-    Generally, the schema for datagens is divided into two parts:
-        • definitions - defines classes for each component
-        • configs - defines parameters for each component
+Datagens are builders, that are able to compose a data feeding entity
+for a particular experiment. Datagen specifies which parts are necessary
+to build it. The parameters for these components are then supplied in
+a config file.
 
-    Examples:
+Generally, the schema for datagens is divided into two parts:
+    • definitions - defines classes for each component
+    • configs - defines parameters for each component
 
-    "datagen": {
-        "data_sources": {
-            "_class": "rationai.datagens.datasources.HDF5DataSource",
-            "_data": "/histopat/data/dataset.h5",
-            "definitions": {
-                "train_valid": {
-                    "keys": ["train"],
-                    "names": ["train", "valid"],
-                    "split_probas": [0.8, 0.2],
-                    "split_on": null
-                }
+Examples:
+
+"datagen": {
+    "data_sources": {
+        "_class": "rationai.datagens.datasources.HDF5DataSource",
+        "_data": "/histopat/data/dataset.h5",
+        "definitions": {
+            "train_valid": {
+                "keys": ["train"],
+                "names": ["train", "valid"],
+                "split_probas": [0.8, 0.2],
+                "split_on": null
+            }
+        }
+    },
+    "generators": {
+        "train_generator": {
+            "
+            "components": {
+                "sampler": "rationai.datagens.samplers.RandomTreeSampler",
+                "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+            },
+            "config": {
+                "sampler": {
+                    "epoch_size": 10000,
+                    "index_levels": ["label", "slide_name"]
+                },
+                "augmenter": {},
+                "extractor": {
+                    "threshold": 0.5
+                },
             }
         },
-        "generators": {
-            "train_generator": {
-                "
-                "components": {
-                    "sampler": "rationai.datagens.samplers.RandomTreeSampler",
-                    "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                    "extractor": "rationai.datagens.extractors.OpenslideExtractor",
-                },
-                "config": {
-                    "sampler": {
-                        "epoch_size": 10000,
-                        "index_levels": ["label", "slide_name"]
-                    },
-                    "augmenter": {},
-                    "extractor": {
-                        "threshold": 0.5
-                    },
-                }
+        "valid_generator": {
+            "components": {
+                "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                "extractor": "rationai.datagens.extractors.OpenslideExtractor",
             },
-            "valid_generator": {
-                "components": {
-                    "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
-                    "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                    "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+            "config": {
+                "sampler": {
+                    "index_levels": ["label", "slide_name"]
                 },
-                "config": {
-                    "sampler": {
-                        "index_levels": ["label", "slide_name"]
-                    },
-                    "augmenter": {},
-                    "extractor": {
-                        "threshold": 0.5
-                    },
-                }
+                "augmenter": {},
+                "extractor": {
+                    "threshold": 0.5
+                },
             }
         }
     }
+}
 
-    Returns:
-        Datagen: Datagen entity
-    """
+Returns:
+    Datagen: Datagen entity
+"""
 
 # Standard Imports
 from __future__ import annotations
@@ -71,12 +73,10 @@ import json
 from abc import ABC
 from abc import abstractmethod
 from pathlib import Path
-
-# Third-party Imports
-
-# Local Imports
 from typing import Type
 
+# Local Imports
+from rationai.datagens.augmenters import BaseAugmenter
 from rationai.utils.config import ConfigProto
 from rationai.datagens.datasources import DataSource
 from rationai.datagens.generators import BaseGenerator
@@ -164,7 +164,7 @@ class GeneratorDatagen:
                 data_source_config
             )
             # Merge dictionaries
-            data_sources = data_sources | data_sources_dict
+            data_sources |= data_sources_dict
         return data_sources
 
     @staticmethod
@@ -181,8 +181,8 @@ class GeneratorDatagen:
         return data_source_dict
 
     @staticmethod
-    def __build_augmenter_from_template(augmenter_class: type, augmenter_config: dict):
-        return augmenter_class(**augmenter_config)
+    def __build_augmenter_from_template(augmenter_class: Type[BaseAugmenter], augmenter_config: dict):
+        return augmenter_class(augmenter_config)
 
     @staticmethod
     def __build_sampler_from_template(sampler_class: type, sampler_config: dict):
