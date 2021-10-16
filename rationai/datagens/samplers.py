@@ -2,6 +2,7 @@
 TODO: Missing docstring.
 """
 # Standard Imports
+from abc import abstractmethod
 import logging
 from dataclasses import dataclass
 from typing import List
@@ -9,11 +10,11 @@ from typing import Optional
 
 # Third-party Imports
 import numpy as np
-import pandas as pd
 from numpy.random.mtrand import sample
 
 # Local Imports
 from rationai.datagens.datasources import DataSource
+from rationai.utils.config import ConfigProto
 
 log = logging.getLogger('samplers')
 logging.basicConfig(level=logging.INFO,
@@ -23,8 +24,11 @@ logging.basicConfig(level=logging.INFO,
 
 @dataclass
 class SampledEntry:
-    """
-    TODO: Missing docstring.
+    """SampledEntry is a dataclass holding a single entry from the dataset
+    and metadata information regarding the origin of the entry. 
+
+    The metadata is information that may be necessary for extractor to fully
+    interpret the sampled data.
     """
     entry: dict
     metadata: dict
@@ -51,9 +55,12 @@ class SamplingTree:
         self.leaf = root_node
         self.split_cols = []
 
-    def split(self, col):
-        """
-        TODO: Missing docstring.
+    def split(self, col: str):
+        """Creates a new level of a SamplingTree. Each node receives number
+        of new children equal to unique values in the selected column.
+
+        Args:
+            col (str): Column name.
         """
         # Idempotent operation
         if col in self.split_cols:
@@ -114,19 +121,17 @@ class Node:
 
 
 class TreeSampler:
-    """
-    TODO: Add abstract method 'sample'.
-    TODO: Add abstract method 'on_epoch_end'.
-    """
+    """TreeSampler is a sampler that utilizes SamplingTree data structure."""
 
-    def __init__(self, data_source: DataSource, index_levels: List[str] = None):
-        self.index_levels = [] if index_levels is None else index_levels
+    def __init__(self, config: ConfigProto, data_source: DataSource):
+        self.config = config
         self.data_source = data_source
-        self.sampling_tree = self.__build_sampling_tree(data_source, index_levels)
+        self.sampling_tree = self.__build_sampling_tree(
+            data_source,
+            config.index_levels
+        )
 
-    def __build_sampling_tree(self,
-                              data_source: DataSource,
-                              index_levels: List[str]) -> SamplingTree:
+    def __build_sampling_tree(self) -> SamplingTree:
         """Builds a SamplingTree from the provided DataSource.
 
         Function requires that the DataSource.data is a list of paths to DataFrame objects.
@@ -140,16 +145,21 @@ class TreeSampler:
         Returns:
             SamplingTree: SamplingTree data structure.
         """
-        df = pd.concat([
-            # FIXME: This should be reworked
-            self.data_source.get_table(table_key)
-                .assign(_table_key=table_key)
-            for table_key in data_source.source
-        ])
+        df = self.data_source.get_table()
         sampling_tree = SamplingTree(df)
-        for index_level in index_levels:
+        for index_level in self.config.index_levels:
             sampling_tree.split(index_level)
         return sampling_tree
+
+    @abstractmethod
+    def sample(self) -> List[SampledEntry]:
+        """Defines sampling strategy for a TreeSampler"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def on_epoch_end(self) -> List[SampledEntry]:
+        """Defines behaviour at the end of an epoch. Typically resampling."""
+        raise NotImplementedError
 
 
 class RandomTreeSampler(TreeSampler):
@@ -158,9 +168,8 @@ class RandomTreeSampler(TreeSampler):
         Supports multi-level sampling by including 'index_level'.
     """
 
-    def __init__(self, epoch_size: int, data_source: DataSource, index_levels: List[str] = None):
-        super().__init__(data_source, index_levels)
-        self.epoch_size = epoch_size
+    def __init__(self, config: ConfigProto, data_source: DataSource):
+        super().__init__(config, data_source)
 
     def sample(self) -> List[SampledEntry]:
         """Returns a list of sampled entries of size equal to `RandomTreeSampler.size`.
@@ -171,14 +180,14 @@ class RandomTreeSampler(TreeSampler):
             List[SampledEntry]: [description]
         """
         result = []
-        for _ in range(self.epoch_size):
+        for _ in range(self.config.epoch_size):
             node = self.sampling_tree.root
             while node.children:
                 idx = np.random.randint(low=0, high=len(node.children))
                 node = node.children[idx]
 
             entry = node.data.sample().to_dict('records')[0]
-            metadata = self.data_source.get_metadata(entry['_table_key'])
+            metadata = self.data_source.get_metadata(entry)
 
             sampled_entry = SampledEntry(
                 entry=entry,
@@ -187,6 +196,16 @@ class RandomTreeSampler(TreeSampler):
             result.append(sampled_entry)
         return result
 
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            super().__init__(json_dict)
+            self.epoch_size = None
+            self.index_levels = None
+
+        def parse(self):
+            self.epoch_size = self.config['epoch_size']
+            self.index_levels = self.config['index_levels'] or []
+
 
 class SequentialTreeSampler(TreeSampler):
     """
@@ -194,8 +213,8 @@ class SequentialTreeSampler(TreeSampler):
         Supports multi-level sampling by including 'index_level'.
     """
 
-    def __init__(self, data_source, index_levels: List[str] = None):
-        super().__init__(data_source, index_levels)
+    def __init__(self, config: ConfigProto, data_source: DataSource):
+        super().__init__(config, data_source)
         self.active_node = self.sampling_tree.leaf
 
     def sample(self) -> Optional[List[SampledEntry]]:
@@ -207,7 +226,7 @@ class SequentialTreeSampler(TreeSampler):
         if self.active_node is not None:
             result = []
             for entry in self.active_node.data.to_dict('records'):
-                metadata = self.data_source.get_metadata(entry['_table_key'])
+                metadata = self.data_source.get_metadata(entry)
                 sampled_entry = SampledEntry(
                     entry=entry,
                     metadata=metadata
@@ -221,3 +240,11 @@ class SequentialTreeSampler(TreeSampler):
         """
         if self.active_node is not None:
             self.active_node = self.active_node.next
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            super().__init__(json_dict)
+            self.index_levels = None
+
+        def parse(self):
+            self.index_levels = self.config['index_levels'] or []
