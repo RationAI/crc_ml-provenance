@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO,
 @dataclass
 class SampledEntry:
     """SampledEntry is a dataclass holding a single entry from the dataset
-    and metadata information regarding the origin of the entry. 
+    and metadata information regarding the origin of the entry.
 
     The metadata is information that may be necessary for extractor to fully
     interpret the sampled data.
@@ -100,9 +100,16 @@ class Node:
         self.children = []
         self.next = None
 
-    def split_node(self, col):
-        """
-        TODO: Missing docstring.
+    def split_node(self, col: str):
+        """Leaf node is replaced with an internal node and N new leaf nodes,
+        where N is the number of unique values for column `col`.
+
+        The dataframe in the original leaf node is split in such a way that
+        there is a single unique value in the split column in each of the new
+        leaf node. The values accross leaf nodes all are different.
+
+        Args:
+            col (str): Column name.
         """
         partitions = {col_val: df for col_val, df in self.data.groupby(col)}
         for col_val, df in partitions.items():
