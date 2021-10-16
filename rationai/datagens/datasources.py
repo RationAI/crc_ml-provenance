@@ -186,7 +186,7 @@ class HDF5DataSource(DataSource):
 
     class Config(ConfigProto):
         def __init__(self, json_dict: dict):
-            self.config = json_dict
+            super().__init__(json_dict)
             self.dataset_fp = None
             self.keys = None
             self.names = None
