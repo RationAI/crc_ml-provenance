@@ -17,6 +17,7 @@ from openslide import OpenSlide
 # Local Imports
 from rationai.datagens.augmenters import ImgAugAugmenter
 from rationai.datagens.samplers import SampledEntry
+from rationai.utils.config import ConfigProto
 
 
 class Extractor(ABC):
@@ -27,9 +28,8 @@ class Extractor(ABC):
 
 
 class OpenslideExtractor(Extractor):
-    def __init__(self, augmenter: Optional[ImgAugAugmenter], threshold: float):
+    def __init__(self, augmenter: Optional[ImgAugAugmenter], *args, **kwargs):
         self.augmenter = augmenter
-        self.threshold = threshold
 
     def __call__(self, sampled_entries: List[SampledEntry]) -> Tuple[np.ndarray, np.ndarray]:
         """Converts entries into network input/label tuple.
@@ -65,7 +65,7 @@ class OpenslideExtractor(Extractor):
                                 sampled_entry.metadata['tile_size'],
                                 sampled_entry.metadata['sample_level']
                                 )
-        y = sampled_entry.entry['is_cancer'] > self.threshold
+        y = sampled_entry.entry['is_cancer']
         wsi.close()
         return x, y
 
@@ -134,3 +134,12 @@ class OpenslideExtractor(Extractor):
             Tuple[NDArray, NDArray]: Augmented input/label pair.
         """
         return self.augmenter(image=x)
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            empty_configuration = dict(json_dict)
+            empty_configuration.clear()
+            super().__init__(empty_configuration)
+
+        def parse(self):
+            pass

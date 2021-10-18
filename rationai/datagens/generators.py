@@ -3,7 +3,7 @@ TODO: Missing docstring.
 """
 import logging
 from time import time
-from typing import Tuple
+from typing import List, Tuple
 from typing import NoReturn
 
 import numpy as np
@@ -37,7 +37,7 @@ class BaseGenerator:
         self.extractor = extractor
         self.epoch_samples: list[SampledEntry] = []
 
-    def _generate_samples(self) -> list[SampledEntry]:
+    def _generate_samples(self) -> List[SampledEntry]:
         """Get a sampled epoch as a pandas dataframe.
 
         Return

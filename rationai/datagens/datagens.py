@@ -109,11 +109,8 @@ class GeneratorDatagen:
         """
         TODO: Missing docstring.
         """
-        data_sources_cfg = self.config['data_sources']
-        data_sources_dict = self.__build_data_sources_from_template(data_sources_cfg)
-
-        generators_cfg = self.config['generators']
-        generators_dict = self.__build_generators_from_template(generators_cfg, data_sources_dict)
+        data_sources_dict = self.__build_data_sources_from_template(self.config.data_sources_config)
+        generators_dict = self.__build_generators_from_template(self.config.generators_config, data_sources_dict)
 
         return generators_dict
 
@@ -125,13 +122,12 @@ class GeneratorDatagen:
         return generators
 
     def __build_generator_from_template(self, generator_config, data_source_dict) -> BaseGenerator:
-        definition = generator_config['definition']
-        components_config = generator_config['configuration']
+        definition = generator_config['components']
+        components_config = generator_config['configurations']
 
         data_source = data_source_dict[definition['data_source']]
 
         sampler_class = get_class(definition['sampler'])
-        # FIXME: This passes three args to the method, but two are expected.
         sampler = self.__build_sampler_from_template(sampler_class, data_source, components_config['sampler'])
 
         augmenter = None
@@ -140,7 +136,6 @@ class GeneratorDatagen:
             augmenter = self.__build_augmenter_from_template(augmenter_class, components_config['augmenter'])
 
         extractor_class = get_class(definition['extractor'])
-        # FIXME: This passes three args to the method, but two are expected.
         extractor = self.__build_extractor_from_template(extractor_class, augmenter, components_config['extractor'])
 
         generator_class = get_class(definition['generator'])
@@ -164,48 +159,52 @@ class GeneratorDatagen:
                 data_source_config
             )
             # Merge dictionaries
-            data_sources |= data_sources_dict
+            data_sources = {**data_sources, **data_sources_dict}
         return data_sources
 
     @staticmethod
     def __build_data_source_from_template(
             data_source_class: Type[DataSource],
             dataset_path: Path,
-            data_source_config: dict) -> dict[str, DataSource]:
-
+            data_source_config_dict: dict) -> dict[str, DataSource]:
+        data_source_config = data_source_class.Config(data_source_config_dict)
+        data_source_config.parse()
         data_source_dict = data_source_class.load_dataset(
             dataset_fp=dataset_path,
-            **data_source_config
+            config=data_source_config
         )
 
         return data_source_dict
 
     @staticmethod
-    def __build_augmenter_from_template(augmenter_class: Type[BaseAugmenter], augmenter_config: dict):
-        return augmenter_class(augmenter_config)
+    def __build_augmenter_from_template(augmenter_class: Type[BaseAugmenter], augmenter_config_dict: dict):
+        augmenter_config = augmenter_class.Config(augmenter_config_dict)
+        augmenter_config.parse()
+        return augmenter_class(config=augmenter_config)
 
     @staticmethod
-    def __build_sampler_from_template(sampler_class: type, sampler_config: dict):
-        return sampler_class(**sampler_config)
+    def __build_sampler_from_template(sampler_class: type, data_source: DataSource, sampler_config_dict: dict):
+        sampler_config = sampler_class.Config(sampler_config_dict)
+        sampler_config.parse()
+        return sampler_class(config=sampler_config, data_source=data_source)
 
     @staticmethod
-    def __build_extractor_from_template(extractor_class: type, extractor_config: dict):
-        return extractor_class(**extractor_config)
+    def __build_extractor_from_template(extractor_class: type, augmenter: BaseAugmenter, extractor_config_dict: dict):
+        extractor_config = extractor_class.Config(extractor_config_dict)
+        extractor_config.parse()
+        return extractor_class(config=extractor_config, augmenter=augmenter)
 
     class Config(ConfigProto):
         """
         TODO: Missing docstring.
         """
 
-        def __init__(self, json_filepath, json_dict=None):
-            super().__init__(json_filepath, json_dict)
+        def __init__(self, json_dict=None):
+            super().__init__(json_dict)
 
             self.data_sources_config = None
             self.generators_config = None
 
-        def __parse(self, config_fp):
-            with open(config_fp, 'r') as cfg_finput:
-                config = json.load(cfg_finput)
-
-            self.data_source_config = config['data_sources']
-            self.generators_config = config['generators']
+        def parse(self):
+            self.data_sources_config = self.config['data_sources']
+            self.generators_config = self.config['generators']
