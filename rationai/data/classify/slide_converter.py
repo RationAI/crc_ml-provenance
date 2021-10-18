@@ -29,7 +29,6 @@ from openslide import OpenSlide
 # Local Imports
 from rationai.data.utils import read_polygons
 from rationai.data.utils import open_pil_image
-from rationai.data.classify.create_map_config import CreateMapConfig
 
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
@@ -59,7 +58,7 @@ class SlideConverter:
     """
     dataset_h5 = None
 
-    def __init__(self, config: CreateMapConfig):
+    def __init__(self, config: ConfigProto):
         self.config = config
         self.center_filter_np = self.__get_center_filter()
 
