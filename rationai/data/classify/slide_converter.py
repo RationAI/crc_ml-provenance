@@ -1,4 +1,5 @@
 # Standard Imports
+from __future__ import annotations
 from dataclasses import dataclass
 from multiprocessing import Pool
 from typing import Optional
@@ -10,7 +11,6 @@ from datetime import datetime
 import argparse
 import logging
 import copy
-from histopat.rationai.utils.config import ConfigProto
 
 # Third-party Imports
 import numpy as np
@@ -29,6 +29,7 @@ from openslide import OpenSlide
 # Local Imports
 from rationai.data.utils import read_polygons
 from rationai.data.utils import open_pil_image
+from rationai.utils.config import ConfigProto
 
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
@@ -646,7 +647,7 @@ class SlideConverter:
             value of these parameters will override the value of parameter
             defined in `_global` group.
 
-        The config is an iterable object. At every iteration the CreateMapConfig
+        The config is an iterable object. At every iteration the SlideConverter.Config
         first defaults back to `_global` values before being overriden by the
         input specific parameters.
         """
@@ -693,11 +694,11 @@ class SlideConverter:
             self._groups = None
             self._cur_group_configs = []
 
-        def __iter__(self) -> CreateMapConfig:
+        def __iter__(self) -> SlideConverter.Config:
             """Populates the config parameters with default values.
 
             Returns:
-                CreateMapConfig: CreateMapConfig with `_global` values.
+                SlideConverter.Config: SlideConverter.Config with `_global` values.
             """
             log.info('Populating default options.')
             with open(self.config_fp, 'r') as json_r:
@@ -711,7 +712,7 @@ class SlideConverter:
             self._groups = config
             return self
 
-        def __next__(self) -> CreateMapConfig:
+        def __next__(self) -> SlideConverter.Config:
             """First resets back default values before overriding the input specific
             parameters.
 
@@ -719,7 +720,7 @@ class SlideConverter:
                 StopIteration: No more input directories left to be processed
 
             Returns:
-                CreateMapConfig: Fully populated CreateMapConfig ready to be processed.
+                SlideConverter.Config: Fully populated SlideConverter.Config ready to be processed.
             """
             if not (self._groups or self._cur_group_configs):
                 raise StopIteration
