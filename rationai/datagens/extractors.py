@@ -44,7 +44,7 @@ class OpenslideExtractor(Extractor):
         for sampled_entry in sampled_entries:
             x, y = self.__process_entry(sampled_entry)
             if self.augmenter is not None:
-                x, y = self.__augment_input(x, y)
+                x = self.__augment_input(x)
             x, y = self.__normalize_input(x, y)
             inputs.append(x)
             labels.append(y)
@@ -63,9 +63,9 @@ class OpenslideExtractor(Extractor):
         x = self.__extract_tile(wsi,
                                 (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
                                 sampled_entry.metadata['tile_size'],
-                                sampled_entry.metadata['sampled_level']
+                                sampled_entry.metadata['sample_level']
                                 )
-        y = sampled_entry.entry['center_tumor_tile'] > self.threshold
+        y = sampled_entry.entry['is_cancer'] > self.threshold
         wsi.close()
         return x, y
 
@@ -100,9 +100,9 @@ class OpenslideExtractor(Extractor):
         Returns:
             NDArray: RGB Tile represented as numpy array.
         """
-        bg_tile = Image.new('RGB', (self.tile_size, self.tile_size), '#FFFFFF')
+        bg_tile = Image.new('RGB', (tile_size, tile_size), '#FFFFFF')
         im_tile = wsi.read_region(
-            location=coords, level=level, size=tile_size
+            location=coords, level=level, size=(tile_size, tile_size)
         )
         bg_tile.paste(im_tile, None, im_tile)
         return np.array(bg_tile)
@@ -123,7 +123,7 @@ class OpenslideExtractor(Extractor):
         x = (x / 127.5) - 1
         return x, y
 
-    def __augment_input(self, x: NDArray, y: NDArray) -> Tuple[NDArray, NDArray]:
+    def __augment_input(self, x: NDArray) -> Tuple[NDArray, NDArray]:
         """Applies augmentation on the input/label pair.
 
         Args:
@@ -133,4 +133,4 @@ class OpenslideExtractor(Extractor):
         Returns:
             Tuple[NDArray, NDArray]: Augmented input/label pair.
         """
-        return self.augmenter(x, y)
+        return self.augmenter(image=x)
