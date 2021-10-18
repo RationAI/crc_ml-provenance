@@ -23,9 +23,8 @@ class BaseAugmenter(abc.ABC):
     config : rationai.datagens.BaseAugmenter.Config
         The configuration parser for augmenter.
     """
-    def __init__(self, config_dict: dict):
-        self.config = self.Config(config_dict)
-        self.config.parse()
+    def __init__(self, config: ConfigProto):
+        self.config = config
         pass
 
     @abc.abstractmethod
@@ -52,8 +51,8 @@ class ImgAugAugmenter(BaseAugmenter):
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
 
-    def __init__(self, config_dict: dict):
-        super().__init__(config_dict)
+    def __init__(self, config: ConfigProto):
+        super().__init__(config)
         self.augmenter = iaa.Noop()
 
     def __call__(self, *args, **kwargs):
@@ -78,8 +77,8 @@ class ImageAugmenter(ImgAugAugmenter):
         The augmenter containing image transformation configuration, used when the __call__ method is used.
     """
 
-    def __init__(self, config_dict: dict):
-        super().__init__(config_dict)
+    def __init__(self, config: ConfigProto):
+        super().__init__(config)
 
         # noinspection PyUnresolvedReferences
         self.augmenter = iaa.Sequential([
@@ -144,8 +143,8 @@ class ImageAugmenter(ImgAugAugmenter):
 class NoOpImageAugmenter(ImgAugAugmenter):
     """This is the class to be used when no image augmentation operation is to be done."""
 
-    def __init__(self, config_dict: dict):
-        super().__init__(config_dict)
+    def __init__(self, config: ConfigProto):
+        super().__init__(config)
 
     class Config(ConfigProto):
         # noinspection PyUnresolvedReferences
