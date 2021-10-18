@@ -5,10 +5,9 @@ import json
 # Third-party Imports
 
 # Local Imports
-from histopat.rationai.training.base.experiments import Experiment
+from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
 from rationai.datagens.datagens import Datagen
-from rationai.datagens.datagens import DatagenConfig
 
 
 class WSIBinaryClassifierTest(Experiment):
