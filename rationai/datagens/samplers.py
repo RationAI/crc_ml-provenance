@@ -200,6 +200,9 @@ class RandomTreeSampler(TreeSampler):
             result.append(sampled_entry)
         return result
 
+    def on_epoch_end(self) -> List[SampledEntry]:
+        return self.sample()
+
     class Config(ConfigProto):
         def __init__(self, json_dict: dict):
             super().__init__(json_dict)
@@ -244,6 +247,11 @@ class SequentialTreeSampler(TreeSampler):
         """
         if self.active_node is not None:
             self.active_node = self.active_node.next
+        else:
+            return StopIteration
+
+    def on_epoch_end(self) -> List[SampledEntry]:
+        return self.sample()
 
     class Config(ConfigProto):
         def __init__(self, json_dict: dict):
