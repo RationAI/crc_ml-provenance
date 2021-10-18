@@ -133,10 +133,7 @@ class TreeSampler:
     def __init__(self, config: ConfigProto, data_source: DataSource):
         self.config = config
         self.data_source = data_source
-        self.sampling_tree = self.__build_sampling_tree(
-            data_source,
-            config.index_levels
-        )
+        self.sampling_tree = self.__build_sampling_tree()
 
     def __build_sampling_tree(self) -> SamplingTree:
         """Builds a SamplingTree from the provided DataSource.
@@ -210,8 +207,8 @@ class RandomTreeSampler(TreeSampler):
             self.index_levels = None
 
         def parse(self):
-            self.epoch_size = self.config['epoch_size']
-            self.index_levels = self.config['index_levels'] or []
+            self.epoch_size = self.config.get('epoch_size', None)
+            self.index_levels = self.config.get('index_levels', list())
 
 
 class SequentialTreeSampler(TreeSampler):
@@ -254,4 +251,4 @@ class SequentialTreeSampler(TreeSampler):
             self.index_levels = None
 
         def parse(self):
-            self.index_levels = self.config['index_levels'] or []
+            self.index_levels = self.config.get('index_levels', list())
