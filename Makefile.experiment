@@ -18,4 +18,4 @@ help:
 	@echo "This is a help string."
 
 clean:
-	@echo "Cleaning temporary masks."
+	@echo "Cleaning temporary files."
