@@ -107,7 +107,7 @@ class PretrainedNet(KerasModel):
 
         def parse(self):
             self.checkpoint = self.config.get('checkpoint', None)
-            self.input_shape = self.config['input_shape']
+            self.input_shape = tuple(self.config['input_shape'])
             self.output_size = self.config['output_size']
             self.dropout = self.config.get('dropout', 0.0)
 
