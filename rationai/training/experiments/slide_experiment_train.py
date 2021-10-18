@@ -7,7 +7,7 @@ import json
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
-from rationai.datagens.datagens import Datagen
+from rationai.utils.config import ConfigProto
 
 class WSIBinaryClassifierTrain(Experiment):
     def __init__(self, config):
@@ -32,12 +32,17 @@ class WSIBinaryClassifierTrain(Experiment):
         """Defines high-level training procedure.
         """
         train_gen = self.generators_dict[self.config.train_gen]
-        valid_gen = self.generators_dict[self.config.valid_gen]
-        _ = self.executor.fit(
+        train_gen.set_batch_size(self.config.batch_size)
+
+        valid_gen = None
+        if self.config.valid_gen is not None:
+            valid_gen = self.generators_dict[self.config.valid_gen]
+            valid_gen.set_batch_size(self.config.batch_size)
+
+        _ = self.executor.train(
             self.model,
             train_gen,
             valid_gen,
-            **self.config.train_config
         )
 
     def __setup(self):
@@ -46,46 +51,34 @@ class WSIBinaryClassifierTrain(Experiment):
             2. Model
             3. Executor
         """
-        datagen_config = Datagen.Config(self.config.config_filepath)
-        self.generators_dict = Datagen(datagen_config).build_from_template()
+        # Build Datagen
+        datagen_config = self.config.datagen_class.Config(
+            self.config.datagen_config
+        )
+        datagen_config.parse()
+        self.generators_dict = self.config.datagen_class(datagen_config) \
+            .build_from_template()
 
-        model_class = get_class(self.config.model_class_name)
-        self.model = model_class.build(**self.config.model_config)
+        # Build Model
+        model_config = self.config.model_class.Config(
+            self.config.model_config
+        )
+        model_config.parse()
+        self.model = self.config.model_class(model_config)
+        self.model.compile_model()
 
-        executor_class = get_class(self.config.executor_class_name)
-        self.executor = executor_class(**self.config.executor_config)
+        # Build Executor
+        executor_config = self.config.executor_class.Config(
+            self.config.executor_config
+        )
+        executor_config.parse()
+        self.executor = self.config.executor_class(executor_config)
 
-    def __save_predictions(self, predictions):
-        """Saves predictions in a file.
+    class Config(ConfigProto):
+        def __init__(self, json_dict):
+            super().__init__(json_dict)
 
-        Args:
-            predictions (pandas.DataFrame): Network predictions for a slide
-        """
-        raise NotImplementedError
-
-    class Config:
-        def __init__(self, json_filepath, json_dict=None):
-            super().__init__(json_filepath, json_dict)
-            self.experiment_class = None
-
-            # Model Configuration
-            self.model_class_name = None
-            self.model_config = None
-
-            # Executor Configuration
-            self.executor_class_name = None
-            self.executor_config = None
-
-            # Generator Selection
-            self.train_gen = None
-            self.valid_gen = None
-
-            # ML Configuration
-            self.train_config = None
-
-        def __parse(self):
-            # TODO: Set json-paths for values
-            self.experiment_class = None
+            self.batch_size = None
 
             # Model Configuration
             self.model_class_name = None
@@ -99,8 +92,31 @@ class WSIBinaryClassifierTrain(Experiment):
             self.train_gen = None
             self.valid_gen = None
 
-            # ML Configuration
-            self.train_config = None
+            # Datagen Configuration
+            self.datagen_class = None
+            self.datagen_config = None
+
+        def parse(self):
+            self.batch_size = self.config.get('batch_size')
+
+            definitions_config = self.config['definitions']
+            configurations_config = self.config.get('configurations', dict())
+
+            # Model Configuration
+            self.model_class = get_class(definitions_config['model'])
+            self.model_config = configurations_config.get('model', dict())
+
+            # Executor Configuration
+            self.executor_class = get_class(definitions_config['executor'])
+            self.executor_config = configurations_config.get('executor', dict())
+
+            # Generator Selection
+            self.train_gen = self.config.get('train_generator')
+            self.valid_gen = self.config.get('valid_generator', None)
+
+            # Datagen Configuration
+            self.datagen_class = get_class(definitions_config['datagen'])
+            self.datagen_config = configurations_config.get('datagen', dict())
 
 
 if __name__=='__main__':

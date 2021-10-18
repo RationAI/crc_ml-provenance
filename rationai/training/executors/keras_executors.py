@@ -23,7 +23,8 @@ class KerasExecutor(Executor):
             max_queue_size=self.config.max_queue_size,
             workers=self.config.workers,
             use_multiprocessing=self.config.use_multiprocessing,
-            callbacks=self.__get_callbacks()
+            callbacks=self.__get_callbacks(),
+            verbose=1
         )
         return history.history
 
@@ -32,7 +33,8 @@ class KerasExecutor(Executor):
             max_queue_size=self.config.max_queue_size,
             workers=self.config.workers,
             use_multiprocessing=self.config.use_multiprocessing,
-            callbacks=self.__get_callbacks()
+            callbacks=self.__get_callbacks(),
+            verbose=1
         )
 
     def __get_callbacks(self):
