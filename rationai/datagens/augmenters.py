@@ -107,11 +107,11 @@ class ImageAugmenter(ImgAugAugmenter):
             Probability that an image will be flipped horizontally.
         vertical_flip_proba : float
             Probability that an image will be flipped vertically.
-        brightness_add_range : tuple(float, float)
+        brightness_add_range : tuple(int, int)
             Range from which to add to image brightness.
-        saturation_add_range : tuple(float, float)
+        saturation_add_range : tuple(int, int)
             Range from which to add to image saturation.
-        hue_add_range : tuple(float, float)
+        hue_add_range : tuple(int, int)
             Range from which to add to image hue.
         contrast_scale_range : tuple(float, float)
             Range from which to choose scaling factor for contrast augmentation.
@@ -124,21 +124,21 @@ class ImageAugmenter(ImgAugAugmenter):
             super().__init__(json_dict)
             self.horizontal_flip_proba: float = None
             self.vertical_flip_proba: float = None
-            self.brightness_add_range: tuple[float, float] = None
-            self.saturation_add_range: tuple[float, float] = None
-            self.hue_add_range: tuple[float, float] = None
+            self.brightness_add_range: tuple[int, int] = None
+            self.saturation_add_range: tuple[int, int] = None
+            self.hue_add_range: tuple[int, int] = None
             self.contrast_scale_range: tuple[float, float] = None
             self.rotate_90_deg_interval: tuple[int, int] = None
 
         def parse(self) -> NoReturn:
             """Parse SlideAugmenter configuration."""
-            self.horizontal_flip_proba = float(self.config['horizontal_flip'])
-            self.vertical_flip_proba = float(self.config['vertical_flip'])
-            self.brightness_add_range = tuple(self.config['brightness_range'])
-            self.saturation_add_range = tuple(self.config['saturation_range'])
-            self.hue_add_range = tuple(self.config['hue_range'])
-            self.contrast_scale_range = tuple(self.config['contrast_range'])
-            self.rotate_90_deg_interval = tuple(self.config['rotate_interval'])
+            self.horizontal_flip_proba = float(self.config.get('horizontal_flip', 0.0))
+            self.vertical_flip_proba = float(self.config.get('vertical_flip', 0.0))
+            self.brightness_add_range = tuple(self.config.get('brightness_range', (0, 0)))
+            self.saturation_add_range = tuple(self.config.get('saturation_range', (0, 0)))
+            self.hue_add_range = tuple(self.config.get('hue_range', (0, 0)))
+            self.contrast_scale_range = tuple(self.config.get('contrast_range', (1.0, 1.0)))
+            self.rotate_90_deg_interval = tuple(self.config.get('rotate_interval', (0, 0)))
 
 
 class NoOpImageAugmenter(ImgAugAugmenter):
