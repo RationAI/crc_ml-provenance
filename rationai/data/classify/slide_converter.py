@@ -48,7 +48,6 @@ class ROITile:
     coord_x: int
     coord_y: int
     annot_coverage: float
-    center_annot_coverage: float
 
 class SlideConverter:
     """Worker Object for tile extraction from WSI.
@@ -58,17 +57,19 @@ class SlideConverter:
        handler needs to be passed. This filehandler cannot be pickled and therefore cannot
        be stored as an instance variable or passed as an argument to the `__call__` function.
     """
-    dataset_h5 = None
-
     def __init__(self, config: ConfigProto):
         self.config = config
         self.center_filter_np = self.__get_center_filter()
 
-    def __call__(self, slide_fp: Path) -> None:
+    def __call__(self, slide_fp: Path) -> Tuple[str, pd.DataFrame, dict]:
         """Converts slide into a coordinate map of ROI Tiles.
 
         Args:
             slide_fp (Path): Path to WSI file.
+
+        Returns:
+            Tuple[str, pd.DataFrame, dict]: Returns a tuple of table key,
+                coordinate map dataframe and metadat dictionary.
         """
         self.slide_name = slide_fp.stem
 
@@ -85,9 +86,11 @@ class SlideConverter:
         annot_mask_img = self.__get_annot_mask(oslide_wsi, annot_fp)
 
         coord_map_df = self.__tile_wsi_to_coord_map(oslide_wsi, bg_mask_img, annot_mask_img)
+        table_key = self.__get_table_key()
+        metadata = self.__get_table_metadata(slide_fp, annot_fp)
 
-        self.__save_coord_map(coord_map_df, slide_fp, annot_fp)
         oslide_wsi.close()
+        return table_key, coord_map_df, metadata
 
     def __get_center_filter(self) -> Image.Image:
         """Creates a binary mask for a tile, with a non-zero center square in the middle.
@@ -132,7 +135,7 @@ class SlideConverter:
         Returns:
             OpenSlide: Handler to opened WSI slide.
         """
-        logging.debug(f'[{self.slide_name}] Opening slide: {str(slide_fp.resolve())}')
+        logging.info(f'[{self.slide_name}] Opening slide: {str(slide_fp.resolve())}')
         return OpenSlide(str(slide_fp.resolve()))
 
     def __validate_mode(self, annot_fp: Path) -> bool:
@@ -455,14 +458,14 @@ class SlideConverter:
         coord_map = {
             'coord_x': [],      # (int)  x-coordinate of a top-left pixel of the tile
             'coord_y': [],      # (int)  y-coordinate of a top-left pixel of the tile
-            'label': [],        # (bool) cancer present in the center area of the tile
+            'annot_coverage': [],        # (bool) cancer present in the center area of the tile
             'slide_name': []    # (str)  slide identifier (filename)
         }
         log.info(f'[{self.slide_name}] Initiating slide conversion.')
         for roi_tile in self.__roi_cutter(oslide_wsi, bg_mask_img, annot_mask_img):
             coord_map['coord_x'].append(roi_tile.coord_x)
             coord_map['coord_y'].append(roi_tile.coord_y)
-            coord_map['label'].append(roi_tile.center_annot_coverage)
+            coord_map['annot_coverage'].append(roi_tile.annot_coverage)
             coord_map['slide_name'].append(self.slide_name)
         log.info(f'[{self.slide_name}] Slide conversion complete.')
 
@@ -494,7 +497,8 @@ class SlideConverter:
 
         for (coord_x, coord_y) in self.__tile_cutter(wsi_height, wsi_width):
             bg_tile_img = self.__crop_mask_to_tile(bg_mask_img, coord_x, coord_y, effective_scale_factor)
-            if not self.__is_tile_contain_tissue(bg_tile_img):
+
+            if not self.__is_bg_contain_tissue(bg_tile_img):
                 continue
 
             annot_tile_img = self.__crop_mask_to_tile(annot_mask_img, coord_x, coord_y, 1)
@@ -539,7 +543,7 @@ class SlideConverter:
                               int((coord_x + self.config.tile_size) // scale_factor),
                               int((coord_y + self.config.tile_size) // scale_factor)))
 
-    def __is_tile_contain_tissue(self, tile_img: Image) -> bool:
+    def __is_bg_contain_tissue(self, tile_img: Image) -> bool:
         """Checks if tissue ratio in a tile falls within acceptable range.
 
         Args:
@@ -549,7 +553,7 @@ class SlideConverter:
             bool: True if tissue ratio falls within acceptable range; otherwise False.
         """
         tile_np = np.array(tile_img)
-        tissue_coverage = self.__calculate_tissue_coverage(tile_np, self.config.tile_size)
+        tissue_coverage = self.__calculate_tissue_coverage(tile_np, tile_np.size)
         return self.config.min_tissue <= tissue_coverage <= self.config.max_tissue
 
     def __calculate_tissue_coverage(self, tile_np: NDArray, size: int) -> float:
@@ -563,46 +567,33 @@ class SlideConverter:
             float: Ratio of non-zero elements.
         """
         tissue_count = np.count_nonzero(tile_np)
-        return tissue_count / (size*size)
+        return tissue_count / size
 
-    def __determine_label(self, annot_tile_img: Image) -> Tuple[float, float]:
+    def __determine_label(self, annot_tile_img: Image) -> float:
         """Calculates ratio of annotated (non-zero) elements in
 
         Args:
             annot_tile_img (Image): Binary annotation tile.
 
         Returns:
-            Tuple[float, float]: Tuple of ratios of annotated (non-zero) elements w.r.t. the entire
-            tile and w.r.t. the center area of the tile.
+            float: Ratio of annotated (non-zero) elements w.r.t. the center
+                   area of the tile.
         """
         if self.config.negative_mode:
-            return 0.0, 0.0
+            return 0.0
 
         annot_tile_np = np.array(annot_tile_img)
         center_annot_coverage = self.__calculate_tissue_coverage(
             annot_tile_np & self.center_filter_np,
-            self.config.center_size
+            self.config.center_size * self.config.center_size
         )
 
         return center_annot_coverage
 
-    def __save_coord_map(self, coord_map_df: DataFrame, slide_fp: Path, annot_fp: Path) -> None:
-        """Saves the non-empty coord_map DataFrame into the HDFStore using the
-           file handler. The key of a table is: <group>/<slide_name>.
-           Metadata is stored with each table.
+    def __get_table_key(self) -> str:
+        return f'{self.config.group}/{self.slide_name}'
 
-        Args:
-            coord_map_df (DataFrame): Coordinate map dataframe.
-            slide_fp (Path): WSI filepath.
-            annot_fp (Path): XML Annotation filepath.
-        """
-        if len(coord_map_df) > 0:
-            log.info(f'[{self.slide_name}] Coord map with {len(coord_map_df)} ROI tiles saved.')
-            dataset_slide_key = f'{self.config.group}/{self.slide_name}'
-            SlideConverter.dataset_h5.append(dataset_slide_key, coord_map_df)
-            self.__save_metadata(dataset_slide_key, slide_fp, annot_fp)
-
-    def __save_metadata(self, dataset_slide_key: str, slide_fp: Path, annot_fp: Path) -> None:
+    def __get_table_metadata(self, slide_fp: Path, annot_fp: Path) -> dict:
         """Saves the following metadata with the table:
                 - tile_size      size of the extracted tiles
                 - center_size    size of the labelled center area
@@ -610,8 +601,19 @@ class SlideConverter:
                 - annot_fp       XML Annotation filepath
                 - sample_level   resolution level at which tiles were sampled
 
+                - tissue type   Shortened tissue type ID
+                - patient_id    Pseudo-anonymized patient ID
+                - case_id       Sequential scan ID for each patient
+                - year          Year when scan was made
+                - is_cancer     1 if slide contains cancer, otherwise 0
+
+                Name convention for slides:
+                    (tissue_type)-(year)_(patient_id)-(case_id)-(cancer).mrxs
+
+                Example:
+                    P-2019_1477-13-1.mrxs
+
         Args:
-            dataset_slide_key (str): Key under which the table is saved.
             slide_fp (Path): WSI filepath.
             annot_fp (Path): XML Annotation filepath
         """
@@ -622,8 +624,8 @@ class SlideConverter:
         metadata['center_size'] = self.config.center_size
         metadata['sample_level'] = self.config.sample_level
 
-        tissue_type, year, patient_case, is_cancer = self.slide_name.split('-')
-        patient_id, case_id = patient_case.split('_')
+        tissue_type, year_patient_id, case_id, is_cancer = self.slide_name.split('-')
+        year, patient_id = year_patient_id.split('_')
 
         metadata['tissue_type'] = tissue_type
         metadata['patient_id'] = patient_id
@@ -631,8 +633,7 @@ class SlideConverter:
         metadata['case_id'] = case_id
         metadata['year'] = year
 
-        storer = SlideConverter.dataset_h5.get_storer(dataset_slide_key)
-        storer.attrs.metadata = metadata
+        return metadata
 
     class Config(ConfigProto):
         """Iterable config for create map.
@@ -786,15 +787,19 @@ class SlideConverter:
 
 def main(args):
     # Get file handler to the output dataset file
-    SlideConverter.dataset_h5 = pd.HDFStore((args.output_dir / args.output_dir.name).with_suffix('.h5'), 'w')
+    dataset_h5 = pd.HDFStore((args.output_dir / args.output_dir.name).with_suffix('.h5'), 'w')
 
     # Spawn worker for each slide; maximum `max_workers` simultaneous workers.
     for cfg in SlideConverter.Config(args.config_fp):
         log.info(f'Spawning {cfg.max_workers} workers.')
         with Pool(cfg.max_workers) as p:
-            p.map(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:2])
+            for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:10]):
+                if table is not None:
+                    dataset_h5.append(table_key, table)
+                    dataset_h5.get_storer(table_key).attrs.metadata = metadata
 
-    SlideConverter.dataset_h5.close()
+    log.info(f'MAIN: {dataset_h5.keys()}')
+    dataset_h5.close()
 
 if __name__ == '__main__':
 
