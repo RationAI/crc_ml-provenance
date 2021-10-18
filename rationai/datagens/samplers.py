@@ -50,7 +50,7 @@ class SamplingTree:
     """
 
     def __init__(self, df):
-        root_node = Node('ROOT', df)
+        root_node = Node('/ROOT', df)
         self.root = root_node
         self.leaf = root_node
         self.split_cols = []
@@ -72,12 +72,13 @@ class SamplingTree:
 
         # Split all leaves and create one new level
         cur_node.split_node(col)
-        self.leaf = cur_node.children[0]
         while cur_node.next is not None:
             prev_node = cur_node
             cur_node = cur_node.next
             cur_node.split_node(col)
             prev_node.children[-1].next = cur_node.children[0]
+            prev_node.next = None
+        self.leaf = self.leaf.children[0]
         self.split_cols.append(col)
 
 
@@ -113,7 +114,7 @@ class Node:
         """
         partitions = {col_val: df for col_val, df in self.data.groupby(col)}
         for col_val, df in partitions.items():
-            new_node = Node(col_val, df)
+            new_node = Node(f'{self.node_name}/{col_val}', df)
             new_node.parent = self
             self.children.append(new_node)
 
@@ -121,7 +122,6 @@ class Node:
             node.next = next_node
 
         self.data = None
-        self.next = None
 
     def __repr__(self):
         return f'Node({self.node_name})'
