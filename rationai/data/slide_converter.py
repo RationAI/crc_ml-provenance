@@ -28,8 +28,8 @@ from skimage import morphology
 from openslide import OpenSlide
 
 # Local Imports
-from rationai.data.utils import read_polygons
-from rationai.data.utils import open_pil_image
+from rationai.utils.utils import read_polygons
+from rationai.utils.utils import open_pil_image
 from rationai.utils.config import ConfigProto
 
 # Allows to load large images
@@ -80,7 +80,7 @@ class SlideConverter:
         is_wsi_levels_valid = self.__validate_wsi_levels(oslide_wsi)
 
         if not (is_mode_valid and is_wsi_levels_valid):
-            return None
+            return str(), pd.DataFrame(), dict()
 
         bg_mask_img = self.__get_bg_mask(oslide_wsi, annot_fp)
         annot_mask_img = self.__get_annot_mask(oslide_wsi, annot_fp)
@@ -456,16 +456,18 @@ class SlideConverter:
             DataFrame: Coordinate map of ROI tiles.
         """
         coord_map = {
-            'coord_x': [],      # (int)  x-coordinate of a top-left pixel of the tile
-            'coord_y': [],      # (int)  y-coordinate of a top-left pixel of the tile
-            'annot_coverage': [],        # (bool) cancer present in the center area of the tile
-            'slide_name': []    # (str)  slide identifier (filename)
+            'coord_x': [],          # (int)  x-coordinate of a top-left pixel of the tile
+            'coord_y': [],          # (int)  y-coordinate of a top-left pixel of the tile
+            'annot_coverage': [],   # (float) annotation overlap ratio
+            'is_cancer': [],         # (bool) cancer present in the center area of the tile
+            'slide_name': []        # (str)  slide identifier (filename)
         }
         log.info(f'[{self.slide_name}] Initiating slide conversion.')
         for roi_tile in self.__roi_cutter(oslide_wsi, bg_mask_img, annot_mask_img):
             coord_map['coord_x'].append(roi_tile.coord_x)
             coord_map['coord_y'].append(roi_tile.coord_y)
             coord_map['annot_coverage'].append(roi_tile.annot_coverage)
+            coord_map['is_cancer'].append(roi_tile.annot_coverage > 0)
             coord_map['slide_name'].append(self.slide_name)
         log.info(f'[{self.slide_name}] Slide conversion complete.')
 
@@ -793,12 +795,11 @@ def main(args):
     for cfg in SlideConverter.Config(args.config_fp):
         log.info(f'Spawning {cfg.max_workers} workers.')
         with Pool(cfg.max_workers) as p:
-            for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:10]):
-                if table is not None:
+            for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:3]):
+                if not table.empty:
                     dataset_h5.append(table_key, table)
                     dataset_h5.get_storer(table_key).attrs.metadata = metadata
 
-    log.info(f'MAIN: {dataset_h5.keys()}')
     dataset_h5.close()
 
 if __name__ == '__main__':
