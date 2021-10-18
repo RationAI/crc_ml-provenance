@@ -106,7 +106,7 @@ class HDF5DataSource(DataSource):
             dict: Metadata from a table.
         """
         try:
-            return self.source.get_storer(entry['table_key']).attrs.metadata
+            return self.source.get_storer(entry['_table_key']).attrs.metadata
         except AttributeError:
             return {}
 
@@ -161,27 +161,25 @@ class HDF5DataSource(DataSource):
                 stratify = [table_key.rsplit('/', 1)[0] for table_key in tables]
             else:
                 stratify = [
-                    self.get_metadata(table_key)[key] for table_key in tables
+                    self.source.get_storer(table_key).attrs.metadata[key] for table_key in tables
                 ]
             new_tables, tables = train_test_split(
                 tables,
                 train_size=int(n_tables*size),
                 stratify=stratify
             )
-            data_sources.append(
-                HDF5DataSource(
-                    self.dataset_fp,
-                    new_tables,
-                    self.source
-                )
-            )
-        data_sources.append(
-                HDF5DataSource(
-                    self.dataset_fp,
-                    tables,
-                    self.source
-                )
-            )
+
+            new_ds = HDF5DataSource()
+            new_ds.dataset_fp = self.dataset_fp
+            new_ds.tables = new_tables
+            new_ds.source = self.source
+            data_sources.append(new_ds)
+
+        new_ds = HDF5DataSource()
+        new_ds.dataset_fp = self.dataset_fp
+        new_ds.tables = tables
+        new_ds.source = self.source
+        data_sources.append(new_ds)
         return data_sources
 
     class Config(ConfigProto):
@@ -194,8 +192,8 @@ class HDF5DataSource(DataSource):
             self.split_on = None
 
         def parse(self):
-            self.dataset_fp = self.config['_data']
-            self.keys = self.config['keys']
-            self.names = self.config['names']
-            self.split_probas = self.config['split_probas'] or [1.0]
-            self.split_on = self.config['split_on']
+            self.dataset_fp = self.config.get('_data', None)
+            self.keys = self.config.get('keys', list())
+            self.names = self.config.get('names', self.keys)
+            self.split_probas = self.config.get('split_probas', [1.0])
+            self.split_on = self.config.get('split_on', list())
