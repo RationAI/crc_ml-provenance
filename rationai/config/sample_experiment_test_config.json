@@ -1,4 +1,6 @@
 {
+    "eid_prefix": "DELETE-ME",
+    "result_dir": "/mnt/data/home/matejg/Project/histopat/experiment_output",
     "test_generator": "test_gen",
     "batch_size": 1,
     "definitions": {

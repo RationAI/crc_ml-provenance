@@ -655,8 +655,9 @@ class SlideConverter:
         first defaults back to `_global` values before being overriden by the
         input specific parameters.
         """
-        def __init__(self, config_fp):
+        def __init__(self, config_fp, eid):
             self.config_fp = config_fp
+            self.eid = eid
 
             # Input Path Parameters
             self.slide_dir = None
