@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import asdict
 from pathlib import Path
 from typing import List
 from typing import Optional
 from typing import Tuple
+from pydoc import locate
 
 # Third-party Imports
 import numpy as np
@@ -143,3 +145,54 @@ class OpenslideExtractor(Extractor):
 
         def parse(self):
             pass
+
+class GenericExtractor(Extractor):
+    def __init__(self, config: ConfigProto, *args, **kwargs):
+        self.config = config
+
+    def __call__(self, sampled_entries: List[SampledEntry]) -> dict[str, np.ndarray]:
+        return_dict = {}
+        for return_key, return_list_def in self.config.return_definition.items():
+            return_dict[return_key] = np.transpose([
+                self.retrieve_return_value(sampled_entries, return_def)
+                for return_def in return_list_def
+            ])
+        return return_dict
+
+    def retrieve_return_value(self, sampled_entries, return_def):
+        # Verify that exactly one cell type is specified
+        xor_cell_type = ('entry' in return_def) \
+            ^ ('metadata' in return_def) \
+            ^ ('value' in return_def)
+        assert xor_cell_type, 'Exactly one of ["entry", "metadata", "value"] must be defined.'
+
+        # Convert type
+        if 'dtype' in return_def:
+            dtype = locate(return_def['dtype'])
+        else:
+            dtype = lambda x: x
+
+        # Select cell type
+        if 'entry' in return_def:
+            cell_type = 'entry'
+        elif 'metadata' in return_def:
+            cell_type = 'metadata'
+        else:
+            cell_type = 'value'
+
+        # Retrieve cell name
+        column_name = return_def[cell_type]
+
+        # Return result
+        return np.array([
+            dtype(asdict(sampled_entry)[cell_type][column_name])
+            for sampled_entry in sampled_entries
+        ])
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            super().__init__(json_dict)
+            self.return_definition = None
+
+        def parse(self):
+            self.return_definition = self.config['return']

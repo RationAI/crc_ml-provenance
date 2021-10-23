@@ -2,9 +2,14 @@ PIP=pip3
 PYTHON=python3
 EID := $(shell openssl rand -hex 12)
 
-.PHONY: setup help clean train test
+# Prepends EID Prefix if defined
+ifdef EID_PREFIX
+EID := $(EID_PREFIX)-$(EID)
+endif
 
-run: setup train test
+.PHONY: test eval
+
+run: setup train test eval
 
 setup: requirements.txt
 	$(PIP) install -r requirements.txt
@@ -14,6 +19,9 @@ train: $(TRAIN_CONFIG)
 
 test: $(TEST_CONFIG)
 	$(PYTHON) -m rationai.training.experiments.slide_test --config_fp $(TEST_CONFIG) --eid $(EID)
+
+eval: $(EVAL_CONFIG)
+	$(PYTHON) -m rationai.training.experiments.slide_eval --config_fp $(EVAL_CONFIG) --eid $(EID)
 
 help:
 	@echo "This is a help string."

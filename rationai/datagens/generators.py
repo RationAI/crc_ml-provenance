@@ -70,7 +70,7 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
         # TODO: Add divide_round_up
         return divide_round_up(len(self.epoch_samples), self.batch_size)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """Get data batch at `index` from `self.epoch_samples`.
 
         Parameters
@@ -107,7 +107,7 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
     def __len__(self) -> int:
         return len(self.epoch_samples)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """Get data batch at `index` from `self.epoch_samples`.
 
         Parameters
