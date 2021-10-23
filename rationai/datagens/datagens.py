@@ -148,7 +148,7 @@ class GeneratorDatagen:
         data_source_class = get_class(data_source_configs['_class'])
 
         # Load dataset path
-        dataset_path = data_source_configs['_data']
+        dataset_path = Path(data_source_configs['_data'])
 
         # Construct DataSource from templates
         data_sources = {}

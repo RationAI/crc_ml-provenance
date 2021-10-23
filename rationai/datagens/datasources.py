@@ -11,10 +11,10 @@ from typing import Optional
 # Third-party Imports
 from sklearn.model_selection import train_test_split
 import pandas as pd
-from pandas.io.pytables import HDFStore
 
 # Local Imports
 from rationai.utils.config import ConfigProto
+from rationai.training.base.experiments import Experiment
 
 
 class DataSource(ABC):
@@ -111,7 +111,7 @@ class HDF5DataSource(DataSource):
             return {}
 
     @classmethod
-    def load_dataset(self, dataset_fp: Path, config: ConfigProto) -> Dict[HDF5DataSource]:
+    def load_dataset(cls, dataset_fp: Path, config: ConfigProto) -> Dict[HDF5DataSource]:
         """Loads the dataset as a union of all tables across specified keys.
 
         Args:
@@ -121,7 +121,11 @@ class HDF5DataSource(DataSource):
         Returns:
             Dict[HDF5DataSource]: Dictionary of datasets.
         """
-        data_source = self()
+        data_source = cls()
+        if not dataset_fp.exists() \
+            and not dataset_fp.is_absolute() \
+            and Experiment.Config.experiment_dir is not None:
+            dataset_fp = Experiment.Config.experiment_dir / dataset_fp
         data_source.dataset_fp = dataset_fp
 
         source = pd.HDFStore(dataset_fp, 'r')

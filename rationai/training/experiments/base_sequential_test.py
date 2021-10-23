@@ -12,9 +12,8 @@ from rationai.utils.config import ConfigProto
 
 
 class BaseSequentialTest(Experiment):
-    def __init__(self, config, eid):
-        super().__init__(config, eid)
-        self.eid = f'{self.config.eid_prefix}-{eid}'
+    def __init__(self, config):
+        super().__init__(config)
         self.generators_dict = None
         self.executor = None
         self.model = None

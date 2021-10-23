@@ -9,8 +9,8 @@ import pandas as pd
 
 # Local Imports
 from rationai.training.experiments.base_sequential_test import BaseSequentialTest
+from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
-from rationai.datagens.datagens import Datagen
 from rationai.utils.config import ConfigProto
 
 
@@ -21,13 +21,12 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
         - SamplerTree data structure is used
         - Each leaf node of a sampler tree consists of a single slide
     """
-    def __init__(self, config, eid):
-        super().__init__(config, eid)
+    def __init__(self, config):
+        super().__init__(config)
 
     def run(self):
-        self.config.result_dir.mkdir(parents=True)
         self.hdfstore_output = pd.HDFStore(
-            self.config.result_dir / 'predictions.h5',
+            Experiment.Config.experiment_dir / 'predictions.h5',
             'a'
         )
         super().run()
@@ -53,13 +52,11 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             .attrs \
             .metadata = output_metadata
 
-    class Config(ConfigProto):
-        def __init__(self, json_dict):
-            super().__init__(json_dict)
-            self.result_dir = None
-            self.eid = None
-            self.eid_prefix = None
+    class Config(Experiment.Config):
+        result_dir = None
 
+        def __init__(self, json_dict, eid: str):
+            super().__init__(json_dict, eid)
             self.batch_size = None
 
             # Model Configuration
@@ -77,15 +74,8 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             self.datagen_class = None
             self.datagen_config = None
 
-        def set_eid(self, eid):
-            self.eid = eid
-
         def parse(self):
-            assert self.eid is not None, "Set EID first."
-            self.eid_prefix = self.config.get('eid_prefix', '')
-            self.result_dir = Path(self.config.get('result_dir')) \
-                / f'{self.eid_prefix}-{self.eid}'
-
+            super().parse()
             self.batch_size = self.config.get('batch_size')
 
             definitions_config = self.config['definitions']
@@ -118,9 +108,9 @@ if __name__=='__main__':
 
     json_filepath = args.config_fp
     config = WSIBinaryClassifierTest.Config.load_from_file(
-        json_filepath=json_filepath
+        json_filepath=json_filepath,
+        eid=args.eid
     )
-    config.set_eid(args.eid)
     config.parse()
-    WSIBinaryClassifierTest(config, args.eid).run()
+    WSIBinaryClassifierTest(config).run()
 
