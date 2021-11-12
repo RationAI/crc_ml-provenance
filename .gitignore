@@ -1,2 +1,5 @@
 *_output
 **/__pycache__
+docs/
+*.egg-info
+.vscode/

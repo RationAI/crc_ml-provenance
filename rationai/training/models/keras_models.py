@@ -1,19 +1,17 @@
 # Standard Imports
+import logging
 from abc import ABC
 from typing import NoReturn
 
 # Third-party Imports
 import tensorflow as tf
-from tensorflow.keras.layers import Input
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import Dropout
 
 # Local Imports
 from rationai.training.base.models import Model
-from rationai.utils.config import ConfigProto
 from rationai.utils.class_handler import get_class
+from rationai.utils.config import ConfigProto
+from tensorflow.keras.layers import Dense, Dropout, Input
 
-import logging
 log = logging.getLogger('models')
 
 
@@ -25,7 +23,7 @@ class KerasModel(ABC, Model):
 
     def load_weights(self) -> NoReturn:
         if self.config.checkpoint is not None:
-            log.info(f'Loading weights from: {self.config.ckpt}')
+            log.info(f'Loading weights from: {self.config.checkpoint}')
             self.model.load_weights(str(self.config.checkpoint))
 
     def compile_model(self):
