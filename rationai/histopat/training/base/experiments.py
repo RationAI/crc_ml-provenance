@@ -1,14 +1,15 @@
 # Standard Imports
 from __future__ import annotations
-from pathlib import Path
-from abc import ABC
-from abc import abstractmethod
+
 import json
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+# Local Imports
+from rationai.histopat.utils.config import ConfigProto
 
 # Third-party Imports
 
-# Local Imports
-from rationai.utils.config import ConfigProto
 
 class Experiment(ABC):
     def __init__(self, config: ConfigProto):

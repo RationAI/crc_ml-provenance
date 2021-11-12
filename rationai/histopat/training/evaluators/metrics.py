@@ -1,7 +1,7 @@
 import numpy as np
+from rationai.histopat.training.base.evaluators import Evaluator
+from rationai.histopat.utils.config import ConfigProto
 
-from rationai.training.base.evaluators import Evaluator
-from rationai.utils.config import ConfigProto
 
 class TruePositives(Evaluator):
     def __init__(self, config: ConfigProto):

@@ -1,17 +1,19 @@
 # Standard Imports
-from pathlib import Path
 import argparse
 import json
 import os
+from pathlib import Path
 
 # Third-party Imports
 import pandas as pd
+from rationai.histopat.training.base.experiments import Experiment
 
 # Local Imports
-from rationai.training.experiments.base_sequential_test import BaseSequentialTest
-from rationai.training.base.experiments import Experiment
-from rationai.utils.class_handler import get_class
-from rationai.utils.config import ConfigProto
+from rationai.histopat.training.experiments.base_sequential_test import (
+    BaseSequentialTest,
+)
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
 
 
 class WSIBinaryClassifierTest(BaseSequentialTest):

@@ -13,7 +13,7 @@ Examples:
 
 "datagen": {
     "data_sources": {
-        "_class": "rationai.datagens.datasources.HDF5DataSource",
+        "_class": "rationai.histopat.datagens.datasources.HDF5DataSource",
         "_data": "/histopat/data/dataset.h5",
         "definitions": {
             "train_valid": {
@@ -28,9 +28,9 @@ Examples:
         "train_generator": {
             "
             "components": {
-                "sampler": "rationai.datagens.samplers.RandomTreeSampler",
-                "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                "sampler": "rationai.histopat.datagens.samplers.RandomTreeSampler",
+                "augmenter": "rationai.histopat.datagens.augmenters.NoOpImageAugmenter",
+                "extractor": "rationai.histopat.datagens.extractors.OpenslideExtractor",
             },
             "config": {
                 "sampler": {
@@ -45,9 +45,9 @@ Examples:
         },
         "valid_generator": {
             "components": {
-                "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
-                "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                "sampler": "rationai.histopat.datagens.samplers.SequentialTreeSampler",
+                "augmenter": "rationai.histopat.datagens.augmenters.NoOpImageAugmenter",
+                "extractor": "rationai.histopat.datagens.extractors.OpenslideExtractor",
             },
             "config": {
                 "sampler": {
@@ -70,17 +70,16 @@ Returns:
 from __future__ import annotations
 
 import json
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Type
 
 # Local Imports
-from rationai.datagens.augmenters import BaseAugmenter
-from rationai.utils.config import ConfigProto
-from rationai.datagens.datasources import DataSource
-from rationai.datagens.generators import BaseGenerator
-from rationai.utils.class_handler import get_class
+from rationai.histopat.datagens.augmenters import BaseAugmenter
+from rationai.histopat.datagens.datasources import DataSource
+from rationai.histopat.datagens.generators import BaseGenerator
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
 
 
 class Datagen(ABC):

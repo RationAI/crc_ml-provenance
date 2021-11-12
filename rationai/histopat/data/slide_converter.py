@@ -1,36 +1,30 @@
 # Standard Imports
 from __future__ import annotations
-from dataclasses import dataclass
-from multiprocessing import Pool
-from typing import Optional
-from typing import Tuple
-from typing import List
-from typing import Iterator
-from pathlib import Path
-from datetime import datetime
+
 import argparse
-import logging
-import json
 import copy
+import json
+import logging
+import warnings
+from dataclasses import dataclass
+from datetime import datetime
+from multiprocessing import Pool
+from pathlib import Path
+from typing import Any, Iterator, List, Optional, Tuple
 
 # Third-party Imports
 import numpy as np
-import warnings
+import pandas as pd
 import tables
 from nptyping import NDArray
-import pandas as pd
-from pandas.core.frame import DataFrame
-from PIL import Image
-from PIL import ImageDraw
-from skimage import color
-from skimage import filters
-from skimage import morphology
 from openslide import OpenSlide
+from pandas.core.frame import DataFrame
+from PIL import Image, ImageDraw
+from rationai.histopat.utils.config import ConfigProto
 
 # Local Imports
-from rationai.utils.utils import read_polygons
-from rationai.utils.utils import open_pil_image
-from rationai.utils.config import ConfigProto
+from rationai.histopat.utils.utils import open_pil_image, read_polygons
+from skimage import color, filters, morphology
 
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None

@@ -1,20 +1,20 @@
 """
 TODO: Missing docstring.
 """
+import logging
+
 # Standard Imports
 from abc import abstractmethod
-import logging
 from dataclasses import dataclass
-from typing import List
-from typing import Optional
+from typing import List, Optional
 
 # Third-party Imports
 import numpy as np
 from numpy.random.mtrand import sample
 
 # Local Imports
-from rationai.datagens.datasources import DataSource
-from rationai.utils.config import ConfigProto
+from rationai.histopat.datagens.datasources import DataSource
+from rationai.histopat.utils.config import ConfigProto
 
 log = logging.getLogger('samplers')
 logging.basicConfig(level=logging.INFO,

@@ -4,22 +4,20 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 from pathlib import Path
-from typing import List
-from typing import Optional
-from typing import Tuple
 from pydoc import locate
+from typing import List, Optional, Tuple
 
 # Third-party Imports
 import numpy as np
 import openslide
-from PIL import Image
 from nptyping import NDArray
 from openslide import OpenSlide
+from PIL import Image
 
 # Local Imports
-from rationai.datagens.augmenters import ImgAugAugmenter
-from rationai.datagens.samplers import SampledEntry
-from rationai.utils.config import ConfigProto
+from rationai.histopat.datagens.augmenters import ImgAugAugmenter
+from rationai.histopat.datagens.samplers import SampledEntry
+from rationai.histopat.utils.config import ConfigProto
 
 
 class Extractor(ABC):

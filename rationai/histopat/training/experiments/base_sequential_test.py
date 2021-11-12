@@ -2,13 +2,15 @@
 import argparse
 import json
 
-# Third-party Imports
+from rationai.histopat.datagens.datagens import Datagen
 
 # Local Imports
-from rationai.training.base.experiments import Experiment
-from rationai.utils.class_handler import get_class
-from rationai.datagens.datagens import Datagen
-from rationai.utils.config import ConfigProto
+from rationai.histopat.training.base.experiments import Experiment
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
+
+# Third-party Imports
+
 
 
 class BaseSequentialTest(Experiment):

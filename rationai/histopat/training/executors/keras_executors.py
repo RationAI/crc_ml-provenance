@@ -4,10 +4,12 @@
 
 # Local Imports
 from typing import Generator
-from rationai.training.base.executors import Executor
-from rationai.training.base.models import Model
-from rationai.utils.config import ConfigProto
-from rationai.utils.class_handler import get_class
+
+from rationai.histopat.training.base.executors import Executor
+from rationai.histopat.training.base.models import Model
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
+
 
 class KerasExecutor(Executor):
     def __init__(self, config: ConfigProto):

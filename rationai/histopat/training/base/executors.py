@@ -1,7 +1,7 @@
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
-from rationai.utils.config import ConfigProto
+from rationai.histopat.utils.config import ConfigProto
+
 
 class Executor(ABC):
     def __init__(self, config: ConfigProto):

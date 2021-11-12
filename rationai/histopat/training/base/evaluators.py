@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
-from rationai.utils.config import ConfigProto
-from rationai.utils.class_handler import get_class
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
+
 
 class Evaluator(ABC):
     def __init__(self, config: ConfigProto):

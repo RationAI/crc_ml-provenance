@@ -7,9 +7,9 @@ from typing import NoReturn
 import tensorflow as tf
 
 # Local Imports
-from rationai.training.base.models import Model
-from rationai.utils.class_handler import get_class
-from rationai.utils.config import ConfigProto
+from rationai.histopat.training.base.models import Model
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
 from tensorflow.keras.layers import Dense, Dropout, Input
 
 log = logging.getLogger('models')

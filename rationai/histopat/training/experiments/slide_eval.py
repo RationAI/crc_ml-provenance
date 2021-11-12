@@ -1,15 +1,17 @@
 # Standard Imports
-from pathlib import Path
 import argparse
 import os
+from pathlib import Path
+
+from rationai.histopat.training.base.evaluators import Evaluator
+
+# Local Imports
+from rationai.histopat.training.base.experiments import Experiment
+from rationai.histopat.utils.class_handler import get_class
+from rationai.histopat.utils.config import ConfigProto
 
 # Third-party Imports
 
-# Local Imports
-from rationai.training.base.experiments import Experiment
-from rationai.training.base.evaluators import Evaluator
-from rationai.utils.class_handler import get_class
-from rationai.utils.config import ConfigProto
 
 class WSIBinaryClassifierEval(Experiment):
     def __init__(self, config):

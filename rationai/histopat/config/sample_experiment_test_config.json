@@ -3,14 +3,14 @@
     "test_generator": "test_gen",
     "batch_size": 1,
     "definitions": {
-        "datagen": "rationai.datagens.datagens.GeneratorDatagen",
-        "model": "rationai.training.models.keras_models.PretrainedNet",
-        "executor": "rationai.training.executors.keras_executors.KerasExecutor"
+        "datagen": "rationai.histopat.datagens.datagens.GeneratorDatagen",
+        "model": "rationai.histopat.training.models.keras_models.PretrainedNet",
+        "executor": "rationai.histopat.training.executors.keras_executors.KerasExecutor"
     },
     "configurations": {
         "datagen": {
             "data_sources": {
-                "_class": "rationai.datagens.datasources.HDF5DataSource",
+                "_class": "rationai.histopat.datagens.datasources.HDF5DataSource",
                 "_data": "/mnt/data/home/matejg/Project/histopat/hdfstore_output/hdfstore_output.h5",
                 "definitions": {
                     "train_ds": {
@@ -23,10 +23,10 @@
                 "test_gen": {
                     "components": {
                         "data_source": "test",
-                        "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
-                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                        "extractor": "rationai.datagens.extractors.OpenslideExtractor",
-                        "generator": "rationai.datagens.generators.BaseGeneratorKeras"
+                        "sampler": "rationai.histopat.datagens.samplers.SequentialTreeSampler",
+                        "augmenter": "rationai.histopat.datagens.augmenters.NoOpImageAugmenter",
+                        "extractor": "rationai.histopat.datagens.extractors.OpenslideExtractor",
+                        "generator": "rationai.histopat.datagens.generators.BaseGeneratorKeras"
                     },
                     "configurations": {
                         "sampler": {"index_levels": ["slide_name"]},

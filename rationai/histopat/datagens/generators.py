@@ -3,18 +3,14 @@ TODO: Missing docstring.
 """
 import logging
 from time import time
-from typing import List, Tuple
-from typing import NoReturn
+from typing import List, NoReturn, Tuple
 
 import numpy as np
+from rationai.histopat.datagens.extractors import Extractor
+from rationai.histopat.datagens.samplers import SampledEntry, TreeSampler
+from rationai.histopat.utils.utils import divide_round_up
 from tensorflow.keras.utils import Sequence
 from torch.utils.data import Dataset
-
-from rationai.datagens.extractors import Extractor
-from rationai.datagens.samplers import SampledEntry
-from rationai.datagens.samplers import TreeSampler
-from rationai.utils.utils import divide_round_up
-
 
 log = logging.getLogger('generators')
 

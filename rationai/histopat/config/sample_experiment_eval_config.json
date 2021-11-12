@@ -3,19 +3,19 @@
     "eval_generator": "eval_gen",
     "batch_size": 32,
     "definitions": {
-        "datagen": "rationai.datagens.datagens.GeneratorDatagen",
+        "datagen": "rationai.histopat.datagens.datagens.GeneratorDatagen",
         "evaluators": [
-            "rationai.training.evaluators.metrics.BinaryAccuracy",
-            "rationai.training.evaluators.metrics.Precision",
-            "rationai.training.evaluators.metrics.Recall",
-            "rationai.training.evaluators.metrics.Specificity",
-            "rationai.training.evaluators.metrics.F1"
+            "rationai.histopat.training.evaluators.metrics.BinaryAccuracy",
+            "rationai.histopat.training.evaluators.metrics.Precision",
+            "rationai.histopat.training.evaluators.metrics.Recall",
+            "rationai.histopat.training.evaluators.metrics.Specificity",
+            "rationai.histopat.training.evaluators.metrics.F1"
         ]
     },
     "configurations": {
         "datagen": {
             "data_sources": {
-                "_class": "rationai.datagens.datasources.HDF5DataSource",
+                "_class": "rationai.histopat.datagens.datasources.HDF5DataSource",
                 "_data": "predictions.h5",
                 "definitions": {
                     "train_ds": {
@@ -28,10 +28,10 @@
                 "eval_gen": {
                     "components": {
                         "data_source": "test",
-                        "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
-                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                        "extractor": "rationai.datagens.extractors.GenericExtractor",
-                        "generator": "rationai.datagens.generators.BaseGeneratorKeras"
+                        "sampler": "rationai.histopat.datagens.samplers.SequentialTreeSampler",
+                        "augmenter": "rationai.histopat.datagens.augmenters.NoOpImageAugmenter",
+                        "extractor": "rationai.histopat.datagens.extractors.GenericExtractor",
+                        "generator": "rationai.histopat.datagens.generators.BaseGeneratorKeras"
                     },
                     "configurations": {
                         "sampler": {"index_levels": ["slide_name"]},

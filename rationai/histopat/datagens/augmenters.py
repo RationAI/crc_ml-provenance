@@ -10,7 +10,7 @@ import imgaug
 import imgaug.augmenters as iaa
 
 # Local Imports
-from rationai.utils.config import ConfigProto
+from rationai.histopat.utils.config import ConfigProto
 
 
 class BaseAugmenter(abc.ABC):
@@ -20,7 +20,7 @@ class BaseAugmenter(abc.ABC):
 
     Attributes
     ----------
-    config : rationai.datagens.BaseAugmenter.Config
+    config : rationai.histopat.datagens.BaseAugmenter.Config
         The configuration parser for augmenter.
     """
     def __init__(self, config: ConfigProto):
@@ -45,7 +45,7 @@ class ImgAugAugmenter(BaseAugmenter):
 
     Attributes
     ----------
-    config : rationai.datagens.BaseAugmenter.Config
+    config : rationai.histopat.datagens.BaseAugmenter.Config
         The configuration parser for augmenter.
     augmenter : imgaug.augmenters.meta.Augmenter
         The augmenter containing image transformation configuration, used when the __call__ method is used.
@@ -71,7 +71,7 @@ class ImageAugmenter(ImgAugAugmenter):
 
     Attributes
     ----------
-    config : rationai.datagens.ImageAugmenter.Config
+    config : rationai.histopat.datagens.ImageAugmenter.Config
         Parsed ImageAugmenter configuration.
     augmenter : imgaug.augmenters.Sequential
         The augmenter containing image transformation configuration, used when the __call__ method is used.
