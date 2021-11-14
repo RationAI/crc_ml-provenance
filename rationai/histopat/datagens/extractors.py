@@ -28,7 +28,7 @@ class Extractor(ABC):
 
 
 class OpenslideExtractor(Extractor):
-    def __init__(self, augmenter: Optional[ImgAugAugmenter], *args, **kwargs):
+    def __init__(self, augmenter: Optional[ImgAugAugmenter] = None, *args, **kwargs):
         self.augmenter = augmenter
 
     def __call__(self, sampled_entries: List[SampledEntry]) -> Tuple[np.ndarray, np.ndarray]:
