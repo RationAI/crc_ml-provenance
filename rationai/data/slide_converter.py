@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Tuple
 from typing import List
 from typing import Iterator
+from typing import Any
 from pathlib import Path
 from datetime import datetime
 import argparse
@@ -796,7 +797,7 @@ def main(args):
     for cfg in SlideConverter.Config(args.config_fp):
         log.info(f'Spawning {cfg.max_workers} workers.')
         with Pool(cfg.max_workers) as p:
-            for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))[:3]):
+            for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))):
                 if not table.empty:
                     dataset_h5.append(table_key, table)
                     dataset_h5.get_storer(table_key).attrs.metadata = metadata
