@@ -140,7 +140,6 @@ class ImageRegistration:
         # Computationaly heavy task,
         # paralelism is already used within process_pair.
         for i in tqdm.tqdm(range(len(images))):
-            print(f'[DEBUG] i={i}')
             self.process_pair(he_images[i],
                               ce_images[i],
                               he_matrices[i],
