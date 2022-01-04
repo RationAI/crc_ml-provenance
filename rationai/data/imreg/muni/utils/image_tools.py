@@ -60,7 +60,12 @@ def color_segmentation_quick(block_row, block_col, block,
 
 
 def apply_color_segmentation_quick_per_blocks(img, color_seg_kernel_size, color_seg_max_dist, color_seg_ratio):
-    return process_image_by_blocks(img, color_segmentation_quick, (6, 6), color_seg_kernel_size, color_seg_max_dist, color_seg_ratio)
+    return process_image_by_blocks(img,
+                                   color_segmentation_quick,
+                                   (6, 6),
+                                   color_seg_kernel_size=color_seg_kernel_size,
+                                   color_seg_max_dist=color_seg_max_dist,
+                                   color_seg_ratio=color_seg_ratio)
 
 
 def transform_image_by_shapely_transform(img, transform):

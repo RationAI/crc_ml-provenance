@@ -116,7 +116,7 @@ def read_ignore_annotation_as_multipolygon(path, output_level):
         Output level of processed annotations.
     :return: ShapelyMultipolygon
     """
-    annotations = read_ignore_annotations(path, output_level)
+    annotations = read_ignore_annotations(str(path), output_level)
     return MultiPolygon([Polygon(p) for p in annotations])
 
 

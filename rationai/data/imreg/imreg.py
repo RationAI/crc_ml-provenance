@@ -14,6 +14,7 @@ import logging
 import json
 import argparse
 import pyvips
+from PIL import Image
 
 # Type hints
 from typing import NoReturn
@@ -118,7 +119,6 @@ class ImageRegistration:
                                     min_sample_area=self.config.min_sample_area)
 
         images = list(gen)
-        images = [images[0]]  # for debug TODO
 
         he_images = [sample["he_sample"] for sample in images]
         ce_images = [sample["ce_sample"] for sample in images]
@@ -140,6 +140,7 @@ class ImageRegistration:
         # Computationaly heavy task,
         # paralelism is already used within process_pair.
         for i in tqdm.tqdm(range(len(images))):
+            print(f'[DEBUG] i={i}')
             self.process_pair(he_images[i],
                               ce_images[i],
                               he_matrices[i],
@@ -185,14 +186,14 @@ class ImageRegistration:
         fixed_points, moving_points, fixed_max, moving_max, _, _, _, _ = compute_registration_points(he_quick, ce_quick,
             self.config.hematoxylin_optimal_number_nuclei_for_piecewise,
             self.config.cytokeratin_optimal_number_nuclei_for_piecewise,
-            self.config.nuclei_max_area, self.ce_nuclei_min_area,
+            self.config.ce_nuclei_max_area, self.config.ce_nuclei_min_area,
             self.config.nuclei_seg_color_thr_min,
             self.config.nuclei_seg_color_thr_max,
             self.config.nuclei_seg_color_thr_steps
         )
         transform = compute_point_registration_transform(fixed_points, moving_points,
             self.config.number_of_angle_steps,
-            self.config.angle_steps,
+            self.config.angle_step,
             self.config.number_of_steps_grid_search_exp,
             self.config.number_of_parallel_grids
         )
@@ -243,23 +244,24 @@ class ImageRegistration:
                                                he_image=img_as_ubyte(he),
                                                mask_min_area=self.config.mask_min_area)
 
-        # TODO -- Safe as pyramidal TIFFs!!!
         # Save images
         he_out_fp = (self.out_he_dir / f'{self.slide_name}_{i}').with_suffix('.tif')
-        self.save_as_tif(img_as_ubyte(he))
+        self.save_as_tif(img_as_ubyte(he), he_out_fp)
 
         ce_out_fp = (self.out_ce_dir / f'{self.slide_name}_{i}').with_suffix('.tif')
-        self.save_as_tif(img_as_ubyte(ce))
+        self.save_as_tif(img_as_ubyte(mask_no_bg), ce_out_fp)
 
         if self.config.verbose:
             print(f'{self.slide_name}_{i} processed')
 
     def save_as_tif(self, input_im, output_path):
-        vips_im = pyvips.Image.new_from_memory(np.array(input_im.convert('RGBA')), input_im.size[0], input_im.size[1], 4, format='uchar')
+        vips_im = pyvips.Image.new_from_memory(np.array(Image.fromarray(input_im).convert('RGBA')), input_im.shape[1], input_im.shape[0], 4, format='uchar')
         vips_im.tiffsave(str(output_path), bigtiff=True, compression=pyvips.enums.ForeignTiffCompression.DEFLATE, tile=True, tile_width=256, tile_height=256, pyramid=True)
 
     def get_hdab_slide(self, slide_name: str):
-        hdab_slide_fp = (self.config.hdab_dir / slide_name).with_suffix(self.config.pattern)
+        # TODO: .mrxs pattern should not be hardcoded; however self.config.pattern
+        # TODO: is not necessarily extension pattern
+        hdab_slide_fp = (self.config.hdab_dir / slide_name).with_suffix('.mrxs')
         if hdab_slide_fp.exists():
             log.debug(f'[{slide_name}] HDAB slide found.')
             return hdab_slide_fp
@@ -267,13 +269,13 @@ class ImageRegistration:
         return None
 
     def run(self, he_slide_fp: Path):
-        slide_name = he_slide_fp.stem
-        hdab_slide_fp = self.get_hdab_slide(self, slide_name)
+        self.slide_name = he_slide_fp.stem
+        hdab_slide_fp = self.get_hdab_slide(self.slide_name)
 
         """Runs the alignment method for a pair of WSIs."""
         # load whole slide images
-        he_openslide = openslide.OpenSlide(he_slide_fp)
-        ce_openslide = openslide.OpenSlide(hdab_slide_fp)
+        he_openslide = openslide.OpenSlide(str(he_slide_fp.resolve()))
+        ce_openslide = openslide.OpenSlide(str(hdab_slide_fp.resolve()))
 
         he_annotation = None
         ce_annotation = None
@@ -309,9 +311,8 @@ class ImageRegistration:
         first defaults back to `_global` values before being overriden by the
         input specific parameters.
         """
-        def __init__(self, config_fp, eid):
+        def __init__(self, config_fp):
             self.config_fp = config_fp
-            self.eid = eid
             self.verbose = False
 
             # Input Path Parameters
@@ -358,7 +359,7 @@ class ImageRegistration:
 
             # Fill Holes Parameters
             self.holes_min_area = None
-            self.holes_max_Area = None
+            self.holes_max_area = None
             self.holes_h_proportion = None
             self.mask_min_area = None
 
@@ -422,7 +423,7 @@ class ImageRegistration:
             self.__set_options(self._cur_group_configs.pop())
             self.__validate_options()
 
-            log.info(f'Now processing ({self.group}):{self.slide_dir}')
+            log.info(f'Now processing ({self.group}):{self.he_dir}')
             return self
 
         def __set_options(self, partial_config: dict) -> None:
@@ -468,14 +469,14 @@ class ImageRegistration:
             """Converts string paths to Path objects.
             """
             # Path attributes
-            self.he_dir = Path(self.slide_dir)
+            self.he_dir = Path(self.he_dir)
             if self.hdab_dir:
                 self.hdab_dir = Path(self.hdab_dir)
 
 def main(args):
     for cfg in ImageRegistration.Config(args.config_fp):
         img_reg = ImageRegistration(cfg, args.output_dir)
-        for slide_fp in cfg.slide_dir.glob(cfg.pattern):
+        for slide_fp in cfg.he_dir.glob(cfg.pattern):
             img_reg.run(slide_fp)
 
 if __name__=='__main__':

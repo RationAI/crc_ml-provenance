@@ -165,7 +165,9 @@ def parallel_grid_search_point_transform(pool, grids, fixed_points, moving_point
     :param moving_points:
     :return: Point_transform
     """
-    m = _process_args_parallel(pool, grid_search_point_transform, grids, fixed_points=fixed_points,
+    m = _process_args_parallel(pool, grid_search_point_transform,
+                               grids,
+                               fixed_points=fixed_points,
                                moving_points=moving_points)
     result = min(sum(m, []), key=lambda x: x["measure"])
     return result

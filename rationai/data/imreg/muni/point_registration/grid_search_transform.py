@@ -1,6 +1,5 @@
 import math
 from concurrent.futures import ProcessPoolExecutor
-from memory_profiler import profile
 
 from rationai.data.imreg.muni.utils.point_tools import Point_transform
 from rationai.data.imreg.muni.utils.point_tools import combine_transforms
@@ -8,10 +7,6 @@ from rationai.data.imreg.muni.utils.point_tools import transform_points
 from rationai.data.imreg.muni.utils.point_tools import parallel_grid_search_point_transform
 from rationai.data.imreg.muni.utils.utils_generic import list_to_chunks
 
-fp = open("data/imreg/logs/log5-translation_grid.log", "w+")
-
-
-@profile(stream=fp)
 def get_transform_grids(size, min_size_exp, number_of_parallel_grids):
     """
     Generates translation grids.
@@ -28,10 +23,6 @@ def get_transform_grids(size, min_size_exp, number_of_parallel_grids):
                            number_of_parallel_grids)]
 
 
-fp = open("data/imreg/logs/log5-rotation_grid.log", "w+")
-
-
-@profile(stream=fp)
 def get_angle_grids(number_of_angle_steps, angle_step, rotation_origin_x, rotation_origin_y, number_of_parallel_grids):
     """
     Generates angle grid for gradient descent.
@@ -54,10 +45,6 @@ def get_angle_grids(number_of_angle_steps, angle_step, rotation_origin_x, rotati
     return g
 
 
-fp = open("data/imreg/logs/log5-translation.log", "w+")
-
-
-@profile(stream=fp)
 def hierarchical_parallel_grid_search_translation(fixed_points, moving_points,
                                                   top_level,
                                                   bot_level,
@@ -90,10 +77,6 @@ def hierarchical_parallel_grid_search_translation(fixed_points, moving_points,
     return combine_transforms(transforms)
 
 
-fp = open("data/imreg/logs/log5-rotation.log", "w+")
-
-
-@profile(stream=fp)
 def hierarchical_parallel_grid_search_rotation(fixed_points, moving_points,
                                                number_of_angle_steps,
                                                angle_step,

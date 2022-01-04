@@ -4,7 +4,7 @@ import skimage
 from concurrent.futures import ProcessPoolExecutor
 
 # TODO: Check if it still works after *args **kwargs chaining
-def _process_args_parallel(pool, func, args_list, **kvargs):
+def _process_args_parallel(pool, func, args_list, *args, **kwargs):
     futures = []
     results = []
 
@@ -12,8 +12,8 @@ def _process_args_parallel(pool, func, args_list, **kvargs):
         pool = ProcessPoolExecutor()
 
     for block in args_list:
-        if len(kvargs.keys()) > 0:
-            futures.append(pool.submit(func, *block, **kvargs))
+        if len(kwargs.keys()) > 0 or len(args) > 0:
+            futures.append(pool.submit(func, *block, *args, **kwargs))
         else:
             futures.append(pool.submit(func, *block))
 
@@ -55,7 +55,12 @@ def _get_block_size_and_img_cropped(img, blocks_number):
 
 def process_image_by_blocks(img, func, blocks_number, *args, **kwargs):
     block_size, img_cropped = _get_block_size_and_img_cropped(img, blocks_number)
-    processed_blocks, _ = _apply_to_blocks(img_cropped, func, block_size, blocks_number, *args, **kwargs)
+    processed_blocks, _ = _apply_to_blocks(img_cropped,
+                                           func,
+                                           block_size,
+                                           blocks_number,
+                                           *args,
+                                           **kwargs)
 
     result = np.zeros(img_cropped.shape[:len(processed_blocks[0][2].shape)])
 
@@ -74,5 +79,9 @@ def process_image_by_blocks(img, func, blocks_number, *args, **kwargs):
 
 def compute_image_features_by_blocks(img, func, blocks_number):
     block_size, img_cropped = _get_block_size_and_img_cropped(img, blocks_number)
-    processed_blocks = _apply_to_blocks(img_cropped, func, block_size, blocks_number)
+    processed_blocks = _apply_to_blocks(
+        img_cropped,
+        func,
+        block_size,
+        blocks_number)
     return processed_blocks

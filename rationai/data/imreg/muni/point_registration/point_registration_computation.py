@@ -1,15 +1,10 @@
 import numpy as np
-from memory_profiler import profile
 from rationai.data.imreg.muni.point_registration.grid_search_transform import hierarchical_parallel_grid_search_translation
 from rationai.data.imreg.muni.point_registration.grid_search_transform import hierarchical_parallel_grid_search_rotation
 from rationai.data.imreg.muni.utils.point_tools import transform_points
 from rationai.data.imreg.muni.utils.point_tools import combine_transforms
 from rationai.data.imreg.muni.utils.point_tools import Point_transform
 
-fp = open("data/imreg/logs/log5-registration.log","w+")
-
-
-@profile(stream=fp)
 def compute_point_registration_transform(fixed_points, moving_points, number_of_angle_steps, angle_steps, number_of_steps_grid_search_exp, number_of_parallel_grids):
 
     final_transform = Point_transform()

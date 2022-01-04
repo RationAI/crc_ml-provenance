@@ -44,14 +44,32 @@
       },
       "test": [
         {
-          "he_dir": "/mnt/data/scans/AI scans/Prostata/Prospective test cases",
-          "hdab_dir": "/mnt/data/scans/AI scans/Prostata/Prospective test cases"
+          "he_dir": "/mnt/data/home/matejg/Project/histopat_data/HE",
+          "hdab_dir": "/mnt/data/home/matejg/Project/histopat_data/HDAB"
         }
-      ],
-      "train": [
+      ]
+    },
+    "slide-converter": {
+      "_global": {
+        "output_path": "/mnt/data/home/matejg/Project/histopat/imreg_output",
+        "tile_size": 512,
+        "center_size": 256,
+        "step_size": 128,
+        "sample_level": 0,
+        "bg_level": 0,
+        "force": false,
+        "min_tissue": 0.50,
+        "max_tissue": 1.00,
+        "disk_size": 10,
+        "negative_mode": true,
+        "strict_mode": false,
+        "max_workers": 1,
+        "pattern": "*.tif"
+      },
+      "test": [
         {
-          "he_dir": "/mnt/data/scans/AI scans/Prostata/Prospective tumor cases",
-          "hdab_dir": "/mnt/data/scans/AI scans/Prostata/Prospective tumor cases"
+          "he_dir": "/mnt/data/home/matejg/Project/histopat/imreg_output/test/he/",
+          "ce_dir": "/mnt/data/home/matejg/Project/histopat/imreg_output/test/ce/"
         }
       ]
     }
