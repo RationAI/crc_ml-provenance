@@ -1,13 +1,13 @@
 # Standard Imports
 import argparse
-import json
+from pathlib import Path
 
 # Third-party Imports
+import numpy as np
 
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
-from rationai.utils.config import ConfigProto
 
 class WSIBinaryClassifierTrain(Experiment):
     def __init__(self, config):
@@ -20,10 +20,6 @@ class WSIBinaryClassifierTrain(Experiment):
         """WSI Binary Classifer
                 1. Loads data
                 2. Trains on entire training dataset
-                3. Slide-wise testing - every slide is used independently
-                    for testing - results in N output files for N test slides.
-                    It is assumed that the leaves of the sampling tree are
-                    entire whole slides.
         """
         self.__setup()
         self.__train()
@@ -74,10 +70,11 @@ class WSIBinaryClassifierTrain(Experiment):
         executor_config.parse()
         self.executor = self.config.executor_class(executor_config)
 
-    class Config(ConfigProto):
-        def __init__(self, json_dict):
-            super().__init__(json_dict)
+    class Config(Experiment.Config):
+        result_dir = None
 
+        def __init__(self, json_dict: dict, eid: str):
+            super().__init__(json_dict, eid)
             self.batch_size = None
 
             # Model Configuration
@@ -97,6 +94,7 @@ class WSIBinaryClassifierTrain(Experiment):
             self.datagen_config = None
 
         def parse(self):
+            super().parse()
             self.batch_size = self.config.get('batch_size')
 
             definitions_config = self.config['definitions']
@@ -120,10 +118,19 @@ class WSIBinaryClassifierTrain(Experiment):
 
 
 if __name__=='__main__':
-    json_filepath = ...
-    config = WSIBinaryClassifierTrain.Config(
-        json_dict=None,
-        json_filepath=json_filepath
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    # Required arguments
+    parser.add_argument('--config_fp', type=Path, required=True, help='Path to config file.')
+    parser.add_argument('--eid', type=str, required=True, help='Experiment Identifier')
+    args = parser.parse_args()
+
+    json_filepath = args.config_fp
+    config = WSIBinaryClassifierTrain.Config.load_from_file(
+        json_filepath=json_filepath,
+        eid=args.eid
     )
+    config.parse()
     WSIBinaryClassifierTrain(config).run()
 

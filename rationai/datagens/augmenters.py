@@ -8,6 +8,7 @@ from typing import NoReturn
 # Third-party Imports
 import imgaug
 import imgaug.augmenters as iaa
+from imgaug.augmentables.segmaps import SegmentationMapsOnImage
 
 # Local Imports
 from rationai.utils.config import ConfigProto
@@ -31,6 +32,10 @@ class BaseAugmenter(abc.ABC):
     def __call__(self, *args, **kwargs):
         """Called by an extractor to perform data augmentation."""
         raise NotImplementedError('Override __call__ method to perform a data transformation')
+
+    @staticmethod
+    def to_segmap(img):
+        return SegmentationMapsOnImage(img, img.shape)
 
     class Config(ConfigProto):
         """Each Augmenter should implement a nested Config class to process its configuration"""

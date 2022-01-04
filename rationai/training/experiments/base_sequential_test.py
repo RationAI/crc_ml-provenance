@@ -7,8 +7,6 @@ import json
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
-from rationai.datagens.datagens import Datagen
-from rationai.utils.config import ConfigProto
 
 
 class BaseSequentialTest(Experiment):

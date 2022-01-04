@@ -4,6 +4,7 @@
 
 # Local Imports
 from typing import Generator
+from rationai.training.base.experiments import Experiment
 from rationai.training.base.executors import Executor
 from rationai.training.base.models import Model
 from rationai.utils.config import ConfigProto
@@ -81,3 +82,13 @@ class KerasExecutor(Executor):
                 'configurations',
                 [dict()] * len(self.callback_classes)
             )
+
+            self.callback_configurations = [
+                self.__prepend_filepaths(cb_config)
+                for cb_config
+                in self.callback_configurations]
+
+        def __prepend_filepaths(self, config: dict):
+            if 'filepath' in config:
+                config['filepath'] = str(Experiment.Config.experiment_dir / config['filepath'])
+            return config

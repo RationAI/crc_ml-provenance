@@ -1,8 +1,6 @@
 # Standard Imports
 from pathlib import Path
 import argparse
-import json
-import os
 
 # Third-party Imports
 import pandas as pd
@@ -11,8 +9,6 @@ import pandas as pd
 from rationai.training.experiments.base_sequential_test import BaseSequentialTest
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
-from rationai.utils.config import ConfigProto
-
 
 class WSIBinaryClassifierTest(BaseSequentialTest):
     """Provides predictions for each slide.
@@ -55,7 +51,7 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
     class Config(Experiment.Config):
         result_dir = None
 
-        def __init__(self, json_dict, eid: str):
+        def __init__(self, json_dict: dict, eid: str):
             super().__init__(json_dict, eid)
             self.batch_size = None
 
@@ -95,7 +91,6 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             # Datagen Configuration
             self.datagen_class = get_class(definitions_config['datagen'])
             self.datagen_config = configurations_config.get('datagen', dict())
-
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description=__doc__,

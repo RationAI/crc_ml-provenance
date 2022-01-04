@@ -44,15 +44,15 @@ class OpenslideExtractor(Extractor):
         """
         inputs, labels = [], []
         for sampled_entry in sampled_entries:
-            x, y = self.__process_entry(sampled_entry)
+            x, y = self._process_entry(sampled_entry)
             if self.augmenter is not None:
-                x = self.__augment_input(x)
-            x, y = self.__normalize_input(x, y)
+                x = self._augment_input(x)
+            x, y = self._normalize_input(x, y)
             inputs.append(x)
             labels.append(y)
         return np.array(inputs), np.array(labels)
 
-    def __process_entry(self, sampled_entry: SampledEntry) -> Tuple[NDArray, NDArray]:
+    def _process_entry(self, sampled_entry: SampledEntry) -> Tuple[NDArray, NDArray]:
         """Extracts a tile from a slide at coordinates specified by the parsed entry.
 
         Args:
@@ -61,8 +61,8 @@ class OpenslideExtractor(Extractor):
         Returns:
             Tuple[NDArray, NDArray]: Input/label tuple
         """
-        wsi = self.__open_slide(sampled_entry.metadata['slide_fp'])
-        x = self.__extract_tile(wsi,
+        wsi = self._open_slide(sampled_entry.metadata['slide_fp'])
+        x = self._extract_tile(wsi,
                                 (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
                                 sampled_entry.metadata['tile_size'],
                                 sampled_entry.metadata['sample_level']
@@ -72,7 +72,7 @@ class OpenslideExtractor(Extractor):
         return x, y
 
     @staticmethod
-    def __open_slide(slide_fp: Path) -> OpenSlide:
+    def _open_slide(slide_fp: Path) -> OpenSlide:
         """Opens slide of a given name in `slide_dir` directory.
 
         Args:
@@ -84,7 +84,7 @@ class OpenslideExtractor(Extractor):
         wsi = openslide.open_slide(slide_fp)
         return wsi
 
-    def __extract_tile(
+    def _extract_tile(
             self,
             wsi: OpenSlide,
             coords: Tuple[int, int],
@@ -110,7 +110,7 @@ class OpenslideExtractor(Extractor):
         return np.array(bg_tile)
 
     @staticmethod
-    def __normalize_input(x: NDArray, y: NDArray) -> Tuple[NDArray, NDArray]:
+    def _normalize_input(x: NDArray, y: NDArray) -> Tuple[NDArray, NDArray]:
         """Normalizes images pixel values from [0-255] to [0-1] range.
 
         TODO: Maybe make this part of an augmenter?
@@ -125,7 +125,7 @@ class OpenslideExtractor(Extractor):
         x = (x / 127.5) - 1
         return x, y
 
-    def __augment_input(self, x: NDArray) -> Tuple[NDArray, NDArray]:
+    def _augment_input(self, x: NDArray) -> Tuple[NDArray, NDArray]:
         """Applies augmentation on the input/label pair.
 
         Args:
@@ -136,6 +136,72 @@ class OpenslideExtractor(Extractor):
             Tuple[NDArray, NDArray]: Augmented input/label pair.
         """
         return self.augmenter(image=x)
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            empty_configuration = dict(json_dict)
+            empty_configuration.clear()
+            super().__init__(empty_configuration)
+
+        def parse(self):
+            pass
+
+class CytokeratinExtractor(OpenslideExtractor):
+    def __init__(self, augmenter: Optional[ImgAugAugmenter], *args, **kwargs):
+        self.augmenter = augmenter
+
+    def __call__(self, sampled_entries: List[SampledEntry]) -> Tuple[np.ndarray, np.ndarray]:
+        inputs, labels = [], []
+        for sampled_entry in sampled_entries:
+            x, y = self._process_entry(sampled_entry)
+            if self.augmenter is not None:
+                x, y = self._augment_input(x, y)
+            x, y = self._normalize_input(x, y)
+            inputs.append(x)
+            labels.append(y)
+        return np.array(inputs), np.array(labels)
+
+    def _process_entry(self, sampled_entry: SampledEntry) -> Tuple[NDArray, NDArray]:
+        he_wsi = self._open_slide(sampled_entry.metadata['slide_fp'])
+        ce_wsi = self._open_slide(sampled_entry.metadata['annot_fp'])
+        he = self._extract_tile(he_wsi,
+            (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
+            sampled_entry.metadata['tile_size'],
+            sampled_entry.metadata['sample_level']
+            )
+        he_wsi.close()
+
+        ce = self._extract_tile(ce_wsi,
+            (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
+            sampled_entry.metadata['tile_size'],
+            sampled_entry.metadata['sample_level']
+            )
+        ce_wsi.close()
+
+        # TODO: Slicing required by binary mask on the output. Make it configurable and move to extract_tile?
+        return he, ce[:,:,:1]
+
+    def _augment_input(self, x: NDArray, y: NDArray) -> Tuple[NDArray, NDArray]:
+        y = self.augmenter.to_segmap(y)
+        x,y = self.augmenter(image=x, segmentation_maps=y)
+        return x, y.get_arr()
+
+    @staticmethod
+    def _normalize_input(x: NDArray, y: NDArray) -> Tuple[NDArray, NDArray]:
+        """Normalizes images pixel values from [0-255] to [0-1] range.
+
+        TODO: Maybe make this part of an augmenter?
+
+        Args:
+            x (NDArray): Network input
+            y (NDArray): Label
+
+        Returns:
+            Tuple[NDArray]: Normalized input/label pair.
+        """
+        x = (x / 127.5) - 1
+        y = (y / 255.0)
+        return x, y
 
     class Config(ConfigProto):
         def __init__(self, json_dict: dict):

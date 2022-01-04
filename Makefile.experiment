@@ -18,7 +18,8 @@ train: $(TRAIN_CONFIG)
 	$(PYTHON) -m rationai.training.experiments.slide_train --config_fp $(TRAIN_CONFIG) --eid $(EID)
 
 test: $(TEST_CONFIG)
-	$(PYTHON) -m rationai.training.experiments.slide_test --config_fp $(TEST_CONFIG) --eid $(EID)
+	# $(PYTHON) -m rationai.training.experiments.slide_test --config_fp $(TEST_CONFIG) --eid $(EID)
+	$(PYTHON) -m rationai.training.experiments.slide_cyto_test --config_fp $(TEST_CONFIG) --eid $(EID)
 
 eval: $(EVAL_CONFIG)
 	$(PYTHON) -m rationai.training.experiments.slide_eval --config_fp $(EVAL_CONFIG) --eid $(EID)
