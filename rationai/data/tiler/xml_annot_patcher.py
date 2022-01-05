@@ -442,6 +442,9 @@ class SlideConverter:
             img (Image): Binary mask.
             output_fp (Path): Output filepath.
         """
+        # TODO: Resolve inconsistency between output dir vs output path
+        if not output_fp.parent.exist():
+            output_fp.mkdir(parents=True)
         img.save(str(output_fp), format='PNG')
 
     def _tile_wsi_to_coord_map(self, oslide_wsi: OpenSlide, bg_mask_img: Image,
