@@ -180,7 +180,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask filtering background and highlighting tissue.
         """
-        bg_mask_fp = self.config.output_path / f'masks/bg/bg_final/{self.slide_name}.PNG'
+        bg_mask_fp = self.config.output_dir / f'masks/bg/bg_final/{self.slide_name}.PNG'
         if bg_mask_fp.exists() and not self.config.force:
             bg_mask_img = open_pil_image(bg_mask_fp)
             if bg_mask_img is not None:
@@ -208,7 +208,7 @@ class SlideConverter:
         if self.config.negative_mode:
             return None
 
-        annot_mask_fp = self.config.output_path / f'masks/annotations/{self.slide_name}.PNG'
+        annot_mask_fp = self.config.output_dir / f'masks/annotations/{self.slide_name}.PNG'
         if annot_mask_fp.exists() and not self.config.force:
             annot_mask_img = open_pil_image(annot_mask_fp)
             if annot_mask_img is not None:
@@ -251,7 +251,7 @@ class SlideConverter:
         Returns:
             Image.Image: Binary background mask.
         """
-        init_bg_mask_fp = self.config.output_path / f'masks/bg/bg_init/{self.slide_name}.PNG'
+        init_bg_mask_fp = self.config.output_dir / f'masks/bg/bg_init/{self.slide_name}.PNG'
         if init_bg_mask_fp.exists() and not self.config.force:
             init_bg_mask_img = open_pil_image(init_bg_mask_fp)
             if init_bg_mask_img is not None:
@@ -300,7 +300,7 @@ class SlideConverter:
         """
         if self.config.negative_mode:
             return None
-        annot_bg_mask_fp = self.config.output_path / f'masks/bg/bg_annot/{self.slide_name}.PNG'
+        annot_bg_mask_fp = self.config.output_dir / f'masks/bg/bg_annot/{self.slide_name}.PNG'
         if annot_bg_mask_fp.exists() and not self.config.force:
             annot_bg_mask_img = open_pil_image(annot_bg_mask_fp)
             if annot_bg_mask_img is not None:
@@ -443,7 +443,7 @@ class SlideConverter:
             output_fp (Path): Output filepath.
         """
         # TODO: Resolve inconsistency between output dir vs output path
-        if not output_fp.parent.exist():
+        if not output_fp.parent.exists():
             output_fp.mkdir(parents=True)
         img.save(str(output_fp), format='PNG')
 
@@ -668,7 +668,7 @@ class SlideConverter:
             self.pattern = None
 
             # Output Path Parameters
-            self.output_path = None
+            self.output_dir = None
             self.group = None
 
             # Tile Parameters
@@ -789,14 +789,14 @@ class SlideConverter:
             self.slide_dir = Path(self.slide_dir)
             if self.label_dir:
                 self.label_dir = Path(self.label_dir)
-            self.output_path = Path(self.output_path)
+            self.output_dir = Path(self.output_dir)
 
 def main(args):
-    # Get file handler to the output dataset file
-    dataset_h5 = pd.HDFStore((args.output_dir / args.output_dir.name).with_suffix('.h5'), 'w')
+    dataset_h5 = None
 
     # Spawn worker for each slide; maximum `max_workers` simultaneous workers.
     for cfg in SlideConverter.Config(args.config_fp):
+        dataset_h5 = dataset_h5 or pd.HDFStore((cfg.output_dir / cfg.output_dir.name).with_suffix('.h5'), 'w')
         log.info(f'Spawning {cfg.max_workers} workers.')
         with Pool(cfg.max_workers) as p:
             for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))):
@@ -822,6 +822,5 @@ if __name__ == '__main__':
 
     # Required arguments
     parser.add_argument('--config_fp', type=Path, required=True, help='Path to config file.')
-    parser.add_argument('--output_dir', type=Path, required=True, help='Path to output directory.')
     args = parser.parse_args()
     main(args)
