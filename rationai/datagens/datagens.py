@@ -82,6 +82,8 @@ from rationai.datagens.datasources import DataSource
 from rationai.datagens.generators import BaseGenerator
 from rationai.utils.class_handler import get_class
 
+import logging
+log = logging.getLogger('datagens')
 
 class Datagen(ABC):
     """
