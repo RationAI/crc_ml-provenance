@@ -1,15 +1,14 @@
 # Standard Imports
 from pathlib import Path
 import argparse
-import os
+import logging
+log = logging.getLogger('ex_eval')
 
 # Third-party Imports
 
 # Local Imports
 from rationai.training.base.experiments import Experiment
-from rationai.training.base.evaluators import Evaluator
 from rationai.utils.class_handler import get_class
-from rationai.utils.config import ConfigProto
 
 class WSIBinaryClassifierEval(Experiment):
     def __init__(self, config):
@@ -23,12 +22,18 @@ class WSIBinaryClassifierEval(Experiment):
         eval_gen = self.generators_dict[self.config.eval_gen]
         eval_gen.set_batch_size(self.config.batch_size)
 
-        for input_dict in eval_gen:
-            for evaluator in self.evaluators:
-                evaluator.update_state(input_dict)
+        while eval_gen.sampler.active_node is not None:
+            log.info(f'Evaluating node: {eval_gen.sampler.active_node.node_name}')
+            for input_dict in eval_gen:
+                for evaluator in self.evaluators:
+                    evaluator.update_state(input_dict)
 
-        for evaluator in self.evaluators:
-            print(f'{evaluator.name}: {evaluator.result()}')
+            for evaluator in self.evaluators:
+                log.info(f'{evaluator.name}: {evaluator.result()}')
+                evaluator.reset_state()
+
+            eval_gen.sampler.next()
+            eval_gen.on_epoch_end()
 
     def setup(self):
         # Build Datagen

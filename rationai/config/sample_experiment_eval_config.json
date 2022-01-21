@@ -8,8 +8,10 @@
             "rationai.training.evaluators.metrics.BinaryAccuracy",
             "rationai.training.evaluators.metrics.Precision",
             "rationai.training.evaluators.metrics.Recall",
-            "rationai.training.evaluators.metrics.Specificity",
-            "rationai.training.evaluators.metrics.F1"
+            "rationai.training.evaluators.metrics.TruePositives",
+            "rationai.training.evaluators.metrics.TrueNegatives",
+            "rationai.training.evaluators.metrics.FalsePositives",
+            "rationai.training.evaluators.metrics.FalseNegatives"
         ]
     },
     "configurations": {
@@ -19,7 +21,7 @@
                 "_data": "predictions.h5",
                 "definitions": {
                     "train_ds": {
-                        "keys": ["test", "train"],
+                        "keys": ["test"],
                         "names": ["test"]
                     }
                 }
@@ -48,13 +50,13 @@
             }
         },
         "evaluators": [
-            {"name": "Binary Accuracy", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
-            {"name": "Precision", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
-            {"name": "Recall", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
-            {"name": "TP", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
-            {"name": "TN", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
-            {"name": "FP", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
-            {"name": "FN", "threshold": 0.0065, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}}
+            {"name": "Binary Accuracy", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "Precision", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "Recall", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "TP", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "TN", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "FP", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "FN", "threshold": 0.75, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}}
         ]
     }
 }

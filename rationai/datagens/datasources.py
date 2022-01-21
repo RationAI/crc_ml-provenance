@@ -16,6 +16,9 @@ import pandas as pd
 from rationai.utils.config import ConfigProto
 from rationai.training.base.experiments import Experiment
 
+import logging
+log = logging.getLogger('datasources')
+
 
 class DataSource(ABC):
     """Abstract class for DataSource. It defines required methods."""
@@ -92,7 +95,7 @@ class HDF5DataSource(DataSource):
         return pd.concat([
             self.source.select(table_key)
                 .assign(_table_key=table_key)
-            for table_key in self.source
+            for table_key in self.tables
         ])
 
     def get_metadata(self, entry: dict) -> dict:
