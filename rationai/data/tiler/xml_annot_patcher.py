@@ -20,6 +20,7 @@ import warnings
 import tables
 from nptyping import NDArray
 import pandas as pd
+import openslide as oslide
 from pandas.core.frame import DataFrame
 from PIL import Image
 from PIL import ImageDraw
@@ -137,7 +138,7 @@ class SlideConverter:
             OpenSlide: Handler to opened WSI slide.
         """
         logging.info(f'[{self.slide_name}] Opening slide: {str(slide_fp.resolve())}')
-        return OpenSlide(str(slide_fp.resolve()))
+        return oslide.open_slide(str(slide_fp.resolve()))
 
     def _validate_mode(self, annot_fp: Path) -> bool:
         """Checks requirements for a chosen slide conversion mode.
@@ -473,7 +474,7 @@ class SlideConverter:
             coord_map['annot_coverage'].append(roi_tile.annot_coverage)
             coord_map['is_cancer'].append(roi_tile.annot_coverage > 0)
             coord_map['slide_name'].append(self.slide_name)
-        log.info(f'[{self.slide_name}] Slide conversion complete.')
+        log.info(f'[{self.slide_name}] Slide conversion complete. Extracted {len(coord_map["is_cancer"])} tiles.')
 
         return pd.DataFrame.from_dict(coord_map)
 
