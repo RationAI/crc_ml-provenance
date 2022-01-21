@@ -1,0 +1,67 @@
+{
+    "output_dir": "/mnt/data/home/bajger/NN_pruning/histopat/experiment_output",
+    "batch_size": 1,
+    "components":{
+        "generator": "generator_config",
+        "model": "model_VGG12",
+        "executor": "executor"
+    },
+    "named_configurations":{
+        "some_datasource_config":{},
+        "different_data_source": {
+            "_class": "rationai.datagens.datasources.HDF5DataSource",
+            "_data": "/mnt/data/home/bajger/NN_pruning/histopat/datasets/hdfs_output/hdfs_output.h5",
+            "definitions": {
+                "train_ds": {
+                    "names": ["test"]
+                }
+            }
+        },
+        "generator_config":{
+            "components": {
+                "data_source": "different_data_source",
+                "sampler": "sampler",
+                "augmenter": "augmenter",
+                "extractor": "extractor",
+                "generator": "generator"
+            }
+        },
+        "different_generator_config":{},
+        "model_VGG12":{
+            "checkpoint": "/mnt/data/home/bajger/NN_pruning/histopat/models/VGG16-TF2-DATASET-e95b-4e8f-aeea-b87904166a69/final.hdf5",
+            "input_shape": [512, 512, 3],
+            "output_size": 1,
+            "dropout": 0.5,
+            "components": {
+                "convolution_network": {"_class": "tensorflow.keras.applications.VGG16", "include_top": false, "weights": null, "pooling": "max"},
+                "output_activation_fn": {"_class": "tensorflow.keras.activations.linear"},
+                "optimizer": {"_class":  "tensorflow.keras.optimizers.Adam","learning_rate": 0.05, "beta_1": 0.5, "beta_2": 1.0},
+                "metrics": [{"_class": "tensorflow.keras.metrics.BinaryAccuracy", "threshold": 0.75}],
+                "loss": {"_class": "tensorflow.keras.losses.BinaryCrossentropy", "from_logits": true},
+                "regularizer": {"_class": "tensorflow.keras.regularizers.L1", "l1": 0.005}
+            }
+        },
+        "model_UNET":{},
+        "executor":{
+            "_class": "rationai.training.executors.keras_executors.KerasExecutor",
+            "epochs": 1,
+            "max_queue_size": 50,
+            "workers": 10,
+            "use_multiprocessing": false,
+            "components":{
+                "callbacks": [
+                    "callback_def1",
+                    "callback_def2",
+                    {"_class": "com.something.Callback"},
+                    {"_class": "com.different_thing.Callback"}
+                ]
+            }
+        },
+        "sampler": {"_class": "rationai.datagens.samplers.SequentialTreeSampler", "index_levels": ["slide_name"]},
+        "augmenter": {"_class": "rationai.datagens.augmenters.NoOpImageAugmenter" },
+        "extractor": {"_class": "rationai.datagens.extractors.OpenslideExtractor" },
+        "generator": {"_class": "rationai.datagens.generators.BaseGeneratorKeras" },
+        "callback_def1": {},
+        "callback_def2":{}
+    }
+}

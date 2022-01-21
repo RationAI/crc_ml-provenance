@@ -1,2 +1,5 @@
 *_output
 **/__pycache__
+datasets
+experiment_output
+models

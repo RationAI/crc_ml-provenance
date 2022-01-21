@@ -1,0 +1,72 @@
+{
+    "output_dir": "/mnt/data/home/bajger/NN_pruning/histopat/experiment_output",
+    "test_generator": "test_gen",
+    "batch_size": 1,
+    "definitions": {
+        "datagen": "rationai.datagens.datagens.GeneratorDatagen",
+        "model": "rationai.training.models.keras_models.PretrainedNet",
+        "executor": "rationai.training.executors.keras_executors.KerasExecutor"
+    },
+    "configurations": {
+        "datagen": {
+            "data_sources": {
+                "_class": "rationai.datagens.datasources.HDF5DataSource",
+                "_data": "/mnt/data/home/bajger/NN_pruning/histopat/datasets/hdfs_output/hdfs_output.h5",
+                "definitions": {
+                    "train_ds": {
+                        "keys": ["test"],
+                        "names": ["test"]
+                    }
+                }
+            },
+            "generators": {
+                "test_gen": {
+                    "components": {
+                        "data_source": "test",
+                        "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                        "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                        "generator": "rationai.datagens.generators.BaseGeneratorKeras"
+                    },
+                    "configurations": {
+                        "sampler": {"index_levels": ["slide_name"]},
+                        "augmenter": {},
+                        "extractor": {},
+                        "generator": {}
+                    }
+                }
+            }
+        },
+        "model": {
+            "checkpoint": "/mnt/data/home/bajger/NN_pruning/histopat/models/VGG16-TF2-DATASET-e95b-4e8f-aeea-b87904166a69/final.hdf5",
+            "input_shape": [512, 512, 3],
+            "output_size": 1,
+            "dropout": 0.5,
+            "components": {
+                "convolution_network": "tensorflow.keras.applications.VGG16",
+                "output_activation_fn": "tensorflow.keras.activations.linear",
+                "optimizer": "tensorflow.keras.optimizers.Adam",
+                "metrics": ["tensorflow.keras.metrics.BinaryAccuracy"],
+                "loss": "tensorflow.keras.losses.BinaryCrossentropy",
+                "regularizer": "tensorflow.keras.regularizers.L1"
+            },
+            "configurations": {
+                "convolution_network": {"include_top": false, "weights": null, "pooling": "max"},
+                "optimizer": {"learning_rate": 0.05, "beta_1": 0.5, "beta_2": 1.0},
+                "metrics": [{"threshold": 0.75}],
+                "loss": {"from_logits": true},
+                "regularizer": {"l1": 0.005}
+            }
+        },
+        "executor": {
+            "epochs": 1,
+            "max_queue_size": 50,
+            "workers": 10,
+            "use_multiprocessing": false,
+            "callbacks": {
+                "definitions": [],
+                "configurations": []
+            }
+        }
+    }
+}

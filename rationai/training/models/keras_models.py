@@ -31,7 +31,7 @@ class KerasModel(ABC, Model):
 
     def load_weights(self) -> NoReturn:
         if self.config.checkpoint is not None:
-            log.info(f'Loading weights from: {self.config.ckpt}')
+            log.info(f'Loading weights from: {self.config.checkpoint}')
             self.model.load_weights(str(self.config.checkpoint))
 
     def compile_model(self):
