@@ -103,9 +103,17 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
 
     def __init__(self, sampler: TreeSampler, extractor: Extractor):
         super().__init__(sampler, extractor)
+        self.batch_size = None
+        self.epoch_samples = self._generate_samples()
+    
+    def set_batch_size(self, batch_size: int):
+        """
+        TODO: Missing docstring.
+        """
+        self.batch_size = batch_size
 
     def __len__(self) -> int:
-        return len(self.epoch_samples)
+        return divide_round_up(len(self.epoch_samples), self.batch_size)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """Get data batch at `index` from `self.epoch_samples`.
@@ -120,7 +128,7 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
         tuple(numpy.ndarray, numpy.ndarray)
             A tuple representing a batch with the format (input_data, label_data).
         """
-        return self.extractor(self.epoch_samples[index])
+        return self.extractor(self.epoch_samples[index * self.batch_size:(index + 1) * self.batch_size])
 
     def on_epoch_end(self) -> NoReturn:
         """
