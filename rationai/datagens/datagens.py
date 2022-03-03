@@ -207,6 +207,6 @@ class GeneratorDatagen:
             self.data_sources_config = None
             self.generators_config = None
 
-        def parse(self):
+        def parse(self, cfg_store=None):
             self.data_sources_config = self.config['data_sources']
             self.generators_config = self.config['generators']

@@ -144,11 +144,12 @@ class HDF5DataSource(DataSource):
 
         data_sources = data_source.split(
             sizes=config.split_probas,
-            key=config.split_on
+            key=config.split_on,
+            seed_split=config.seed_split
         )
         return dict(zip(config.names, data_sources))
 
-    def split(self, sizes: List[float], key: Optional[str]) -> List[HDF5DataSource]:
+    def split(self, sizes: List[float], key: Optional[str], seed_split: int) -> List[HDF5DataSource]:
         """Partition the DataSource into N partitions. The size of each partition is defined by
         `sizes` parameter. Key defines how the DataSource is split.
 
@@ -173,7 +174,8 @@ class HDF5DataSource(DataSource):
             new_tables, tables = train_test_split(
                 tables,
                 train_size=int(n_tables*size),
-                stratify=stratify
+                stratify=stratify,
+                random_state=seed_split
             )
 
             new_ds = HDF5DataSource()
@@ -197,6 +199,7 @@ class HDF5DataSource(DataSource):
             self.names = None
             self.split_probas = None
             self.split_on = None
+            self.seed_split = None
 
         def parse(self):
             self.dataset_fp = self.config.get('_data', None)
@@ -204,3 +207,4 @@ class HDF5DataSource(DataSource):
             self.names = self.config.get('names', self.keys)
             self.split_probas = self.config.get('split_probas', [1.0])
             self.split_on = self.config.get('split_on', list())
+            self.seed_split = self.config.get('seed_split', 0)

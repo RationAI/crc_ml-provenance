@@ -174,6 +174,8 @@ class RandomTreeSampler(TreeSampler):
 
     def __init__(self, config: ConfigProto, data_source: DataSource):
         super().__init__(config, data_source)
+        self.random_generator = np.random.default_rng(self.config.seed)
+        log.info("RandomSampler was loaded with seed: %d", self.config.seed)
 
     def sample(self) -> List[SampledEntry]:
         """Returns a list of sampled entries of size equal to `RandomTreeSampler.size`.
@@ -187,7 +189,8 @@ class RandomTreeSampler(TreeSampler):
         for _ in range(self.config.epoch_size):
             node = self.sampling_tree.root
             while node.children:
-                idx = np.random.randint(low=0, high=len(node.children))
+                #idx = np.random.randint(low=0, high=len(node.children))
+                idx = self.random_generator.integers(low=0, high=len(node.children))
                 node = node.children[idx]
 
             entry = node.data.sample().to_dict('records')[0]
@@ -208,11 +211,12 @@ class RandomTreeSampler(TreeSampler):
             super().__init__(json_dict)
             self.epoch_size = None
             self.index_levels = None
+            self.seed = None
 
         def parse(self):
             self.epoch_size = self.config.get('epoch_size', None)
             self.index_levels = self.config.get('index_levels', list())
-
+            self.seed = self.config.get('seed', 69420)
 
 class SequentialTreeSampler(TreeSampler):
     """
