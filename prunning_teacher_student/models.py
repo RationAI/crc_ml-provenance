@@ -13,7 +13,7 @@ class LitVGG16(pl.LightningModule):
     def __init__(self, source_state_dict_path: str=None) -> None:
         super().__init__()
         self.eyes = VGG16_eyes(source_state_dict_path)
-        self.head = VGG_head(source_state_dict_path)
+        self.head = VGG16_head(source_state_dict_path)
     
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -29,29 +29,32 @@ class LitVGG16(pl.LightningModule):
         return self._shared_eval(batch, batch_idx, "test")
 
     def _shared_eval(self, batch, batch_idx, prefix):
-        x, ys = batch
+        x, y_eyes, ys_bool = batch
         x = self.eyes(x)
-        loss = F.cross_entropy(x, ys)
-        mse_loss = F.mse_loss(x, ys)
+        mse_loss = F.mse_loss(x, y_eyes)
+        x = self.head(x)
+        bce_loss = F.binary_cross_entropy_with_logits(x, ys_bool)
+        
 
         return {
-            "loss": loss,
+            "loss": mse_loss,
+            "bce_loss": bce_loss,
             "mse_loss": mse_loss,
-            "total": len(ys)
+            "total": x.size(0)
         }
     
     def training_epoch_end(self, outputs):
         # the function is called after every epoch is completed
         # calculating average loss 
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        avg_mse_loss = torch.stack([x['mse_loss'] for x in outputs]).mean()
+        avg_bce_loss = torch.stack([x['bce_loss'] for x in outputs]).mean()
         
         # calculating correect and total predictions
         
         total=sum([x["total"] for  x in outputs])
          # logging using tensorboard logger
         self.logger.experiment.add_scalar("Loss/Train",avg_loss,self.current_epoch)
-        self.logger.experiment.add_scalar("MSELoss/Train",avg_mse_loss,self.current_epoch)
+        self.logger.experiment.add_scalar("BCELoss/Train",avg_bce_loss,self.current_epoch)
 
 
         #self.logger.experiment.add_scalar("Accuracy/Train",correct/total,self.current_epoch)
@@ -149,19 +152,38 @@ class VGG16_eyes(nn.Module):
         
 
 
-class smallerVGG_eyes(pl.LightningModule):
+class SmallerVGG_eyes(nn.Module):
     def __init__(self) -> None:
         super().__init__()
+        _relu_inplace=True
+        _relu = nn.ReLU(inplace=_relu_inplace)
+        _maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+
+
         self.eyes = nn.Sequential()
         #input batch * 3 * W * H
-        self.eyes.add_module("block1_conv1", nn.Conv2d(in_channels=3, out_channels=2048, kernel_size=3, stride=1, padding=1))
-        self.eyes.add_module("block1_conv2", nn.Conv2d(in_channels=2048, out_channels=512, kernel_size=3, stride=1, padding=1))
-        self.eyes.add_module("block1_maxpool", nn.MaxPool2d(kernel_size=2, stride=2, padding=0))
+        self.eyes.add_module("block1_conv1", nn.Conv2d(in_channels=3, out_channels=256, kernel_size=5, stride=1, padding=2))
+        self.eyes.add_module('block1_relu1', _relu)  # reused ReLU module
+        self.eyes.add_module("block1_maxpool", _maxpool)
+
+        self.eyes.add_module("block2_conv1", nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5, stride=1, padding=2))
+        self.eyes.add_module('block2_relu1', _relu)  # reused ReLU module
+        self.eyes.add_module("block2_maxpool", _maxpool)
+
+        self.eyes.add_module("block3_conv1", nn.Conv2d(in_channels=256, out_channels=512, kernel_size=7, stride=1, padding=3))
+        self.eyes.add_module('block3_relu1', _relu)  # reused ReLU module
+        self.eyes.add_module("block3_maxpool", _maxpool)
+
+        self.eyes.add_module("block4_conv1", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=5, stride=1, padding=2))
+        self.eyes.add_module('block4_relu1', _relu)  # reused ReLU module
+        self.eyes.add_module("block4_maxpool", _maxpool)
 
     def forward(self, x):
         x = self.eyes(x)
          # Global max pooling --> from each filter response take the maximum value (positive signal)
-        return F.max_pool2d(x, kernel_size=x.size()[2:])  # results in a vector of size 512 * 1 * 1
+        x = F.max_pool2d(x, kernel_size=x.size()[2:])  # results in a vector of size 512 * 1 * 1
+        x = x.view(x.size(0), -1)
+        return x
 
 
 class VGG16_head(nn.Module):
