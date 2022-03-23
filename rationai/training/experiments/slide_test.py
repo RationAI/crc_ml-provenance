@@ -109,3 +109,24 @@ if __name__=='__main__':
     config.parse()
     WSIBinaryClassifierTest(config).run()
 
+
+class WSIClassifierToStringTest(WSIBinaryClassifierTest):
+    def save_predictions(self, predictions, test_gen):
+        """Saves predictions in to a file in the form of string representations of the prediction vectors/tensors
+
+        Args:
+            predictions (pandas.DataFrame): Network predictions for a slide
+        """
+        # Get Output Data
+        output_data = test_gen.sampler.active_node.data
+        output_data['pred'] = [str(pred) for pred in predictions]
+
+        output_metadata = test_gen.epoch_samples[0].metadata
+        output_table_key = test_gen.epoch_samples[0].entry['_table_key']
+
+        # Save into HDFStore
+        self.hdfstore_output.append(output_table_key, output_data)
+        self.hdfstore_output \
+            .get_storer(output_table_key) \
+            .attrs \
+            .metadata = output_metadata

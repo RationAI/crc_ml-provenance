@@ -1,17 +1,25 @@
 from operator import irshift
+from numpy import isin
 import torch
 import torch.nn as nn
 import torch.functional as F
 
 from collections import OrderedDict
 
+from typing import Union
+
 #import logging
 #log = logging.getLogger('gradcam')
 
 
-def _load_params(model, source_state_dict_path):    
+def _load_params(model, source_state_dict: Union[str, dict]):    
     print("Loading weights from a supplied state_dict...")
-    source_state_dict = torch.load(source_state_dict_path)
+    if isinstance(source_state_dict, str):
+        source_state_dict = torch.load(source_state_dict)
+    elif isinstance(source_state_dict, dict):
+        source_state_dict = source_state_dict
+    else:
+        raise TypeError('The source state dict can only be string or a dictionary, not %s')
     # get a deep copy of the existing parameters so that we have a dictionary that matches the model parameters perfectly
     new_weights = model.state_dict()
     

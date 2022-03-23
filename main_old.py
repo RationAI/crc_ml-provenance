@@ -5,15 +5,17 @@ import pandas as pd
 import h5py
 import json
 import os
+from rationai.training.models.keras_models import PretrainedNet
 
 
-#from rationai.training.models.keras_models import PretrainedNet
 from rationai.utils.class_handler import get_class
 
-from prunning.adapted_vgg import AdaptedVGG16, OnePrunableLayerAdaptedVGG16
+from prunning.src_code.adapted_vgg import AdaptedVGG16, OnePrunableLayerAdaptedVGG16
 
 
 import torch
+
+import utils
 
 
 
@@ -164,7 +166,7 @@ def transplant_model_to_pytorch():
     
 
 
-    model_config = PretrainedNet.Config(exp_train_config['configurations']['model'])
+    model_config = PretrainedNet.Config(exp_test_config['configurations']['model'])
     model_config.parse()
     wrapped_model = PretrainedNet(model_config)
     model = wrapped_model.model
@@ -204,15 +206,16 @@ def transplant_model_to_pytorch():
 
     print("PYTORCH MODEL LOADED")
 
-    torch.save({'model_state_dict': torchmodel.state_dict()}, 'transplanted-model.chkpt')
+    torch.save(torchmodel.state_dict(), 'transplanted-model.chkpt')
 
 
     
 def load_torch_model():
-    pass 
+    pass
    
 
-   
+
+
 
 
 
@@ -220,12 +223,16 @@ def load_torch_model():
 
 
 if __name__ == '__main__':
+
+
     with open('sample_experiment_test_config.json') as exp_test_config_file:
         exp_test_config = json.load(exp_test_config_file)
     
     with open('sample_experiment_train_config.json') as exp_train_config_file:
         exp_train_config = json.load(exp_train_config_file)
 
+    #transplant_model_to_pytorch()
+    #exit()
     # prepare references to classes and respective configs
     datagen_class = get_class(exp_train_config['definitions']['datagen'])
 
@@ -236,26 +243,56 @@ if __name__ == '__main__':
     generators_dict = datagen_class(datagen_config).build_from_template()
     train_generator = generators_dict['train_gen']
     valid_generator = generators_dict['valid_gen']
-    train_generator.set_batch_size(128)
-    valid_generator.set_batch_size(128)
+    batch_size = 8
+    train_generator.set_batch_size(batch_size)
+    valid_generator.set_batch_size(batch_size)
 
     print(type(train_generator))
     print(len(train_generator))
-    for i in range(len(train_generator)):
-        batch = train_generator[i]
-        #print(sample)
-        print(f"({batch[0].shape}, {batch[1].shape})")
+    #for i in range(10):
+    #     batch = train_generator[i]
+    #     print(batch)
+    #     print(f"({batch[0].shape}, {batch[1].shape})")
 
         
-
-    exit(0)
+    
+    
     
 
     # os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-    state_dict = torch.load('/mnt/data/home/bajger/NN_pruning/histopat/transplanted-model.chkpt')['model_state_dict']
-    #model = AdaptedVGG16()
-    #print(state_dict['model_state_dict'].keys())
+    state_dict = torch.load('/mnt/data/home/bajger/NN_pruning/histopat/transplanted-model.chkpt')
+    
+    
+    print(state_dict.keys())
+    #print(state_dict['dense.weight'].shape)
+    #print(state_dict['dense.bias'].shape)
+    model = AdaptedVGG16(state_dict)
     #model.load_state_dict(state_dict=state_dict['model_state_dict'])
-    model = OnePrunableLayerAdaptedVGG16(0, state_dict)
-    print(model)
+    model.cuda()
+    #model = OnePrunableLayerAdaptedVGG16(0, state_dict)
+    #print(model.dense)
+    criterion = torch.nn.BCELoss()
+    for i in range(len(train_generator)):
+        
+        input, target = train_generator[i]
+        input = input.type(torch.FloatTensor)
+        target = target.type(torch.FloatTensor).view(batch_size, 1)
+        ## torch async magic
+        target_var = target.cuda(non_blocking =True)
+        input_var = input.cuda()
+        #target_var = torch.autograd.Variable(target).cuda()
+
+        print("TRG:", target_var.shape)
+        #print("INP:", input_var.size())
+
+        # compute output
+        output = model(input_var)
+        print("OUTP:", output, output.size())
+        #with torch.autocast('cuda'):
+        loss = criterion(output, target_var)
+        with torch.no_grad():
+            acc = utils.binary_accuracy(output.round(), target_var.type(torch.int))
+        print("LOSS:", loss, "ACC:", acc)
+    train_generator.on_epoch_end()
+    print("END")
     

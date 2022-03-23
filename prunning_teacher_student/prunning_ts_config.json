@@ -9,7 +9,7 @@
             "source_state_dict_path": "/mnt/data/home/bajger/NN_pruning/histopat/transplanted-model.chkpt"
         },
         "VGG_eyes_pruned": {
-            "_class": "prunning_teacher_student.models.VGG16_eyes"
+            "_class": "prunning_teacher_student.models.SmallerVGG_eyes"
         },
         "datagen_ts": {
             "_class": "rationai.datagens.datagens.GeneratorDatagen",
@@ -37,8 +37,8 @@
                     },
                     "configurations": {
                         "sampler": {
-                            "epoch_size": 512,
-                            "index_levels": ["is_cancer", "slide_name"],
+                            "epoch_size": 1024,
+                            "index_levels": ["is_cancer_bool", "slide_name"],
                             "seed": 69420
                         },
                         "augmenter": {
@@ -93,7 +93,7 @@
                     },
                     "configurations": {
                         "sampler": {
-                            "epoch_size": 512,
+                            "epoch_size": 1024,
                             "index_levels": ["is_cancer", "slide_name"],
                             "seed": 69420
                         },

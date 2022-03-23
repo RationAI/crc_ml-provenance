@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from prunning import pruning_layer
+from prunning.src_code import pruning_layer
 
 
 
 class AdaptedVGG16(nn.Module):
-    def __init__(self, model_weights):
+    def __init__(self, model_weights=None):
         super().__init__()
         
         self.block1_conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1)  
@@ -36,17 +36,19 @@ class AdaptedVGG16(nn.Module):
         self.dropout = nn.Dropout(.5)  # dropout module
         self.dense = nn.Linear(512, 1)  # linear classifier expecting 512 inputs --> obtained by a global maxpooling over the features
 
-        #model_weight = torch.load(model_path)
-        my_weight = self.state_dict()
-        my_keys = list(my_weight.keys())
-        count = 0
-        for k, v in model_weights.items():
-            my_weight[my_keys[count]] = v
-            count += 1
-        self.load_state_dict(my_weight)
+        if model_weights is not None:
+            #model_weight = torch.load(model_path)
+            my_weight = self.state_dict()
+            my_keys = list(my_weight.keys())
+            count = 0
+            for k, v in model_weights.items():
+                print("Loading parameter", k, "with values", v.size())
+                my_weight[my_keys[count]] = v
+                count += 1
+            self.load_state_dict(my_weight)
 
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         # input 3 * W * H 
         x = F.relu(self.block1_conv1(x))  # --> 64 * W * H
         x = F.relu(self.block1_conv2(x))
@@ -71,12 +73,17 @@ class AdaptedVGG16(nn.Module):
         x = F.relu(self.block5_conv3(x))
         x = self.maxpool(x)               # --> 512 * W/32 * H/32
         
-
+        #print("SHAPE X:", x.size())
         # Global max pooling --> from each filter response take the maximum value (positive signal)
         x = F.max_pool2d(x, kernel_size=x.size()[2:])  # results in a vector of size 512 * 1 * 1
-        
+        #print("SHAPE X2:", x.size())
         x = self.dropout(x)
-        x = F.sigmoid(self.dense(x))
+        x = x.squeeze()
+        #print("SHAPE X3:", x.size())
+        #print("SHAPE Dense:", self.dense.weight.size())
+        x = self.dense(x)
+        #print("SHAPE X4:", x.size())
+        x = torch.sigmoid(x)
     
         return x
 
@@ -85,6 +92,7 @@ class OnePrunableLayerAdaptedVGG16(torch.nn.Module):
     
     def __init__(self, layer_id:int, model_weight:dict):
         super().__init__()
+        #torch.nn.Module.__init__(self)
         #model_weight = torch.load('checkpoint/model.pth')
 
         # at this point we might already be loading up a pruned model,
@@ -119,14 +127,14 @@ class OnePrunableLayerAdaptedVGG16(torch.nn.Module):
         # feature sizes for specific layers
         ks_dict = {0: 512, 1: 512, 2: 256, 3: 256, 4: 128, 5: 128, 6: 128, 7: 64, 8: 64, 9: 64, 10: 32, 11: 32, 12: 32}
         
-        print("H: channel_depth")
+        #print("H: channel_depth")
         print(ks_dict.values())
         print(model_weight.keys())
         print(channel_depths)
 
         # add channel selection layer
         # define the autopruner layer respecting the channel depth
-        self.CS = pruning_layer.MyCS(channel_depths[layer_id+1], activation_size=ks_dict[layer_id], max_ks=2)
+        self.CS = pruning_layer.MyCS(channel_depths[layer_id+1], activation_size=ks_dict[layer_id], kernel_size=2)
         
         
 
@@ -194,25 +202,27 @@ class OnePrunableLayerAdaptedVGG16(torch.nn.Module):
 
         self.classifier.add_module('dropout', nn.Dropout(.5)) # dropout module
         self.classifier.add_module('dense', nn.Linear(512, 1)) # fully connected layer
-        self.classifier.add_module('sigmoid', nn.Sigmoid()) # sigmoid at the end (for CatCrossEntropy)
+        self.classifier.add_module('sigmoid', nn.Sigmoid()) # sigmoid at the end (for CrossEntropy)
 
 
         # load pretrain model weights
         my_weight = self.state_dict()  # get the reference on the state_dict of this model
         my_keys = list(my_weight.keys())  # get the parameter names
+        #print("MY_WEIGHTS:", my_weight.keys())
         # loop over the parameters from the weights being loaded
         for k, v in model_weight.items():
+            print("NAME:", k)
             name = k.split('.')
-            name = 'feature_1.'+name[2]+'.'+name[3]
+            name = 'feature_1.'+name[0]+'.'+name[1]
             if name in my_keys:
                 my_weight[name] = v
 
             name = k.split('.')
-            name = 'feature_2.' + name[2] + '.' + name[3]
+            name = 'feature_2.' + name[0] + '.' + name[1]
             if name in my_keys:
                 my_weight[name] = v
 
-            name = k[7:]
+            name = k#[7:]
             if name in my_keys:
                 my_weight[name] = v
         self.load_state_dict(my_weight)
@@ -224,8 +234,8 @@ class OnePrunableLayerAdaptedVGG16(torch.nn.Module):
         
         # Global Max Pooling - dependent on the input size (easier to define here like this)
         x = F.max_pool2d(x, kernel_size=x.size()[2:])  # results in a vector of size 512 * 1 * 1
-        
-        #x = x.view(x.size(0), -1)
+        #print("F-Extr res:", x.shape)
+        x = x.view(x.size(0), -1)
         
         x = self.classifier(x)
         return x, scale_vector

@@ -142,6 +142,7 @@ class HDF5DataSource(DataSource):
         if len(config.names) == 1:
             return {config.names[0]: data_source}
 
+        log.info("Splitting DS with seed %d", config.seed_split)
         data_sources = data_source.split(
             sizes=config.split_probas,
             key=config.split_on,
