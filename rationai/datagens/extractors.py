@@ -61,7 +61,7 @@ class OpenslideExtractor(Extractor):
         Returns:
             Tuple[NDArray, NDArray]: Input/label tuple
         """
-        wsi = self._open_slide(sampled_entry.metadata['slide_fp'])
+        wsi = self._open_slide(str(Path(sampled_entry.metadata['slide_fp']).resolve()))
         x = self._extract_tile(wsi,
                                 (sampled_entry.entry['coord_x'], sampled_entry.entry['coord_y']),
                                 sampled_entry.metadata['tile_size'],

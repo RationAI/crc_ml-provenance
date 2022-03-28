@@ -18,6 +18,12 @@ from rationai.utils.utils import divide_round_up
 
 log = logging.getLogger('generators')
 
+#! DELETE THIS
+handler = logging.FileHandler('/mnt/data/home/matejg/Project/prov-wittner/prov.log')
+prov_log = logging.getLogger('prov-log')
+prov_log.setLevel(logging.INFO)
+prov_log.addHandler(handler)
+
 
 class BaseGenerator:
     """
@@ -34,6 +40,7 @@ class BaseGenerator:
     """
 
     def __init__(self, sampler: TreeSampler, extractor: Extractor):
+        self.name = None
         self.sampler = sampler
         self.extractor = extractor
         self.epoch_samples: list[SampledEntry] = []
@@ -59,6 +66,10 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
         super().__init__(sampler, extractor)
         self.batch_size = None
         self.epoch_samples = self._generate_samples()
+        if self.epoch_samples is not None:
+            prov_log.info(f'{self.name} epoch samples hash: {sum([hash(frozenset(x.entry.items())) for x in self.epoch_samples])}')
+        self.resample = None    # TODO: Move to config
+        self.name = None # TODO: Move to config
 
     def set_batch_size(self, batch_size: int):
         """
@@ -91,8 +102,11 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
         """
         t0 = time()
         # TODO: Decide how to rework this.
-        self.epoch_samples = self.sampler.on_epoch_end()
-        log.info(f'Keras generator resampled on epoch end ({int(time() - t0)}s)')
+        if self.resample:
+            self.epoch_samples = self.sampler.on_epoch_end()
+            log.info(f'Keras generator resampled on epoch end ({int(time() - t0)}s)')
+            if self.epoch_samples is not None:
+                prov_log.info(f'{self.name} epoch samples hash: {sum([hash(frozenset(x.entry.items())) for x in self.epoch_samples])}')
 
 
 class BaseGeneratorPytorch(BaseGenerator, Dataset):

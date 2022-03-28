@@ -10,6 +10,7 @@ from typing import Optional
 
 # Third-party Imports
 from sklearn.model_selection import train_test_split
+import numpy as np
 import pandas as pd
 
 # Local Imports
@@ -144,11 +145,12 @@ class HDF5DataSource(DataSource):
 
         data_sources = data_source.split(
             sizes=config.split_probas,
-            key=config.split_on
+            key=config.split_on,
+            seed=config.seed
         )
         return dict(zip(config.names, data_sources))
 
-    def split(self, sizes: List[float], key: Optional[str]) -> List[HDF5DataSource]:
+    def split(self, sizes: List[float], key: Optional[str], seed: int) -> List[HDF5DataSource]:
         """Partition the DataSource into N partitions. The size of each partition is defined by
         `sizes` parameter. Key defines how the DataSource is split.
 
@@ -173,7 +175,8 @@ class HDF5DataSource(DataSource):
             new_tables, tables = train_test_split(
                 tables,
                 train_size=int(n_tables*size),
-                stratify=stratify
+                stratify=stratify,
+                random_state=seed
             )
 
             new_ds = HDF5DataSource()
@@ -197,6 +200,7 @@ class HDF5DataSource(DataSource):
             self.names = None
             self.split_probas = None
             self.split_on = None
+            self.seed = None
 
         def parse(self):
             self.dataset_fp = self.config.get('_data', None)
@@ -204,3 +208,4 @@ class HDF5DataSource(DataSource):
             self.names = self.config.get('names', self.keys)
             self.split_probas = self.config.get('split_probas', [1.0])
             self.split_on = self.config.get('split_on', list())
+            self.seed = self.config.get('seed', np.random.randint(low=0, high=999999))

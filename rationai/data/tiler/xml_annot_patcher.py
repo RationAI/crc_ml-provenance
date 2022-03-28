@@ -117,7 +117,7 @@ class SlideConverter:
         if self.config.negative_mode:
             return None
 
-        annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml')
+        annot_fp = (self.config.label_dir / self.slide_name).with_suffix('.xml').resolve()
         if annot_fp.exists():
             log.debug(f'[{self.slide_name}] Annotation XML found.')
             return annot_fp
@@ -797,6 +797,8 @@ def main(args):
 
     # Spawn worker for each slide; maximum `max_workers` simultaneous workers.
     for cfg in SlideConverter.Config(args.config_fp):
+        if not cfg.output_dir.exists():
+            cfg.output_dir.mkdir(parents=True)
         dataset_h5 = dataset_h5 or pd.HDFStore((cfg.output_dir / cfg.output_dir.name).with_suffix('.h5'), 'w')
         log.info(f'Spawning {cfg.max_workers} workers.')
         with Pool(cfg.max_workers) as p:
