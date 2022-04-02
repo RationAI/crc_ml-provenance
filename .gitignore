@@ -3,9 +3,12 @@
 datasets
 experiment_output
 models
+.idea
 *.jpg
 *.png
 *.svg
 *log.txt
 *logs.txt
+*.chckpt
 *.chkpt
+tb_logs/*

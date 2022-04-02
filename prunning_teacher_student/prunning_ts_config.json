@@ -122,6 +122,37 @@
                     }
                 }
             }
+        },
+        "datagen_seq": {
+            "_class": "rationai.datagens.datagens.GeneratorDatagen",
+            "data_sources": {
+                "_class": "rationai.datagens.datasources.HDF5DataSource",
+                "_data": "/mnt/data/home/bajger/NN_pruning/histopat/datasets/hdfs_output/hdfs_output.h5",
+                "definitions": {
+                    "train_ds": {
+                        "keys": ["test"],
+                        "names": ["test"]
+                    }
+                }
+
+            },
+            "generators": {
+                "just_gen_seq": {
+                    "components": {
+                        "data_source": "test",
+                        "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                        "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                        "generator": "rationai.datagens.generators.BaseGeneratorPytorch"
+                    },
+                    "configurations": {
+                        "sampler": {"index_levels": ["slide_name"]},
+                        "augmenter": {},
+                        "extractor": {},
+                        "generator": {}
+                    }
+                }
+            }
         }
     }
 }
