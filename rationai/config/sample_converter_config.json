@@ -1,11 +1,11 @@
 {
   "slide-converter": {
     "_global": {
-      "output_dir": "/mnt/data/home/matejg/Project/histopat/hdfstore_output",
+      "output_dir": "/mnt/data/home/matejg/Project/histopat/prostata_L0",
       "tile_size": 512,
       "center_size": 256,
       "step_size": 128,
-      "sample_level": 2,
+      "sample_level": 0,
       "bg_level": 5,
       "force": false,
       "include_keywords": ["Carcinoma"],

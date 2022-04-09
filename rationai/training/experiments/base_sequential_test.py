@@ -24,6 +24,7 @@ class BaseSequentialTest(Experiment):
         self.__setup()
         test_gen = self.generators_dict[self.config.test_gen]
         test_gen.set_batch_size(self.config.batch_size)
+        test_gen.name = 'TEST'
 
         while test_gen.sampler.active_node is not None:
             net_predicts = self.executor.predict(

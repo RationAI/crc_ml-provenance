@@ -2,6 +2,7 @@
 TODO: Missing docstring.
 """
 import logging
+import hashlib
 from time import time
 from typing import List, Tuple
 from typing import NoReturn
@@ -14,15 +15,13 @@ from rationai.datagens.extractors import Extractor
 from rationai.datagens.samplers import SampledEntry
 from rationai.datagens.samplers import TreeSampler
 from rationai.utils.utils import divide_round_up
+from rationai.utils.config import ConfigProto
 
 
 log = logging.getLogger('generators')
 
 #! DELETE THIS
-handler = logging.FileHandler('/mnt/data/home/matejg/Project/prov-wittner/prov.log')
-prov_log = logging.getLogger('prov-log')
-prov_log.setLevel(logging.INFO)
-prov_log.addHandler(handler)
+prov_log = logging.getLogger('prov-training.generator')
 
 
 class BaseGenerator:
@@ -39,8 +38,9 @@ class BaseGenerator:
         The sampled data points of the currently generated epoch.
     """
 
-    def __init__(self, sampler: TreeSampler, extractor: Extractor):
-        self.name = None
+    def __init__(self, config: ConfigProto, name: str, sampler: TreeSampler, extractor: Extractor):
+        self.name = name
+        self.config = config
         self.sampler = sampler
         self.extractor = extractor
         self.epoch_samples: list[SampledEntry] = []
@@ -55,6 +55,10 @@ class BaseGenerator:
         """
         return self.sampler.sample()
 
+    def get_provenance(self) -> None:
+        prov_log.info(f'sampler: {self.sampler.__class__.__module__}.{self.sampler.__class__.__qualname__}')
+        prov_log.info(f'extractor: {self.extractor.__class__.__module__}.{self.extractor.__class__.__qualname__}')
+        prov_log.info(f'augmenter: {self.extractor.augmenter.__class__.__module__}.{self.extractor.augmenter.__class__.__qualname__}')
 
 class BaseGeneratorKeras(BaseGenerator, Sequence):
     """Base class for generators based on tf.keras.utils.Sequence
@@ -62,14 +66,11 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
     Implements the interface between Keras and the custom sampling & extraction.
     """
 
-    def __init__(self, sampler: TreeSampler, extractor: Extractor):
-        super().__init__(sampler, extractor)
-        self.batch_size = None
+    def __init__(self, config: ConfigProto, name: str, sampler: TreeSampler, extractor: Extractor):
+        super().__init__(config, name, sampler, extractor)
+
         self.epoch_samples = self._generate_samples()
-        if self.epoch_samples is not None:
-            prov_log.info(f'{self.name} epoch samples hash: {sum([hash(frozenset(x.entry.items())) for x in self.epoch_samples])}')
-        self.resample = None    # TODO: Move to config
-        self.name = None # TODO: Move to config
+        prov_log.info(f'{self.name} INIT: {self.get_epoch_samples_digest()}')
 
     def set_batch_size(self, batch_size: int):
         """
@@ -102,12 +103,30 @@ class BaseGeneratorKeras(BaseGenerator, Sequence):
         """
         t0 = time()
         # TODO: Decide how to rework this.
-        if self.resample:
+        if self.config.resample:
             self.epoch_samples = self.sampler.on_epoch_end()
             log.info(f'Keras generator resampled on epoch end ({int(time() - t0)}s)')
-            if self.epoch_samples is not None:
-                prov_log.info(f'{self.name} epoch samples hash: {sum([hash(frozenset(x.entry.items())) for x in self.epoch_samples])}')
+        
+        prov_log.info(f'{self.name} OEE: {self.get_epoch_samples_digest()}')
 
+    def get_epoch_samples_digest(self):
+        """For now extremely naive solution for digest for provenance sample usecase."""
+        s = str(self.epoch_samples)
+        return hashlib.sha256(s.encode('UTF-8')).hexdigest()
+
+    def get_provenance(self) -> NoReturn:
+        prov_log.info(f'generator: {self.__module__}.{self.__class__.__qualname__}')
+        super().get_provenance()
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            super().__init__(json_dict)
+            self.batch_size = None
+            self.resample = None
+
+        def parse(self):
+            self.batch_size = self.config['batch_size']
+            self.resample = self.config['resample']
 
 class BaseGeneratorPytorch(BaseGenerator, Dataset):
     """Base class for generators based on torch.utils.data.Dataset
@@ -115,8 +134,8 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
     Implements the interface between PyTorch and the custom sampling & extraction.
     """
 
-    def __init__(self, sampler: TreeSampler, extractor: Extractor):
-        super().__init__(sampler, extractor)
+    def __init__(self, config: ConfigProto, name: str, sampler: TreeSampler, extractor: Extractor):
+        super().__init__(config, name, sampler, extractor)
 
     def __len__(self) -> int:
         return len(self.epoch_samples)
@@ -144,3 +163,11 @@ class BaseGeneratorPytorch(BaseGenerator, Dataset):
         # TODO: Decide how to rework this.
         self.epoch_samples = self.sampler.on_epoch_end()
         log.info(f'PyTorch generator resampled on epoch end ({int(time() - t0)}s)')
+
+    class Config(ConfigProto):
+        def __init__(self, json_dict: dict):
+            super().__init__(json_dict)
+            self.resample = None
+
+        def parse(self):
+            self.resample = self.config['resample']

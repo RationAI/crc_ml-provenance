@@ -119,11 +119,11 @@ class GeneratorDatagen:
     def __build_generators_from_template(self, generators_config, data_sources_dict) -> dict[str, BaseGenerator]:
         generators = {}
         for generator_name, generator_config in generators_config.items():
-            generator = self.__build_generator_from_template(generator_config, data_sources_dict)
+            generator = self.__build_generator_from_template(generator_name, generator_config, data_sources_dict)
             generators[generator_name] = generator
         return generators
 
-    def __build_generator_from_template(self, generator_config, data_source_dict) -> BaseGenerator:
+    def __build_generator_from_template(self, generator_name, generator_config, data_source_dict) -> BaseGenerator:
         definition = generator_config['components']
         components_config = generator_config['configurations']
 
@@ -141,7 +141,12 @@ class GeneratorDatagen:
         extractor = self.__build_extractor_from_template(extractor_class, augmenter, components_config['extractor'])
 
         generator_class = get_class(definition['generator'])
-        return generator_class(sampler, extractor)
+        generator_config = generator_class.Config(components_config['generator'])
+        generator_config.parse()
+
+        generator = generator_class(config=generator_config, name=generator_name, sampler=sampler, extractor=extractor)
+        generator.get_provenance()
+        return generator
 
     def __build_data_sources_from_template(
             self,

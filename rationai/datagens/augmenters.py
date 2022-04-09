@@ -9,6 +9,7 @@ from typing import NoReturn
 import imgaug
 import imgaug.augmenters as iaa
 from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+import numpy as np
 
 # Local Imports
 from rationai.utils.config import ConfigProto
@@ -87,17 +88,39 @@ class ImageAugmenter(ImgAugAugmenter):
 
         # noinspection PyUnresolvedReferences
         self.augmenter = iaa.Sequential([
-            iaa.Fliplr(self.config.horizontal_flip_proba, name='horizontal'),
-            iaa.Flipud(self.config.vertical_flip_proba, name='vertical'),
-            iaa.AddToBrightness(add=self.config.brightness_add_range, name='brightness'),
+            iaa.Fliplr(
+                self.config.horizontal_flip_proba,
+                random_state=self.config.seed,
+                name='horizontal'
+            ),
+            iaa.Flipud(
+                self.config.vertical_flip_proba,
+                random_state=self.config.seed,
+                name='vertical'
+            ),
+            iaa.AddToBrightness(
+                add=self.config.brightness_add_range,
+                random_state=self.config.seed,
+                name='brightness'
+            ),
             iaa.AddToHueAndSaturation(
                 value_saturation=self.config.saturation_add_range,
                 value_hue=self.config.hue_add_range,
-                name='hue_and_saturation'
+                name='hue_and_saturation',
+                random_state=self.config.seed
             ),
-            iaa.GammaContrast(gamma=self.config.contrast_scale_range, name='contrast'),
-            iaa.geometric.Rot90(k=self.config.rotate_90_deg_interval, name='rotate90')
-        ])
+            iaa.GammaContrast(
+                gamma=self.config.contrast_scale_range,
+                random_state=self.config.seed,
+                name='contrast'
+            ),
+            iaa.geometric.Rot90(
+                k=self.config.rotate_90_deg_interval,
+                random_state=self.config.seed,
+                name='rotate90'
+            )
+        ],
+        random_state=self.config.seed)
 
     class Config(ConfigProto):
         # noinspection PyUnresolvedReferences
@@ -126,6 +149,7 @@ class ImageAugmenter(ImgAugAugmenter):
         # noinspection PyTypeChecker
         def __init__(self, json_dict: dict):
             super().__init__(json_dict)
+            self.seed = None
             self.horizontal_flip_proba: float = None
             self.vertical_flip_proba: float = None
             self.brightness_add_range: tuple[int, int] = None
@@ -136,6 +160,7 @@ class ImageAugmenter(ImgAugAugmenter):
 
         def parse(self) -> NoReturn:
             """Parse SlideAugmenter configuration."""
+            self.seed = self.config.get('seed', np.random.randint(low=0, high=999999))
             self.horizontal_flip_proba = float(self.config.get('horizontal_flip', 0.0))
             self.vertical_flip_proba = float(self.config.get('vertical_flip', 0.0))
             self.brightness_add_range = tuple(self.config.get('brightness_range', (0, 0)))

@@ -4,10 +4,14 @@ from pathlib import Path
 
 # Third-party Imports
 import numpy as np
+import logging
 
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
+
+prov_log = logging.getLogger('prov-training')
+prov_log.setLevel(logging.INFO)
 
 class WSIBinaryClassifierTrain(Experiment):
     def __init__(self, config):
@@ -15,6 +19,9 @@ class WSIBinaryClassifierTrain(Experiment):
         self.generators_dict = None
         self.executor = None
         self.model = None
+
+        handler = logging.FileHandler(Experiment.Config.experiment_dir / 'prov-training.log', mode='w+')
+        prov_log.addHandler(handler)
 
     def run(self):
         """WSI Binary Classifer
@@ -35,7 +42,7 @@ class WSIBinaryClassifierTrain(Experiment):
             valid_gen = self.generators_dict[self.config.valid_gen]
             valid_gen.set_batch_size(self.config.batch_size)
 
-        _ = self.executor.train(
+        hist_log = self.executor.train(
             self.model,
             train_gen,
             valid_gen,
@@ -48,6 +55,7 @@ class WSIBinaryClassifierTrain(Experiment):
             3. Executor
         """
         # Build Datagen
+        prov_log.info(f'datagen: {self.config.datagen_class.__module__}.{self.config.datagen_class.__qualname__}')
         datagen_config = self.config.datagen_class.Config(
             self.config.datagen_config
         )
@@ -62,6 +70,7 @@ class WSIBinaryClassifierTrain(Experiment):
         model_config.parse()
         self.model = self.config.model_class(model_config)
         self.model.compile_model()
+        self.model.save_weights(Experiment.Config.experiment_dir / 'init.ckpt')
 
         # Build Executor
         executor_config = self.config.executor_class.Config(

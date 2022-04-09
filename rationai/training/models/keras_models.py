@@ -3,6 +3,7 @@ from abc import ABC
 from typing import NoReturn
 
 # Third-party Imports
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Dense
@@ -44,6 +45,7 @@ class KerasModel(ABC, Model):
     class Config(ConfigProto):
         def __init__(self, json_dict: dict):
             super().__init__(json_dict)
+            self.seed = None
             self.checkpoint = None
             self.input_shape = None
             self.output_size = None
@@ -62,6 +64,7 @@ class KerasModel(ABC, Model):
             self.regularizer_config = None
 
         def parse(self):
+            self.seed = self.config.get('seed', np.random.randint(low=0, high=999999))
             self.checkpoint = self.config.get('checkpoint', None)
             self.input_shape = tuple(self.config['input_shape'])
             self.output_size = self.config['output_size']
@@ -148,6 +151,7 @@ class PretrainedNet(KerasModel):
         # Apply regularization on pretrained network
         if self.config.regularizer_class is not None:
             for layer in pretrainelat_vec_size.layers:
+                # Kernel Regularization
                 if hasattr(layer, 'kernel_regularizer'):
                     setattr(
                         layer,
