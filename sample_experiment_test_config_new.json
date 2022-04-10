@@ -1,7 +1,7 @@
 {
     "output_dir": "/mnt/data/home/bajger/NN_pruning/histopat/experiment_output",
     "batch_size": 1,
-    "components":{
+    "_components":{
         "generator": "generator_config",
         "model": "model_VGG12",
         "executor": "executor"
@@ -18,7 +18,7 @@
             }
         },
         "generator_config":{
-            "components": {
+            "_components": {
                 "data_source": "different_data_source",
                 "sampler": "sampler",
                 "augmenter": "augmenter",
@@ -27,12 +27,12 @@
             }
         },
         "different_generator_config":{},
-        "model_VGG12":{
+        "model_VGG16":{
             "checkpoint": "/mnt/data/home/bajger/NN_pruning/histopat/models/VGG16-TF2-DATASET-e95b-4e8f-aeea-b87904166a69/final.hdf5",
             "input_shape": [512, 512, 3],
             "output_size": 1,
             "dropout": 0.5,
-            "components": {
+            "_components": {
                 "convolution_network": {"_class": "tensorflow.keras.applications.VGG16", "include_top": false, "weights": null, "pooling": "max"},
                 "output_activation_fn": {"_class": "tensorflow.keras.activations.linear"},
                 "optimizer": {"_class":  "tensorflow.keras.optimizers.Adam","learning_rate": 0.05, "beta_1": 0.5, "beta_2": 1.0},
@@ -48,7 +48,7 @@
             "max_queue_size": 50,
             "workers": 10,
             "use_multiprocessing": false,
-            "components":{
+            "_components":{
                 "callbacks": [
                     "callback_def1",
                     "callback_def2",

@@ -130,8 +130,8 @@
                 "_data": "/mnt/data/home/bajger/NN_pruning/histopat/datasets/hdfs_output/hdfs_output.h5",
                 "definitions": {
                     "train_ds": {
-                        "keys": ["test"],
-                        "names": ["test"]
+                        "keys": ["test", "train"],
+                        "names": ["test", "train"]
                     }
                 }
 
