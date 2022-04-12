@@ -1,19 +1,15 @@
 # Standard Imports
 from pathlib import Path
-from uuid import uuid4
+from typing import Optional
+from typing import Tuple
+from typing import Union
+from typing import List
 import logging
-import os
-from typing import (
-    List,
-    Optional,
-    Tuple,
-    Union
-)
 
 # Third-party Imports
-import xml.etree.ElementTree as ET
 from PIL import Image
 from PIL import UnidentifiedImageError
+import xml.etree.ElementTree as ET
 
 # Local Imports
 

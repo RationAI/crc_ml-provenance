@@ -1,7 +1,7 @@
 PIP=pip3
 PYTHON=python3
 
-.PHONY: setup help clean train test
+.PHONY: setup help clean
 
 run: setup convert
 

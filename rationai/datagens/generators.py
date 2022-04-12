@@ -10,6 +10,8 @@ from typing import NoReturn
 import numpy as np
 from tensorflow.keras.utils import Sequence
 from torch.utils.data import Dataset
+# TODO: Put BaseGenerator, KerasGenerator and TorchGenerator in separate
+#       files to avoid loading ML frameworks
 
 from rationai.datagens.extractors import Extractor
 from rationai.datagens.samplers import SampledEntry
@@ -20,9 +22,7 @@ from rationai.utils.provenance import SummaryWriter
 
 
 log = logging.getLogger('generators')
-
 sw_log = SummaryWriter.getLogger('provenance')
-
 
 class BaseGenerator:
     """

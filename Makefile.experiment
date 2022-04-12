@@ -1,3 +1,6 @@
+# Variables to set when running the script
+# TRAIN_CONFIG, TEST_CONFIG, EVAL_CONFIG, EID_PREFIX
+
 PIP=pip3
 PYTHON=python3
 EID := $(shell openssl rand -hex 12)
@@ -7,7 +10,7 @@ ifdef EID_PREFIX
 EID := $(EID_PREFIX)-$(EID)
 endif
 
-.PHONY: test eval
+.PHONY: setup train test eval
 
 run: setup train test eval
 
