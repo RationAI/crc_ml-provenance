@@ -1,0 +1,40 @@
+{
+  "slide-converter": {
+    "_global": {
+      "output_dir": "/home/jovyan/matejg/Project/provenance/data/",
+      "tile_size": 512,
+      "center_size": 256,
+      "step_size": 128,
+      "sample_level": 2,
+      "bg_level": 5,
+      "force": false,
+      "include_keywords": ["Carcinoma"],
+      "exclude_keywords": ["Exclude"],
+      "min_tissue": 0.50,
+      "max_tissue": 1.00,
+      "disk_size": 10,
+      "negative_mode": false,
+      "strict_mode": false,
+      "max_workers": 1,
+      "pattern": "*.mrxs"
+    },
+    "test": [
+      {
+        "slide_dir": "/home/jovyan/data/ProspectiveTestCases",
+        "label_dir": "/home/jovyan/data/ProspectiveTestCases"
+      }
+    ],
+    "train": [
+      {
+        "slide_dir": "/home/jovyan/data/ProspectiveTumorCases",
+        "label_dir": "/home/jovyan/data/ProspectiveTumorCases",
+        "strict_mode": true
+      },
+      {
+        "slide_dir": "/home/jovyan/data/ProspectiveNegativeCases",
+        "label_dir": null,
+        "negative_mode": true
+      }
+    ]
+  }
+}

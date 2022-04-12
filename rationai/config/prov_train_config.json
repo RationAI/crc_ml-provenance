@@ -1,8 +1,7 @@
 {
-    "output_dir": "/mnt/data/home/matejg/Project/prov-wittner/experiments/",
+    "output_dir": "/home/jovyan/matejg/Project/provenance/experiments/",
     "train_generator": "train_gen",
     "valid_generator": "valid_gen",
-    "batch_size": 1,
     "definitions": {
         "datagen": "rationai.datagens.datagens.GeneratorDatagen",
         "model": "rationai.training.models.keras_models.PretrainedNet",
@@ -12,7 +11,7 @@
         "datagen": {
             "data_sources": {
                 "_class": "rationai.datagens.datasources.HDF5DataSource",
-                "_data": "/mnt/data/home/matejg/Project/prov-wittner/data/data.h5",
+                "_data": "/home/jovyan/matejg/Project/provenance/data/data.h5",
                 "definitions": {
                     "train_ds": {
                         "keys": ["train"],
@@ -28,13 +27,13 @@
                     "components": {
                         "data_source": "train",
                         "sampler": "rationai.datagens.samplers.RandomTreeSampler",
-                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                        "augmenter": "rationai.datagens.augmenters.ImageAugmenter",
                         "extractor": "rationai.datagens.extractors.OpenslideExtractor",
                         "generator": "rationai.datagens.generators.BaseGeneratorKeras"
                     },
                     "configurations": {
                         "sampler": {
-                            "epoch_size": 2500,
+                            "epoch_size": 50,
                             "index_levels": ["is_cancer", "slide_name"],
                             "seed": 2021
                         },
@@ -61,7 +60,7 @@
                     },
                     "configurations": {
                         "sampler": {
-                            "epoch_size": 1000,
+                            "epoch_size": 10,
                             "index_levels": ["is_cancer", "slide_name"],
                             "seed": 2021
                         },
@@ -76,7 +75,7 @@
             }
         },
         "model": {
-            "checkpoint": "/mnt/data/crc_ml/models/checkpoints/VGG16-TF2-DATASET-e95b-4e8f-aeea-b87904166a69/final.hdf5",
+            "checkpoint": null,
             "input_shape": [512, 512, 3],
             "output_size": 1,
             "dropout": 0.5,
@@ -105,24 +104,33 @@
             "epochs": 3,
             "validation_freq": 10,
             "max_queue_size": 50,
-            "workers": 10,
+            "workers": 1,
             "use_multiprocessing": false,
+	    "shuffle": false,
             "callbacks": {
                 "definitions": [
                     "tensorflow.keras.callbacks.EarlyStopping",
-                    "tensorflow.keras.callbacks.ModelCheckpoint",
+                    "rationai.training.executors.keras_callbacks.ProvenanceModelCheckpoint",
+                    "rationai.training.executors.keras_callbacks.ProvenanceModelCheckpoint",
                     "rationai.training.executors.keras_callbacks.ProvenanceCallback"
                 ],
                 "configurations": [
                     {"monitor": "val_loss", "patience": 5},
                     {
-                        "filepath": "best.ckpt",
+                        "filepath": "best_val_loss.ckpt",
                         "monitor": "val_loss",
                         "save_best_only": true,
                         "save_weights_only": true,
                         "verbose": 1
                     },
-                    {}
+                    {
+                        "filepath": "val_recall_{epoch:02d}.ckpt",
+                        "monitor": "val_recall",
+                        "save_best_only": false,
+                        "save_weights_only": true,
+                        "verbose": 1
+                    },
+                    {"update_prov_epoch": true}
                 ]
             }
         }
