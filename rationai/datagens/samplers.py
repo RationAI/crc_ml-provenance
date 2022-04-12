@@ -10,17 +10,12 @@ from typing import Optional
 
 # Third-party Imports
 import numpy as np
-from numpy.random.mtrand import sample
 
 # Local Imports
 from rationai.datagens.datasources import DataSource
 from rationai.utils.config import ConfigProto
 
 log = logging.getLogger('samplers')
-logging.basicConfig(level=logging.INFO,
-                    format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
-                    datefmt='%d.%m.%Y %H:%M:%S')
-
 
 @dataclass
 class SampledEntry:

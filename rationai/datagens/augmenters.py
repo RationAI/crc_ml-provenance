@@ -6,7 +6,6 @@ import abc
 from typing import NoReturn
 
 # Third-party Imports
-import imgaug
 import imgaug.augmenters as iaa
 from imgaug.augmentables.segmaps import SegmentationMapsOnImage
 import numpy as np
