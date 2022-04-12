@@ -81,9 +81,11 @@ from rationai.utils.config import ConfigProto
 from rationai.datagens.datasources import DataSource
 from rationai.datagens.generators import BaseGenerator
 from rationai.utils.class_handler import get_class
+from rationai.utils.provenance import SummaryWriter
 
 import logging
 log = logging.getLogger('datagens')
+sw_log = SummaryWriter.getLogger('provenance')
 
 class Datagen(ABC):
     """
@@ -145,7 +147,15 @@ class GeneratorDatagen:
         generator_config.parse()
 
         generator = generator_class(config=generator_config, name=generator_name, sampler=sampler, extractor=extractor)
-        generator.get_provenance()
+
+        checksums = SummaryWriter.hash_tables(data_source.source, data_source.tables)
+        sw_log.set('splits', generator_name, value=checksums)
+
+        if hasattr(sampler.config, 'seed'):
+            sw_log.set('seed', generator_name, 'sampler', value=sampler.config.seed)
+
+        if augmenter is not None and hasattr(augmenter.config, 'seed'):
+            sw_log.set('seed', generator_name, 'augmenter', value=augmenter.config.seed)
         return generator
 
     def __build_data_sources_from_template(

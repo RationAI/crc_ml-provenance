@@ -2,6 +2,7 @@
 from pathlib import Path
 import argparse
 import logging
+import shutil
 log = logging.getLogger('ex_eval')
 
 # Third-party Imports
@@ -9,6 +10,9 @@ log = logging.getLogger('ex_eval')
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
+from rationai.utils.provenance import SummaryWriter
+
+sw_log = SummaryWriter.getLogger('provenance')
 
 class WSIBinaryClassifierEval(Experiment):
     def __init__(self, config):
@@ -20,7 +24,6 @@ class WSIBinaryClassifierEval(Experiment):
 
     def eval(self):
         eval_gen = self.generators_dict[self.config.eval_gen]
-        eval_gen.set_batch_size(self.config.batch_size)
 
         while eval_gen.sampler.active_node is not None:
             log.info(f'Evaluating node: {eval_gen.sampler.active_node.node_name}')
@@ -28,12 +31,16 @@ class WSIBinaryClassifierEval(Experiment):
                 for evaluator in self.evaluators:
                     evaluator.update_state(input_dict)
 
+            table_key = eval_gen.epoch_samples[0].entry['_table_key']
+            hash = SummaryWriter.hash_table(eval_gen.sampler.data_source.source, table_key)
             for evaluator in self.evaluators:
                 log.info(f'{evaluator.name}: {evaluator.result()}')
+                sw_log.set('eval', hash, f'{evaluator.name}', value=float(evaluator.result()))
                 evaluator.reset_state()
 
             eval_gen.sampler.next()
             eval_gen.on_epoch_end()
+            sw_log.vars['gen_counter'] += 1
 
     def setup(self):
         # Build Datagen
@@ -57,7 +64,6 @@ class WSIBinaryClassifierEval(Experiment):
     class Config(Experiment.Config):
         def __init__(self, json_dict: dict, eid: str):
             super().__init__(json_dict, eid)
-            self.batch_size = None
 
             # Generator Selection
             self.eval_gen = None
@@ -68,7 +74,6 @@ class WSIBinaryClassifierEval(Experiment):
 
         def parse(self):
             super().parse()
-            self.batch_size = self.config.get('batch_size')
 
             definitions_config = self.config['definitions']
             configurations_config = self.config.get('configurations', dict())
@@ -89,6 +94,7 @@ class WSIBinaryClassifierEval(Experiment):
 
 
 if __name__=='__main__':
+    sw_log.clear()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -98,9 +104,15 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     json_filepath = args.config_fp
+    sw_log.set('eid', value=args.eid)
     config = WSIBinaryClassifierEval.Config.load_from_file(
         json_filepath=json_filepath,
         eid=args.eid
     )
     config.parse()
     WSIBinaryClassifierEval(config).run()
+
+    # Copy configuration file
+    shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
+    sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
+    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_eval.log')

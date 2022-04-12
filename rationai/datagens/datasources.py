@@ -16,9 +16,11 @@ import pandas as pd
 # Local Imports
 from rationai.utils.config import ConfigProto
 from rationai.training.base.experiments import Experiment
+from rationai.utils.provenance import SummaryWriter
 
 import logging
 log = logging.getLogger('datasources')
+sw_log = SummaryWriter.getLogger('provenance')
 
 
 class DataSource(ABC):
@@ -209,3 +211,4 @@ class HDF5DataSource(DataSource):
             self.split_probas = self.config.get('split_probas', [1.0])
             self.split_on = self.config.get('split_on', list())
             self.seed = self.config.get('seed', np.random.randint(low=0, high=999999))
+            sw_log.set('seed', 'datasource', value=self.seed)

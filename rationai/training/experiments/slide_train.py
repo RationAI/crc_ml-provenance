@@ -1,17 +1,18 @@
 # Standard Imports
 import argparse
 from pathlib import Path
+import shutil
 
 # Third-party Imports
-import numpy as np
-import logging
+
 
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
+from rationai.utils.provenance import SummaryWriter
 
-prov_log = logging.getLogger('prov-training')
-prov_log.setLevel(logging.INFO)
+sw_log = SummaryWriter.getLogger('provenance')
+sw_log.clear()
 
 class WSIBinaryClassifierTrain(Experiment):
     def __init__(self, config):
@@ -20,9 +21,6 @@ class WSIBinaryClassifierTrain(Experiment):
         self.executor = None
         self.model = None
 
-        handler = logging.FileHandler(Experiment.Config.experiment_dir / 'prov-training.log', mode='w+')
-        prov_log.addHandler(handler)
-
     def run(self):
         """WSI Binary Classifer
                 1. Loads data
@@ -30,23 +28,32 @@ class WSIBinaryClassifierTrain(Experiment):
         """
         self.__setup()
         self.__train()
+        sw_log.to_json(Experiment.Config.experiment_dir / 'prov_train.log')
 
     def __train(self):
         """Defines high-level training procedure.
         """
         train_gen = self.generators_dict[self.config.train_gen]
-        train_gen.set_batch_size(self.config.batch_size)
 
         valid_gen = None
         if self.config.valid_gen is not None:
             valid_gen = self.generators_dict[self.config.valid_gen]
-            valid_gen.set_batch_size(self.config.batch_size)
 
         hist_log = self.executor.train(
             self.model,
             train_gen,
             valid_gen,
         )
+
+        self.__process_results(hist_log)
+
+    def __process_results(self, results):
+        for metric, values in results.items():
+            for idx, value in enumerate(values):
+                if metric.startswith('val_'):
+                    sw_log.set('iters', idx, 'metrics', 'valid', metric, value=value)
+                else:
+                    sw_log.set('iters', idx, 'metrics', 'train', metric, value=value)
 
     def __setup(self):
         """Builds components necesary for experiment.
@@ -55,7 +62,6 @@ class WSIBinaryClassifierTrain(Experiment):
             3. Executor
         """
         # Build Datagen
-        prov_log.info(f'datagen: {self.config.datagen_class.__module__}.{self.config.datagen_class.__qualname__}')
         datagen_config = self.config.datagen_class.Config(
             self.config.datagen_config
         )
@@ -71,6 +77,7 @@ class WSIBinaryClassifierTrain(Experiment):
         self.model = self.config.model_class(model_config)
         self.model.compile_model()
         self.model.save_weights(Experiment.Config.experiment_dir / 'init.ckpt')
+        sw_log.set('init_checkpoint_file', value=str(Experiment.Config.experiment_dir / 'init.ckpt'))
 
         # Build Executor
         executor_config = self.config.executor_class.Config(
@@ -84,7 +91,6 @@ class WSIBinaryClassifierTrain(Experiment):
 
         def __init__(self, json_dict: dict, eid: str):
             super().__init__(json_dict, eid)
-            self.batch_size = None
 
             # Model Configuration
             self.model_class_name = None
@@ -104,7 +110,6 @@ class WSIBinaryClassifierTrain(Experiment):
 
         def parse(self):
             super().parse()
-            self.batch_size = self.config.get('batch_size')
 
             definitions_config = self.config['definitions']
             configurations_config = self.config.get('configurations', dict())
@@ -136,10 +141,16 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     json_filepath = args.config_fp
+    sw_log.set('eid', value=args.eid)
     config = WSIBinaryClassifierTrain.Config.load_from_file(
         json_filepath=json_filepath,
         eid=args.eid
     )
     config.parse()
     WSIBinaryClassifierTrain(config).run()
+
+    # Copy configuration file
+    shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
+    sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
+    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_test.log')
 

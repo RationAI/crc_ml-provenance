@@ -1,13 +1,12 @@
 # Standard Imports
-import argparse
-import json
 
 # Third-party Imports
 
 # Local Imports
 from rationai.training.base.experiments import Experiment
-from rationai.utils.class_handler import get_class
+from rationai.utils.provenance import SummaryWriter
 
+sw_log = SummaryWriter.getLogger('provenance')
 
 class BaseSequentialTest(Experiment):
     def __init__(self, config):
@@ -23,8 +22,6 @@ class BaseSequentialTest(Experiment):
         """
         self.__setup()
         test_gen = self.generators_dict[self.config.test_gen]
-        test_gen.set_batch_size(self.config.batch_size)
-        test_gen.name = 'TEST'
 
         while test_gen.sampler.active_node is not None:
             net_predicts = self.executor.predict(
@@ -34,6 +31,7 @@ class BaseSequentialTest(Experiment):
             self.save_predictions(net_predicts, test_gen)
             test_gen.sampler.next()
             test_gen.on_epoch_end()
+            sw_log.vars['gen_counter'] += 1
 
     def __setup(self):
         """Builds components necesary for experiment.

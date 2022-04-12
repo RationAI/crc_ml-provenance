@@ -1,6 +1,7 @@
 # Standard Imports
 from pathlib import Path
 import argparse
+import shutil
 
 # Third-party Imports
 import pandas as pd
@@ -9,6 +10,9 @@ import pandas as pd
 from rationai.training.experiments.base_sequential_test import BaseSequentialTest
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
+from rationai.utils.provenance import SummaryWriter
+
+sw_log = SummaryWriter.getLogger('provenance')
 
 class WSIBinaryClassifierTest(BaseSequentialTest):
     """Provides predictions for each slide.
@@ -26,7 +30,13 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             'a'
         )
         super().run()
+        hashes = SummaryWriter.hash_tables(
+            hdfs_handler=self.generators_dict[self.config.test_gen].sampler.data_source.source,
+            table_keys=self.generators_dict[self.config.test_gen].sampler.data_source.tables,
+        )
+        sw_log.set('splits', self.generators_dict[self.config.test_gen].name, value=hashes)
         self.hdfstore_output.close()
+        sw_log.set('predictions', 'prediction_file', value=str(Experiment.Config.experiment_dir / "predictions.h5"))
 
     def save_predictions(self, predictions, test_gen):
         """Saves predictions in a file.
@@ -48,12 +58,17 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             .attrs \
             .metadata = output_metadata
 
+        hash = SummaryWriter.hash_table(
+            hdfs_handler=self.hdfstore_output,
+            table_key=output_table_key
+        )
+        sw_log.set('predictions', 'sha256', f'table_{sw_log.vars["gen_counter"]}_sha256', value=hash)
+
     class Config(Experiment.Config):
         result_dir = None
 
         def __init__(self, json_dict: dict, eid: str):
             super().__init__(json_dict, eid)
-            self.batch_size = None
 
             # Model Configuration
             self.model_class_name = None
@@ -72,7 +87,6 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
 
         def parse(self):
             super().parse()
-            self.batch_size = self.config.get('batch_size')
 
             definitions_config = self.config['definitions']
             configurations_config = self.config.get('configurations', dict())
@@ -93,6 +107,7 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             self.datagen_config = configurations_config.get('datagen', dict())
 
 if __name__=='__main__':
+    sw_log.clear()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -102,6 +117,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     json_filepath = args.config_fp
+    sw_log.set('eid', value=args.eid)
     config = WSIBinaryClassifierTest.Config.load_from_file(
         json_filepath=json_filepath,
         eid=args.eid
@@ -109,3 +125,7 @@ if __name__=='__main__':
     config.parse()
     WSIBinaryClassifierTest(config).run()
 
+    # Copy configuration file
+    shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
+    sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
+    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_test.log')

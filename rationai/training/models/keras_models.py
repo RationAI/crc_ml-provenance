@@ -1,6 +1,7 @@
 # Standard Imports
 from abc import ABC
 from typing import NoReturn
+from pathlib import Path
 
 # Third-party Imports
 import numpy as np
@@ -14,15 +15,16 @@ from tensorflow.keras.layers import Conv2DTranspose
 from tensorflow.keras.layers import concatenate
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import LayerNormalization
-from tensorflow.keras.layers.experimental.preprocessing import Rescaling
 
 # Local Imports
 from rationai.training.base.models import Model
 from rationai.utils.config import ConfigProto
 from rationai.utils.class_handler import get_class
+from rationai.utils.provenance import SummaryWriter
 
 import logging
 log = logging.getLogger('models')
+sw_log = SummaryWriter.getLogger('provenance')
 
 
 class KerasModel(ABC, Model):
@@ -34,7 +36,8 @@ class KerasModel(ABC, Model):
     def load_weights(self) -> NoReturn:
         if self.config.checkpoint is not None:
             log.info(f'Loading weights from: {self.config.checkpoint}')
-            self.model.load_weights(str(self.config.checkpoint))
+            sw_log.set('model', 'checkpoint_file', value=str(Path(self.config.checkpoint).resolve()))
+            self.model.load_weights(str(self.config.checkpoint)).expect_partial()
 
     def save_weights(self, output_path) -> NoReturn:
         self.model.save_weights(output_path, save_format='tf')
@@ -65,6 +68,7 @@ class KerasModel(ABC, Model):
 
         def parse(self):
             self.seed = self.config.get('seed', np.random.randint(low=0, high=999999))
+            sw_log.set('seed', 'model', value=self.seed)
             self.checkpoint = self.config.get('checkpoint', None)
             self.input_shape = tuple(self.config['input_shape'])
             self.output_size = self.config['output_size']
