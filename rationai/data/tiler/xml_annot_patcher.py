@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 import argparse
 import logging
+import shutil
 import json
 import copy
 
@@ -33,6 +34,7 @@ from openslide import OpenSlide
 from rationai.utils.utils import read_polygons
 from rationai.utils.utils import open_pil_image
 from rationai.utils.config import ConfigProto
+from rationai.utils.provenance import SummaryWriter
 
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
@@ -44,6 +46,8 @@ log = logging.getLogger('slide-converter')
 logging.basicConfig(level=logging.INFO,
                    format='[%(asctime)s][%(levelname).1s][%(process)d][%(filename)s][%(funcName)-25.25s] %(message)s',
                    datefmt='%d.%m.%Y %H:%M:%S')
+
+sw_log = SummaryWriter.getLogger('provenance')
 
 @dataclass
 class ROITile:
@@ -799,7 +803,15 @@ def main(args):
     for cfg in SlideConverter.Config(args.config_fp):
         if not cfg.output_dir.exists():
             cfg.output_dir.mkdir(parents=True)
-        dataset_h5 = dataset_h5 or pd.HDFStore((cfg.output_dir / cfg.output_dir.name).with_suffix('.h5'), 'w')
+
+        if dataset_h5 is None:
+            dataset_h5 = pd.HDFStore((cfg.output_dir / cfg.output_dir.name).with_suffix('.h5'), 'w')
+            # Copy configuration file
+            shutil.copy2(args.config_fp, cfg.output_dir / args.config_fp.name)
+
+            sw_log.set('config_file',  value=str((cfg.output_dir / args.config_fp.name).resolve()))
+            sw_log.set('dataset_file', value=str(((cfg.output_dir / cfg.output_dir.name).with_suffix(".h5")).resolve()))
+
         log.info(f'Spawning {cfg.max_workers} workers.')
         with Pool(cfg.max_workers) as p:
             for table_key, table, metadata in p.imap(SlideConverter(copy.deepcopy(cfg)), list(cfg.slide_dir.glob(cfg.pattern))):
@@ -807,7 +819,9 @@ def main(args):
                     dataset_h5.append(table_key, table)
                     dataset_h5.get_storer(table_key).attrs.metadata = metadata
 
+    sw_log.to_json((cfg.output_dir / 'prov_preprocess.log').resolve())
     dataset_h5.close()
+
 
 if __name__ == '__main__':
 
