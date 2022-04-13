@@ -42,20 +42,26 @@ This preprocessing script is capable of processing several directories of histpa
 
 The training script first builds a data generator. A generator behaves as following:
 
-  1. A sampling structure is built from the contents of an index file.
-  2. During the training, the Generator samples a patch entry from the Sampler and passes it to an Extractor. 
-  3. The Extractor accesses the correct slide and extracts an RGBA image from the coordinates within the sampled entry. 
-  4. The extracted image is then augmented (if necessary) and normalized before being passed back to the Generator.
-  5. The Generator repeats this process for each sampled entry in a batch before passing the batch to the Model.
+1. A sampling structure is built from the contents of an index file.
+2. During the training, the Generator samples a patch entry from the Sampler and passes it to an Extractor. 
+3. The Extractor accesses the correct slide and extracts an RGBA image from the coordinates within the sampled entry. 
+4. The extracted image is then augmented (if necessary) and normalized before being passed back to the Generator.
+5. The Generator repeats this process for each sampled entry in a batch before passing the batch to the Model.
 
+In the training script, the training slides in the index file are divided into two disjunct sets: training set and validation set.
+For each set a Generator is constructed. During the training the model iterates between two modes:
 
+- **Training mode** - the model updates its own parameters (weights) based on how well it manages to predict a correct label for the patches. 
 
+- **Validation mode** - the model tracks its performance on a previously unseen dataset. It uses this information to create periodic checkpoints on every improvement or to stop the training process prematurely.
 
+### Predictions (slide_test.py)
 
-
-### Test (slide_test.py)
+In this step we load a previously trained model using a checkpoint and make it create predictions for test slides (slides used neither for training nor validation). The predictions for each slide are appended to its corresponding table as to new column and saved to disk as a new HDFStore file.
 
 ### Eval (slide_eval.py)
+
+
 
 ## Provenance Logging
 
