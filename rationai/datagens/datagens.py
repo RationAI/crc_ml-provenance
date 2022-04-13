@@ -82,6 +82,7 @@ from rationai.datagens.datasources import DataSource
 from rationai.datagens.generators import BaseGenerator
 from rationai.utils.class_handler import get_class
 from rationai.utils.provenance import SummaryWriter
+from rationai.utils.provenance import hash_tables_by_keys
 
 import logging
 log = logging.getLogger('datagens')
@@ -148,7 +149,7 @@ class GeneratorDatagen:
 
         generator = generator_class(config=generator_config, name=generator_name, sampler=sampler, extractor=extractor)
 
-        checksums = SummaryWriter.hash_tables(data_source.source, data_source.tables)
+        checksums = hash_tables_by_keys(data_source.source, data_source.tables)
         sw_log.set('splits', generator_name, value=checksums)
 
         if hasattr(sampler.config, 'seed'):

@@ -808,7 +808,6 @@ def main(args):
             dataset_h5 = pd.HDFStore((cfg.output_dir / cfg.output_dir.name).with_suffix('.h5'), 'w')
             # Copy configuration file
             shutil.copy2(args.config_fp, cfg.output_dir / args.config_fp.name)
-
             sw_log.set('config_file',  value=str((cfg.output_dir / args.config_fp.name).resolve()))
             sw_log.set('dataset_file', value=str(((cfg.output_dir / cfg.output_dir.name).with_suffix(".h5")).resolve()))
 

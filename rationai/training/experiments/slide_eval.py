@@ -11,6 +11,8 @@ log = logging.getLogger('ex_eval')
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
 from rationai.utils.provenance import SummaryWriter
+from rationai.utils.provenance import hash_table
+
 
 sw_log = SummaryWriter.getLogger('provenance')
 
@@ -32,7 +34,7 @@ class WSIBinaryClassifierEval(Experiment):
                     evaluator.update_state(input_dict)
 
             table_key = eval_gen.epoch_samples[0].entry['_table_key']
-            hash = SummaryWriter.hash_table(eval_gen.sampler.data_source.source, table_key)
+            hash = hash_table(eval_gen.sampler.data_source.source, table_key)
             for evaluator in self.evaluators:
                 log.info(f'{evaluator.name}: {evaluator.result()}')
                 sw_log.set('eval', hash, f'{evaluator.name}', value=float(evaluator.result()))

@@ -11,6 +11,8 @@ from rationai.training.experiments.base_sequential_test import BaseSequentialTes
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
 from rationai.utils.provenance import SummaryWriter
+from rationai.utils.provenance import hash_tables_by_keys
+from rationai.utils.provenance import hash_table
 
 sw_log = SummaryWriter.getLogger('provenance')
 
@@ -30,7 +32,7 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             'a'
         )
         super().run()
-        hashes = SummaryWriter.hash_tables(
+        hashes = hash_tables_by_keys(
             hdfs_handler=self.generators_dict[self.config.test_gen].sampler.data_source.source,
             table_keys=self.generators_dict[self.config.test_gen].sampler.data_source.tables,
         )
@@ -58,7 +60,7 @@ class WSIBinaryClassifierTest(BaseSequentialTest):
             .attrs \
             .metadata = output_metadata
 
-        hash = SummaryWriter.hash_table(
+        hash = hash_table(
             hdfs_handler=self.hdfstore_output,
             table_key=output_table_key
         )

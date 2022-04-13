@@ -18,6 +18,7 @@ from tensorflow.keras.layers import LayerNormalization
 
 # Local Imports
 from rationai.training.base.models import Model
+from rationai.training.base.experiments import Experiment
 from rationai.utils.config import ConfigProto
 from rationai.utils.class_handler import get_class
 from rationai.utils.provenance import SummaryWriter
@@ -35,9 +36,14 @@ class KerasModel(ABC, Model):
 
     def load_weights(self) -> NoReturn:
         if self.config.checkpoint is not None:
-            log.info(f'Loading weights from: {self.config.checkpoint}')
-            sw_log.set('model', 'checkpoint_file', value=str(Path(self.config.checkpoint).resolve()))
-            self.model.load_weights(str(self.config.checkpoint)).expect_partial()
+            if not Path(self.config.checkpoint).is_absolute() \
+                and Experiment.Config.experiment_dir is not None:
+                checkpoint_fp = Experiment.Config.experiment_dir / self.config.checkpoint
+            else:
+                checkpoint_fp = self.config.checkpoint
+            log.info(f'Loading weights from: {checkpoint_fp}')
+            sw_log.set('model', 'checkpoint_file', value=str(Path(checkpoint_fp)))
+            self.model.load_weights(str(checkpoint_fp)).expect_partial()
 
     def save_weights(self, output_path) -> NoReturn:
         self.model.save_weights(output_path, save_format='tf')

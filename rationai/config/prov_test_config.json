@@ -37,7 +37,7 @@
             }
         },
         "model": {
-            "checkpoint": "/home/jovyan/matejg/Project/provenance/experiments/SAVE-50c8fcce7ecc50c148904d55/best_val_loss.ckpt",
+            "checkpoint": "best_val_loss.ckpt",
             "input_shape": [512, 512, 3],
             "output_size": 1,
             "dropout": 0.5,
