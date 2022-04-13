@@ -1,0 +1,147 @@
+{
+ "git_commit_hash": "7e867279f9c0d0403ff990b0bfb1d20199691f0e",
+ "eid": "76819bb4f09c642838368b03",
+ "seed": {
+  "datasource": 2022,
+  "train_gen": {
+   "sampler": 2021,
+   "augmenter": 2020
+  },
+  "valid_gen": {
+   "sampler": 2021
+  },
+  "model": 449738
+ },
+ "iters": {
+  "0": {
+   "train_gen": {
+    "sha256": "9a628f06a733110ab491b56c395a7caaf49cc9d042eeb3ef246e667e9e87d15e"
+   },
+   "valid_gen": {
+    "sha256": "6a65542b8d8e8f0cab8c36aff2bc0852323405125356b0cc49f9080ce4631a1f"
+   },
+   "start": "13-Apr-2022 14:51:35",
+   "checkpoints": {
+    "save_1": {
+     "filepath": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/best_val_loss.ckpt",
+     "valid": true
+    },
+    "save_2": {
+     "filepath": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/val_recall_01.ckpt",
+     "valid": true
+    }
+   },
+   "metrics": {
+    "train": {
+     "loss": 0.8860569596290588,
+     "binary_accuracy": 0.6000000238418579,
+     "precision": 0.6666666865348816,
+     "recall": 0.7096773982048035,
+     "auc": 0.5670627951622009
+    },
+    "valid": {
+     "val_loss": 0.7196387052536011,
+     "val_binary_accuracy": 0.5,
+     "val_precision": 0.5,
+     "val_recall": 1.0,
+     "val_auc": 0.7400000095367432
+    }
+   }
+  },
+  "1": {
+   "valid_gen": {
+    "sha256": "6a65542b8d8e8f0cab8c36aff2bc0852323405125356b0cc49f9080ce4631a1f"
+   },
+   "end": "13-Apr-2022 14:51:54",
+   "train_gen": {
+    "sha256": "18bda7c851e12c91d1a88be9899f1fcf956e4983d146b5dd56d3ec7026e140d8"
+   },
+   "start": "13-Apr-2022 14:51:54",
+   "checkpoints": {
+    "save_2": {
+     "filepath": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/val_recall_02.ckpt",
+     "valid": true
+    }
+   },
+   "metrics": {
+    "train": {
+     "loss": 0.6776479482650757,
+     "binary_accuracy": 0.6399999856948853,
+     "precision": 0.6296296119689941,
+     "recall": 0.6800000071525574,
+     "auc": 0.6247999668121338
+    },
+    "valid": {
+     "val_loss": 0.7360047698020935,
+     "val_binary_accuracy": 0.5,
+     "val_precision": 0.0,
+     "val_recall": 0.0,
+     "val_auc": 0.5399999618530273
+    }
+   }
+  },
+  "2": {
+   "valid_gen": {
+    "sha256": "6a65542b8d8e8f0cab8c36aff2bc0852323405125356b0cc49f9080ce4631a1f"
+   },
+   "end": "13-Apr-2022 14:52:05",
+   "train_gen": {
+    "sha256": "7632b327e04d0c229d1992be200537450e6c3f5bd73403f3ac343b4aaba21e65"
+   },
+   "start": "13-Apr-2022 14:52:05",
+   "checkpoints": {
+    "save_2": {
+     "filepath": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/val_recall_03.ckpt",
+     "valid": true
+    }
+   },
+   "metrics": {
+    "train": {
+     "loss": 0.7423139810562134,
+     "binary_accuracy": 0.5799999833106995,
+     "precision": 0.5,
+     "recall": 0.4285714328289032,
+     "auc": 0.5279146432876587
+    },
+    "valid": {
+     "val_loss": 0.7303154468536377,
+     "val_binary_accuracy": 0.5,
+     "val_precision": 0.0,
+     "val_recall": 0.0,
+     "val_auc": 0.4399999976158142
+    }
+   }
+  },
+  "3": {
+   "valid_gen": {
+    "sha256": "6a65542b8d8e8f0cab8c36aff2bc0852323405125356b0cc49f9080ce4631a1f"
+   },
+   "end": "13-Apr-2022 14:52:16",
+   "train_gen": {
+    "sha256": "fa56a3366490b58521aefdd6f67412dc29b4737003ccfaae9256febc8c553d33"
+   }
+  }
+ },
+ "splits": {
+  "train_gen": {
+   "table_0_sha256": "25af454ee3c3282610927bf61dfd4adc3ae74f50df711275c3a3d364cb5f3361",
+   "table_1_sha256": "0eea5dc0eac5bfe36799c9b14de9b8706729dd6031ee82bbe688c5ba10f9db26",
+   "table_2_sha256": "a0d0fe5f3e64691a9140a6189885e240321ebf77b19a54d467ca07b32f603e78",
+   "table_3_sha256": "508c979f040e591121020cb0ab691718d5ea48fd168b0c492292e127a2f7ef83",
+   "table_4_sha256": "98f079457346abf6d034a05c77f93451aa40723bd2b22fbccbd0be1912a5bb91",
+   "table_5_sha256": "6fe5ae7dcbd55dac34d070a296405d9b9c6d45b562d9b0e1abc86ee87b329fc3",
+   "table_6_sha256": "bcec098a0325335206ee33482a09d430094fdd1e588f54a9df0ca6decd546ec5"
+  },
+  "valid_gen": {
+   "table_0_sha256": "978aca9780f7558436d30c642078ec34c8a2574b7fa6c1841424298ff5dca5b6",
+   "table_1_sha256": "b40dba577944d07924cd00e96fc551fdaa7a9e74356249fc2e0591f4bb165d6a",
+   "table_2_sha256": "f8dff96ecf93db39515df07d96a5b7d6bfdd26d9cab205907b86500af274f9b5"
+  }
+ },
+ "init_checkpoint_file": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/init.ckpt",
+ "train": {
+  "start": "13-Apr-2022 14:51:35",
+  "end": "13-Apr-2022 14:52:16"
+ },
+ "config_file": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/prov_train_config.json"
+}

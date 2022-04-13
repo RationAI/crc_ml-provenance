@@ -1,0 +1,44 @@
+{
+ "git_commit_hash": "7e867279f9c0d0403ff990b0bfb1d20199691f0e",
+ "eid": "76819bb4f09c642838368b03",
+ "seed": {
+  "datasource": 454181,
+  "model": 193849
+ },
+ "iters": {
+  "0": {
+   "test_gen": {
+    "sha256": "7bffbe449367011608156a56917268b50fb236670d2bb2e5b2ede51039dda4ed"
+   }
+  },
+  "1": {
+   "test_gen": {
+    "sha256": "6eda0b25f595d8230a2e636cca688ba72624027f88be27a9bce745c8873c88b9"
+   }
+  },
+  "2": {
+   "test_gen": {
+    "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91"
+   }
+  }
+ },
+ "splits": {
+  "test_gen": {
+   "table_0_sha256": "1216eb02f99327a6600342e45d839fad56d3aa0a78408ebc0b09f760c53d95be",
+   "table_1_sha256": "6f99f4a60d59c5dc0335038fca68c9c6bdeaa50983a6556da82f081b9a3e5194",
+   "table_2_sha256": "ca09b59e952039092f5a26a0febc5c1ab8b38e04fb884f3514281624c0d43bd1"
+  }
+ },
+ "model": {
+  "checkpoint_file": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/best_val_loss.ckpt"
+ },
+ "predictions": {
+  "sha256": {
+   "table_0_sha256": "ecf59b64d9b6859c3e6e41203233106d1d34d922145a9ba084c9212efd6697e8",
+   "table_1_sha256": "e525fc19b7d44498af3afb0c2dde4530acdf27d6a8c8d61b38a242462f1bdc5c",
+   "table_2_sha256": "b0ed811995101f2cc08fe75386c5b8d8d2e961c9bb9ea2294cf67d440e053f05"
+  },
+  "prediction_file": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/predictions.h5"
+ },
+ "config_file": "/home/meta/matejg/Project/provenance/experiments/76819bb4f09c642838368b03/prov_test_config.json"
+}
