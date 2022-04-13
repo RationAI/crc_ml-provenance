@@ -8,15 +8,17 @@ The branch contains a portion of the Histopat pipeline necessary to run an examp
 
 The pipeline works with units called Experiments. An Experiment defines a logic of a job to be run using a configuration file. A configuration file is a nested JSON file describing the following:
 
-- **Definitions** - defines what components (Data, Generator, Model, Callbacks, etc) are to be used in the experiment
-- **Configurations** - defines the parameters of the components
+- **Definitions** defines what components (Data, Generator, Model, Callbacks, etc) are to be used in the experiment
+- **Configurations** defines the parameters of the components
 
 Sample configuration files can be found in `rationai/config/` directory. The pipeline can be run using the provided Makefile files:
 
 **Slide conversion**
+
 `make -f Makefile.convert run CONFIG_FILE=rationai/config/prov_converter_config.json`
 
 **Experiments**
+
 `make -f Makefile.experiment run TRAIN_CONFIG=rationai/config/prov_train_config.json TEST_CONFIG=rationai/config/prov_test_config.json EVAL_CONFIG=rationai/config/prov_eval_config.json EID_PREFIX=PROV`
 
 alternatively, each experiment can be run individually
@@ -53,6 +55,7 @@ log.to_json(filepath)
 In order to parse the logs and generate provenanace graph we can call the `Makefile.provenance` file.
 
 **Provenance Graph Generation**
+
 `make -f Makefile.provenance run TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log PREPROC_LOG=data/prov_preprocess.log`
 
 
