@@ -86,6 +86,12 @@ log.to_json(filepath)
 
 ```
 
+### Preprocessing
+
+### Training
+
+### Predicting and Evaluation
+
 ## Provenanace generation
 
 In order to parse the logs and generate provenanace graph we can call the `Makefile.provenance` file.
