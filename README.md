@@ -36,11 +36,11 @@ This preprocessing script is capable of processing several directories of histpa
 3. A sliding window technique is then applied on a background mask to generate patches. If a patch contains less tissue than a pre-defined threshold, the patch is discarded.
 4. If a patch is not filtered by a background filter it is assigned label according the binary label mask.
 5. Information about the patch (coordinates, label) is the added to a pandas table.
-6. After all patches of a slide are processed, slide metadata are added to the pandas table and the entire table is inserted into an index file (pandas HDFStore file).
+6. After all patches of a slide are processed, slide metadata (slide filepath, annotation filepath, etc) are added to the pandas table and the entire table is inserted into an index file (pandas HDFStore file).
 
 ### Training (slide_train.py)
 
-
+The training script first builds a data generator. The builder takes an index file as an input and builds a sampling structure from its content. During the training, the generator samples a patch entry from the Sampler and passes it to an Extractor. Extractor accesses the correct slide and extracts and RGBA based on the sampled entry. The extracted image is then augmented (if necessary) and normalized before passing it back to the Generator. The Generator repeats this process for each sampled entry in a batch before passing the batch to the Model.
 
 ### Test (slide_test.py)
 
