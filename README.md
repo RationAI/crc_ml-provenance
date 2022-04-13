@@ -57,11 +57,11 @@ For each set a Generator is constructed. During the training the model iterates 
 
 ### Predictions (slide_test.py)
 
-In this step we load a previously trained model using a checkpoint and make it create predictions for test slides (slides used neither for training nor validation). The predictions for each slide are appended to its corresponding table as to new column and saved to disk as a new HDFStore file.
+In this step we load a previously trained model using a checkpoint and make it create predictions for test slides (slides used neither for training nor validation). The predictions for each slide are appended to its corresponding table as to new column and saved to disk as a new predictions HDFStore file.
 
 ### Eval (slide_eval.py)
 
-
+During evaluation Evaluator objects are used to calculate metrics of interest (Accuracy, Precision, Recall, etc). Generator during evaluation uses different Extractor. Instead of accessing slides and retrieving images the Extractor retrieves only those columns from the HDFStore tables that are required by the Evaluators.
 
 ## Provenance Logging
 
