@@ -40,7 +40,18 @@ This preprocessing script is capable of processing several directories of histpa
 
 ### Training (slide_train.py)
 
-The training script first builds a data generator. The builder takes an index file as an input and builds a sampling structure from its content. During the training, the generator samples a patch entry from the Sampler and passes it to an Extractor. Extractor accesses the correct slide and extracts and RGBA based on the sampled entry. The extracted image is then augmented (if necessary) and normalized before passing it back to the Generator. The Generator repeats this process for each sampled entry in a batch before passing the batch to the Model.
+The training script first builds a data generator. A generator behaves as following:
+
+  1. A sampling structure is built from the contents of an index file.
+  2. During the training, the Generator samples a patch entry from the Sampler and passes it to an Extractor. 
+  3. The Extractor accesses the correct slide and extracts an RGBA image from the coordinates within the sampled entry. 
+  4. The extracted image is then augmented (if necessary) and normalized before being passed back to the Generator.
+  5. The Generator repeats this process for each sampled entry in a batch before passing the batch to the Model.
+
+
+
+
+
 
 ### Test (slide_test.py)
 
