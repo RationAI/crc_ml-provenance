@@ -5,7 +5,6 @@ import shutil
 
 # Third-party Imports
 
-
 # Local Imports
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
@@ -28,7 +27,6 @@ class WSIBinaryClassifierTrain(Experiment):
         """
         self.__setup()
         self.__train()
-        sw_log.to_json(Experiment.Config.experiment_dir / 'prov_train.log')
 
     def __train(self):
         """Defines high-level training procedure.
@@ -152,5 +150,5 @@ if __name__=='__main__':
     # Copy configuration file
     shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
     sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
-    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_test.log')
+    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_train.log')
 

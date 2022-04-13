@@ -120,14 +120,12 @@ def export_provenance(test_log_fp: Path, eval_log_fp: Path) -> None:
     # Main Activities
     testRun = bndl.activity(f"{NAMESPACE_EVAL}:predict", other_attributes={
         'experiment_ID': log_t['eid'],
-        f"gitCommitHash": f"",
-        f"libraries-requirements.txt": f"",
+        f"git_commit_hash": log_t['git_commit_hash']
     })
 
     evalRun = bndl.activity(f'{NAMESPACE_EVAL}:evaluate', other_attributes={
         'experiment_ID': log_e['eid'],
-        f"gitCommitHash": f"",
-        f"libraries-requirements.txt": f"",
+        f"git_commit_hash": log_e['git_commit_hash'],
     })
 
     # Data Entities

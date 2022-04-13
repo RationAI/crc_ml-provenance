@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import prov.model
 import prov.dot
+import pygit2
 
 
 # Local Imports
@@ -98,7 +99,9 @@ class SummaryWriter:
             json.dump(self.data, json_log, indent=True)
 
     def clear(self):
-        self.data = {}
+        self.data = {
+            'git_commit_hash': pygit2.Repository('.').revparse_single('HEAD').hex
+        }
         self.vars = {
             'gen_counter': 0,
             'save_id': 0

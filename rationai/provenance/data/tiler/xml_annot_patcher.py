@@ -102,8 +102,7 @@ def export_provenance(log_fp: Path) -> None:
     # Activity Node
     gzact = bndl.activity(f"{NAMESPACE_PREPROC}:tilesGeneration", other_attributes={
         f"{NAMESPACE_PROV}:label": f"tiles generation",
-        f"gitCommitHash": f"",
-        f"libraries-requirements.txt": f"",
+        "git_commit_hash": log_t['git_commit_hash']
     })
 
     # Output Entity Node

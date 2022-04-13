@@ -65,7 +65,10 @@ def export_provenance(log_fp: Path) -> None:
     # Main Activity - they are ordered (Splitter -> Generators -> Train Iters -> Valid Iters)
     act_epochs = len(log_t['iters'].keys()) - 1  # Note: Generators' on_epoch_end() will create one additional epochs in the logs.
 
-    other_attributes = {f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:mainActivity"}
+    other_attributes = {
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:mainActivity",
+        'git_commit_hash': log_t['git_commit_hash']
+    }
 
     has_part = 0
     if USE_VALIDATION:
