@@ -110,4 +110,6 @@ In order to parse the logs and generate provenanace graph we can call the `Makef
 
 `make -f Makefile.provenance run TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log PREPROC_LOG=data/prov_preprocess.log`
 
+The result of this command are three provenance graph PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
+
 
