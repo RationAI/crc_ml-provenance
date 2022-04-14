@@ -77,6 +77,9 @@ Due to the heavy focus on configuration-driven approach a significant portion of
 
 - **Evaluations** - similar to training we log the states of a Datasource and the results of Evaluators.
 
+
+> The resulting logs and configuration files of a short sample run can be found in [outputs/experiment_logs](https://gitlab.ics.muni.cz/rationai/crc_ml/histopat/-/tree/new-auto-provenance/outputs/experiment_logs).
+
 ### Logging
 
 During a regular run of an experiment a structured JSON log is being constructed using a custom `SummaryWriter` object. Only a single copy with a given name can exist at any given time. Retrieveing a `SummaryWriter` object with the same name from multiple locations results in the same object similarly to standard `logging.Logger`. 
@@ -111,5 +114,7 @@ In order to parse the logs and generate provenanace graph we can call the `Makef
 `make -f Makefile.provenance run TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log PREPROC_LOG=data/prov_preprocess.log`
 
 The result of this command are three provenance graph PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
+
+> The resulting image files of a short sample run can be found in [outputs/provenance_graphs](https://gitlab.ics.muni.cz/rationai/crc_ml/histopat/-/tree/new-auto-provenance/outputs/provenance_graphs).
 
 
