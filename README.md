@@ -63,7 +63,21 @@ In this step we load a previously trained model using a checkpoint and make it c
 
 During evaluation Evaluator objects are used to calculate metrics of interest (Accuracy, Precision, Recall, etc). Generator during evaluation uses different Extractor. Instead of accessing slides and retrieving images the Extractor retrieves only those columns from the HDFStore tables that are required by the Evaluators.
 
-## Provenance Logging
+
+
+## Provenance Generation
+
+Due to the heavy focus on configuration-driven approach a significant portion of the experiments can be documented by a provenance by either processing to the configuration file or referring to a github repository. This leaves us with information that is a result of a random process (splitting, sampling, checkpoints). For this example we have decided for a simple approach of logging. We export key-value pairs of interest into a structured JSON log to be processed by a provenanace generation script.
+
+- **Preprocessing** - no special logging is needed as the entire process is deterministic. As such only the configuration file, github repository URL, and the output file are necessary for provenanace generation. Only a hashed content of the output dataset will be presented in the final provenance.
+
+- **Training** - in order to validate reproducibility of an experiment we log the states of the following objects: Datasource (hashed content of data split sets), Generator (hashed sampled entries for each epoch), Model (training and validation metric at the end of an epoch; checkpoints). 
+
+- **Predictions** - similar to training we log the states of a Datasource and the output file (predictions).
+
+- **Evaluations** - similar to training we log the states of a Datasource and the results of Evaluators.
+
+### Logging
 
 During a regular run of an experiment a structured JSON log is being constructed using a custom `SummaryWriter` object. Only a single copy with a given name can exist at any given time. Retrieveing a `SummaryWriter` object with the same name from multiple locations results in the same object similarly to standard `logging.Logger`. 
 
@@ -86,13 +100,9 @@ log.to_json(filepath)
 
 ```
 
-### Preprocessing
 
-### Training
 
-### Predicting and Evaluation
-
-## Provenanace generation
+### Generation
 
 In order to parse the logs and generate provenanace graph we can call the `Makefile.provenance` file.
 
