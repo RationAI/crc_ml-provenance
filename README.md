@@ -125,7 +125,7 @@ In order to parse the logs and generate resulting provenance according to the pr
 
 `make -f Makefile.provenance run TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log PREPROC_LOG=data/prov_preprocess.log`
 
-The result of this command are three provenance graph PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
+The result of this command are three provenance bundles depicted in PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
 
 > The resulting provenance graphs serialized into a graphical format can be found in [outputs/provenance_graphs](outputs/provenance_graphs). The underlying library for provenance handling would enable serialization of provenance into PROV-O (RDF), PROV-XML and PROV-JSON formats.
 
