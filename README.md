@@ -8,7 +8,7 @@ This repository contains data, code, and other supplementary documents demonstra
 
 ## The Machine Learning Workflow
 
-The ML workflow is implemented as a set of python scripts, and works with units called Experiments. An Experiment defines a logic of a job to be run using a configuration file. An Experiment defines a logic of a job to be run using a configuration file . A configuration file is a nested JSON file describing:
+The ML workflow is implemented as a set of python scripts, and consists of units called Experiments. An Experiment defines a logic of a job to be run using a configuration file . A configuration file is a nested JSON file describing:
 
 - **Definitions** - defining what components (Data, Generator, Model, Callbacks, etc) are to be used in the experiment, and
 - **Configurations** - defining parameters of the components.
