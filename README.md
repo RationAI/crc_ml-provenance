@@ -8,12 +8,12 @@ This repository contains data, code, and other supplementary documents demonstra
 
 ## The Machine Learning Workflow
 
-The ML workflow is implemented as a set of python scripts, and consists of units called Experiments. An Experiment defines a logic of a job to be run using a configuration file . A configuration file is a nested JSON file describing:
+The ML workflow is implemented as a set of python scripts, and consists of units called Experiments. An Experiment defines a logic of a job to be run using a configuration file. A configuration file is a nested JSON file describing:
 
 - **Definitions** - defining what components (Data, Generator, Model, Callbacks, etc) are to be used in the experiment, and
 - **Configurations** - defining parameters of the components.
 
-Sample configuration files can be found in `rationai/config/` directory. The workflow can be run using the provided Makefile files:
+Sample configuration files can be found in `rationai/config/` directory. The workflow can be run using the provided Makefile files.
 
 ### Slide conversion (xml_annot_patcher.py)
 
@@ -89,13 +89,13 @@ Each makefile call creates a new experiment directory `<EID_PREFIX>-<EID_HASH>`,
 
 ## Provenance Generation
 
-Due to the heavy focus on configuration-driven approach a significant portion of the experiments can be documented by a provenance by defining the inputs (configuration file), the function (source code) and the outputs (output files). The configuration file details the modules and parameters used, whilst the source code defines the logic of individual modules and functions used. In our example, in the generated provenance documentation the source code is expressed as a git commit hash. For deterministic processes this is usually enough. 
+Due to the heavy focus on configuration-driven approach a significant portion of the experiments execution can be documented by preserving the inputs (configuration file, WSIs), the function (source code) and the outputs (output files). The configuration file details the modules and parameters used, whilst the source code defines the logic of individual modules and executed functions. In our example, the generated provenance documents the source code as a git commit hash, which is enough for deterministic parts of the computation. 
 
-In case we use a module with randomness (e.g. data splitting, data sampling) we need to retrieve and store the results of these random operations. For this purpose we have decided to use a simple logging approach. We export key-value pairs of interest into a structured JSON log to be subsequently processed by a provenanace generation script.
+In case of a module including randomness (e.g. data splitting, data sampling), we need to retrieve and store the results of these random operations. For this purpose, we have decided to use a simple logging approach. We export key-value pairs of interest into a structured JSON log during the workflow execution, which is  subsequently processed by a provenanace generation script to generate provenance in accordance to the proposed provenance model. The following summarize required logging functionality for each part of the ML workflof:
 
-- **Preprocessing** - no special logging is needed as the entire process is fully deterministic. As such only the configuration file, github repository URL, and the output file are necessary for provenanace generation. Only a hashed content of the output dataset will be presented in the final provenance.
+- **Preprocessing** - no special logging is needed as the entire process is fully deterministic. As such, the configuration file, github repository URL, and the output file are necessary for provenanace generation. Only a hashed content of the output dataset will be included in the generated provenance.
 
-- **Training** - in order to validate reproducibility of an experiment we log the states of the following objects: Datasource (hashed content of data split sets), Generator (hashed sampled entries for each epoch), Model (training and validation metric at the end of an epoch; checkpoints). 
+- **Training** - in order to validate an experiment, we log the states of the following objects: Datasource (hashed content of data split sets), Generator (hashed sampled entries for each epoch), Model (training and validation metric at the end of an epoch; checkpoints). 
 
 - **Predictions** - fully deterministic process. We log the inputs (model checkpoint and dataset), logic (git commit hash) and outputs (HDF5 file with predictions).
 
