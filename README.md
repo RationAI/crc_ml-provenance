@@ -57,16 +57,20 @@ During evaluation Evaluator objects are used to calculate metrics of interest (A
 
 To run all steps (training, prediction and evaluation) run the following command:
 
-`make -f Makefile.experiment run 
+```
+make -f Makefile.experiment run 
 TRAIN_CONFIG=rationai/config/prov_train_config.json 
 TEST_CONFIG=rationai/config/prov_test_config.json 
 EVAL_CONFIG=rationai/config/prov_eval_config.json 
-EID_PREFIX=PROV`
+EID_PREFIX=PROV
+```
 
 alternatively, each experiment can be run individually
 
-`make -f Makefile.experiment setup train 
-TRAIN_CONFIG=rationai/config/prov_train_config.json EID_PREFIX=PROV-TRAIN` 
+```
+make -f Makefile.experiment setup train 
+TRAIN_CONFIG=rationai/config/prov_train_config.json EID_PREFIX=PROV-TRAIN
+``` 
 
 Each makefile call creates a new experiment directory `<EID_PREFIX>-<EID_HASH>`, where `EID_PREFIX` can be set during the Makefile call for easier experiment identification, and `EID_HASH` is generated randomly to minimze experiment overwriting.
 
@@ -117,11 +121,13 @@ In order to parse the logs and generate resulting provenance according to the pr
 
 **Provenance Graph Generation**
 
-`make -f Makefile.provenance run 
+```
+make -f Makefile.provenance run 
 PREPROC_LOG=data/prov_preprocess.log
 TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log 
 TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log 
-EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log `
+EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log 
+```
 
 The result of this command are three provenance bundles depicted in PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
 
