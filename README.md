@@ -27,7 +27,7 @@ The preprocessing script prepares the WSIs to be processed by the ML workflow â€
 6. After all patches of a slide are processed, slide metadata (slide filepath, annotation filepath, etc) are added to the pandas table and the entire table is inserted into an index file (pandas HDFStore file).
 
 ```
-make -f Makefile.convert run 
+make -f Makefile.convert run \
 CONFIG_FILE=rationai/config/prov_converter_config.json
 ```
 
@@ -60,10 +60,10 @@ During evaluation Evaluator objects are used to calculate metrics of interest (A
 To run all steps (training, prediction and evaluation) run the following command:
 
 ```
-make -f Makefile.experiment run 
-TRAIN_CONFIG=rationai/config/prov_train_config.json 
-TEST_CONFIG=rationai/config/prov_test_config.json 
-EVAL_CONFIG=rationai/config/prov_eval_config.json 
+make -f Makefile.experiment run \
+TRAIN_CONFIG=rationai/config/prov_train_config.json \
+TEST_CONFIG=rationai/config/prov_test_config.json \
+EVAL_CONFIG=rationai/config/prov_eval_config.json \
 EID_PREFIX=PROV
 ```
 
@@ -124,11 +124,11 @@ In order to parse the logs and generate resulting provenance according to the pr
 **Provenance Graph Generation**
 
 ```
-make -f Makefile.provenance run 
-PREPROC_LOG=data/prov_preprocess.log
-TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log 
-TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log 
-EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log 
+make -f Makefile.provenance run \
+PREPROC_LOG=data/prov_preprocess.log \
+TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log \
+TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log \
+EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log \
 ```
 
 The result of this command are three provenance bundles depicted in PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
