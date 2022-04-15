@@ -15,30 +15,6 @@ The ML workflow is implemented as a set of python scripts, and consists of units
 
 Sample configuration files can be found in `rationai/config/` directory. The workflow can be run using the provided Makefile files:
 
-**Slide conversion**
-
-This script cuts WSIs into patches, filters them based on the amount of tissue present, labels them, and exports them in a form of HDF5 Index file to disk.
-
-`make -f Makefile.convert run 
-CONFIG_FILE=rationai/config/prov_converter_config.json`
-
-**Executing experiments**
-
-This script uses HDF5 Index file and WSIs to train a model. It then exports the predictions on a test set into a new HDF5 file. This new HDF5 file is used to evaluate the performance of the model.
-
-`make -f Makefile.experiment run 
-TRAIN_CONFIG=rationai/config/prov_train_config.json 
-TEST_CONFIG=rationai/config/prov_test_config.json 
-EVAL_CONFIG=rationai/config/prov_eval_config.json 
-EID_PREFIX=PROV`
-
-alternatively, each experiment can be run individually
-
-`make -f Makefile.experiment setup train 
-TRAIN_CONFIG=rationai/config/prov_train_config.json EID_PREFIX=PROV-TRAIN` 
-
-Each makefile call creates a new experiment directory `<EID_PREFIX>-<EID_HASH>`, where `EID_PREFIX` can be set during the Makefile call for easier experiment identification, and `EID_HASH` is generated randomly to minimze experiment overwriting.
-
 ### Slide conversion (xml_annot_patcher.py)
 
 The preprocessing script prepares the WSIs to be processed by the ML workflow â€“ splits the WSIs into two datasets and partitions each WSI into smaller regions, called patches, which are filtered and labeled. This preprocessing script  can process several directories of WSIs using the openslide-python package. Each slide is the processed in the following manner:
@@ -49,6 +25,10 @@ The preprocessing script prepares the WSIs to be processed by the ML workflow â€
 4. If a patch is not filtered by a background filter, it is assigned label according to the binary label mask.
 5. Information about the patch (coordinates, label) is the added to a pandas table.
 6. After all patches of a slide are processed, slide metadata (slide filepath, annotation filepath, etc) are added to the pandas table and the entire table is inserted into an index file (pandas HDFStore file).
+
+`make -f Makefile.convert run 
+CONFIG_FILE=rationai/config/prov_converter_config.json`
+
 
 ### Training (slide_train.py)
 
@@ -74,7 +54,20 @@ The script loads a previously trained model and executes it to create prediction
 
 During evaluation Evaluator objects are used to calculate metrics of interest (Accuracy, Precision, Recall, etc). Generator uses different Extractor during evaluation. Instead of accessing slides and retrieving images, the Extractor retrieves only those columns from the HDFStore tables that are required by the Evaluators.
 
+The script uses HDF5 Index file and WSIs to train a model. It then exports the predictions on a test set into a new HDF5 file. This new HDF5 file is used to evaluate the performance of the model.
 
+`make -f Makefile.experiment run 
+TRAIN_CONFIG=rationai/config/prov_train_config.json 
+TEST_CONFIG=rationai/config/prov_test_config.json 
+EVAL_CONFIG=rationai/config/prov_eval_config.json 
+EID_PREFIX=PROV`
+
+alternatively, each experiment can be run individually
+
+`make -f Makefile.experiment setup train 
+TRAIN_CONFIG=rationai/config/prov_train_config.json EID_PREFIX=PROV-TRAIN` 
+
+Each makefile call creates a new experiment directory `<EID_PREFIX>-<EID_HASH>`, where `EID_PREFIX` can be set during the Makefile call for easier experiment identification, and `EID_HASH` is generated randomly to minimze experiment overwriting.
 
 ## Provenance Generation
 
