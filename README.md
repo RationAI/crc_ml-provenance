@@ -29,7 +29,6 @@ The preprocessing script prepares the WSIs to be processed by the ML workflow â€
 `make -f Makefile.convert run 
 CONFIG_FILE=rationai/config/prov_converter_config.json`
 
-
 ### Training (slide_train.py)
 
 Training script implements the ML model training. The training script first splits the training set represented as an index file into two disjunct sets: training set and validation set. For both the training and the validation set a Generator is constructed. The generator behaves as following:
@@ -54,7 +53,9 @@ The script loads a previously trained model and executes it to create prediction
 
 During evaluation Evaluator objects are used to calculate metrics of interest (Accuracy, Precision, Recall, etc). Generator uses different Extractor during evaluation. Instead of accessing slides and retrieving images, the Extractor retrieves only those columns from the HDFStore tables that are required by the Evaluators.
 
-The script uses HDF5 Index file and WSIs to train a model. It then exports the predictions on a test set into a new HDF5 file. This new HDF5 file is used to evaluate the performance of the model.
+---
+
+To run all steps (training, prediction and evaluation) run the following command:
 
 `make -f Makefile.experiment run 
 TRAIN_CONFIG=rationai/config/prov_train_config.json 
@@ -116,7 +117,11 @@ In order to parse the logs and generate resulting provenance according to the pr
 
 **Provenance Graph Generation**
 
-`make -f Makefile.provenance run TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log PREPROC_LOG=data/prov_preprocess.log`
+`make -f Makefile.provenance run 
+PREPROC_LOG=data/prov_preprocess.log
+TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log 
+TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log 
+EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log `
 
 The result of this command are three provenance bundles depicted in PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
 
