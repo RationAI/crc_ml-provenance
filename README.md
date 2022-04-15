@@ -26,8 +26,10 @@ The preprocessing script prepares the WSIs to be processed by the ML workflow â€
 5. Information about the patch (coordinates, label) is the added to a pandas table.
 6. After all patches of a slide are processed, slide metadata (slide filepath, annotation filepath, etc) are added to the pandas table and the entire table is inserted into an index file (pandas HDFStore file).
 
-`make -f Makefile.convert run 
-CONFIG_FILE=rationai/config/prov_converter_config.json`
+```
+make -f Makefile.convert run 
+CONFIG_FILE=rationai/config/prov_converter_config.json
+```
 
 ### Training (slide_train.py)
 
