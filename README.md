@@ -1,8 +1,8 @@
 # Histopat Provenanace
 
-This repository contains data, code, and other supplementary documents demonstrating application of the Provenance Backbone concept and underlying provenance model to a use case from digital pathology domain. Content of this repository consists of two parts:
+This repository contains data, code, and other supplementary documents demonstrating application of the Provenance Backbone concept and underlying provenance model to a use case. Content of this repository consists of two parts:
 
-1.  A textual description of the use case and application of the proposed provenance model to document the use case (“Supplementary text” folder),
+1.  A textual description of the use case and application of the proposed provenance model to document the use case (“Manuscript_supplementary” folder),
 2.	Implementation of provenance generation for computational parts of the use case, which is a machine learning (ML) workflow used for cancer detection research. The repository contains a portion of the ML workflow necessary to run the example. The implementation is described in this readme.
 
 
