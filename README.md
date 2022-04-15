@@ -90,7 +90,7 @@ In case we use a module with randomness (e.g. data splitting, data sampling) we 
 
 - **Evaluations** - fully deterministic process. We log the inputs (model checkpoint and dataset), logic (git commit hash) and outputs (results of Evaluators). 
 
-> The corresponding log files and configuration files of an exemplary run of the ML workflow can be found in [outputs/experiment_logs](https://gitlab.ics.muni.cz/rationai/crc_ml/histopat/-/tree/new-auto-provenance/outputs/experiment_logs).
+> The corresponding log files and configuration files of an exemplary run of the ML workflow can be found in [outputs/experiment_logs](/outputs/experiment_logs).
 
 ### Logging
 
@@ -127,6 +127,6 @@ In order to parse the logs and generate resulting provenance according to the pr
 
 The result of this command are three provenance graph PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
 
-> The resulting provenance graphs serialized into a graphical format can be found in [outputs/provenance_graphs](https://gitlab.ics.muni.cz/rationai/crc_ml/histopat/-/tree/new-auto-provenance/outputs/provenance_graphs). The underlying library for provenance handling would enable serialization of provenance into PROV-O (RDF), PROV-XML and PROV-JSON formats.
+> The resulting provenance graphs serialized into a graphical format can be found in [outputs/provenance_graphs](outputs/provenance_graphs). The underlying library for provenance handling would enable serialization of provenance into PROV-O (RDF), PROV-XML and PROV-JSON formats.
 
 
