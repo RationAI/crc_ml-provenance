@@ -3,7 +3,7 @@
 This repository contains data, code, and other supplementary documents demonstrating application of the Provenance Backbone concept and underlying provenance model to a use case from digital pathology domain. Content of this repository consists of two parts:
 
 1.  A textual description of the use case and application of the proposed provenance model to document the use case (“Supplementary text” folder),
-2.	Implementation of provenance generation for computational parts of the use case, which is a machine learning (ML) workflow used for cancer detection research. The repository contains a portion of the ML workflow necessary to run the example. The implementation is described in this readme: a) the first part describes implementation of the ML workflow; b) and the second part describes provenance generation based on workflow execution logs and a configuration file. 
+2.	Implementation of provenance generation for computational parts of the use case, which is a machine learning (ML) workflow used for cancer detection research. The repository contains a portion of the ML workflow necessary to run the example. The implementation is described in this readme.
 
 
 ## The Machine Learning Workflow
