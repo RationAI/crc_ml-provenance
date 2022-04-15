@@ -47,13 +47,31 @@ During the training the model repeatedly alternates between two modes:
 
 - **Validation mode** - the model tracks its performance on the validation dataset, which has not been provided to the ML model before. It uses this information to create periodic checkpoints on every improvement or to stop the training process prematurely.
 
+```
+make -f Makefile.experiment setup train \
+TRAIN_CONFIG=rationai/config/prov_train_config.json \
+EID_PREFIX=PROV-TRAIN
+```
+
 ### Predictions (slide_test.py)
 
 The script loads a previously trained model and executes it to create predictions for test slides (slides used neither for training nor validation of the model). The predictions for each slide are appended to its corresponding table as to new column and saved to disk as a new predictions HDFStore file.
 
+```
+make -f Makefile.experiment setup test \
+TEST_CONFIG=rationai/config/prov_test_config.json \
+EID_PREFIX=PROV-PREDICT
+```
+
 ### Eval (slide_eval.py)
 
 During evaluation Evaluator objects are used to calculate metrics of interest (Accuracy, Precision, Recall, etc). Generator uses different Extractor during evaluation. Instead of accessing slides and retrieving images, the Extractor retrieves only those columns from the HDFStore tables that are required by the Evaluators.
+
+```
+make -f Makefile.experiment setup eval \
+EVAL_CONFIG=rationai/config/prov_eval_config.json \
+EID_PREFIX=PROV-EVAL
+```
 
 ---
 
@@ -66,13 +84,6 @@ TEST_CONFIG=rationai/config/prov_test_config.json \
 EVAL_CONFIG=rationai/config/prov_eval_config.json \
 EID_PREFIX=PROV
 ```
-
-alternatively, each experiment can be run individually
-
-```
-make -f Makefile.experiment setup train 
-TRAIN_CONFIG=rationai/config/prov_train_config.json EID_PREFIX=PROV-TRAIN
-``` 
 
 Each makefile call creates a new experiment directory `<EID_PREFIX>-<EID_HASH>`, where `EID_PREFIX` can be set during the Makefile call for easier experiment identification, and `EID_HASH` is generated randomly to minimze experiment overwriting.
 
