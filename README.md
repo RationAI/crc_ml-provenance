@@ -136,10 +136,10 @@ In order to parse the logs and generate resulting provenance according to the pr
 
 ```
 make -f Makefile.provenance run \
-PREPROC_LOG=data/prov_preprocess.log \
-TRAIN_LOG=experiments/8c85b9321e00eeac082da2c3/prov_train.log \
-TEST_LOG=experiments/8c85b9321e00eeac082da2c3/prov_test.log \
-EVAL_LOG=experiments/8c85b9321e00eeac082da2c3/prov_eval.log \
+PREPROC_LOG=outputs/experiment_logs/prov_preprocess.log \
+TRAIN_LOG=outputs/experiment_logs/prov_train.log \
+TEST_LOG=outputs/experiment_logs/prov_test.log \
+EVAL_LOG=outputs/experiment_logs/prov_eval.log \
 ```
 
 The result of this command are three provenance bundles depicted in PNG images: `prov-preprocessing`, `prov-training`, and `prov-evaluation`.
