@@ -93,7 +93,7 @@ Due to the heavy focus on configuration-driven approach a significant portion of
 
 In case of a module including randomness (e.g. data splitting, data sampling), we need to retrieve and store the results of these random operations. For this purpose, we have decided to use a simple logging approach. We export key-value pairs of interest into a structured JSON log during the workflow execution, which is  subsequently processed by a provenanace generation script to generate provenance in accordance to the proposed provenance model. The following summarize required logging functionality for each part of the ML workflof:
 
-- **Preprocessing** - no special logging is needed as the entire process is fully deterministic. As such, the configuration file, github repository URL, and the output file are necessary for provenanace generation. Only a hashed content of the output dataset will be included in the generated provenance.
+- **Preprocessing** - no special logging is needed as the entire process is fully deterministic. As such, the configuration file, github repository URL, and the output file are necessary for provenanace generation. The output file in the provenance is represented as a set of hashed tables it contains.
 
 - **Training** - since inputs for the model are generated randomly, we log the states of the following objects in order to validate the experiment: Datasource (hashed content of data split sets), Generator (hashed sampled entries for each epoch), Model (training and validation metric at the end of an epoch; checkpoints). 
 
