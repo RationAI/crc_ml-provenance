@@ -95,7 +95,7 @@ In case of a module including randomness (e.g. data splitting, data sampling), w
 
 - **Preprocessing** - no special logging is needed as the entire process is fully deterministic. As such, the configuration file, github repository URL, and the output file are necessary for provenanace generation. Only a hashed content of the output dataset will be included in the generated provenance.
 
-- **Training** - in order to validate an experiment, we log the states of the following objects: Datasource (hashed content of data split sets), Generator (hashed sampled entries for each epoch), Model (training and validation metric at the end of an epoch; checkpoints). 
+- **Training** - since inputs for the model are generated randomly, we log the states of the following objects in order to validate the experiment: Datasource (hashed content of data split sets), Generator (hashed sampled entries for each epoch), Model (training and validation metric at the end of an epoch; checkpoints). 
 
 - **Predictions** - fully deterministic process. We log the inputs (model checkpoint and dataset), logic (git commit hash) and outputs (HDF5 file with predictions).
 
