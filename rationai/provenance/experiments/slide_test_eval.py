@@ -16,7 +16,7 @@ from rationai.provenance import NAMESPACE_TRAINING
 from rationai.provenance import prepare_document
 
 from rationai.utils.provenance import parse_log
-from rationai.utils.provenance import export_to_image
+from rationai.utils.provenance import export_to_image, export_to_provn
 from rationai.utils.provenance import get_sha256
 from rationai.utils.provenance import flatten_dict
 
@@ -131,7 +131,8 @@ def export_provenance(test_log_fp: Path, eval_log_fp: Path) -> None:
     # Data Entities
     predict_file_attrs = {'filepath': log_t['predictions']['prediction_file'], 'sha256': get_sha256(log_t['predictions']['prediction_file'])}
     predict_table_hashes = log_t['predictions']['sha256']
-    testPredicts = bndl.entity(f"{NAMESPACE_EVAL}:testPredictions", other_attributes= predict_file_attrs | predict_table_hashes)
+    predict_file_attrs.update(predict_table_hashes)
+    testPredicts = bndl.entity(f"{NAMESPACE_EVAL}:testPredictions", other_attributes= predict_file_attrs)
     testEvals = bndl.entity(f"{NAMESPACE_EVAL}:testEvaluations", other_attributes=flatten_dict(log_e['eval']))
 
     # Input Data Specializations
@@ -157,6 +158,8 @@ def export_provenance(test_log_fp: Path, eval_log_fp: Path) -> None:
     bndl.wasGeneratedBy(testEvals, evalRun)
 
     export_to_image(bndl, 'evaluation')
+    export_to_provn(doc, 'evaluation')
+
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description=__doc__,

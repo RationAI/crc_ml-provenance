@@ -17,7 +17,7 @@ from rationai.provenance import NAMESPACE_TRAINING
 from rationai.provenance import prepare_document
 
 from rationai.utils.provenance import parse_log
-from rationai.utils.provenance import export_to_image
+from rationai.utils.provenance import export_to_image, export_to_provn
 from rationai.utils.provenance import flatten_lists
 from rationai.utils.provenance import get_sha256
 from rationai.utils.provenance import hash_tables_by_groups
@@ -138,7 +138,9 @@ def export_provenance(log_fp: Path) -> None:
 
             # Folder Config Entity Node
             data_folder = flatten_lists(data_folder)
-            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config {Path(data_folder['slide_dir']).name}", other_attributes=(global_cfg | data_folder))
+            _config = dict(global_cfg)
+            _config.update(data_folder)
+            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config {Path(data_folder['slide_dir']).name}", other_attributes=(_config))
 
             # Folder Table Entity Node
             roiDataTable = bndl.entity(f"{NAMESPACE_PREPROC}:roiTables {Path(data_folder['slide_dir']).name}", other_attributes={})
@@ -159,7 +161,7 @@ def export_provenance(log_fp: Path) -> None:
     bndl.specialization(hdf_file, sendTestingConnEntDataset)
 
     export_to_image(bndl, 'preprocessing')
-
+    export_to_provn(doc, 'preprocessing')
 
 
 if __name__=='__main__':
