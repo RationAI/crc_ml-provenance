@@ -138,7 +138,9 @@ def export_provenance(log_fp: Path) -> None:
 
             # Folder Config Entity Node
             data_folder = flatten_lists(data_folder)
-            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config {Path(data_folder['slide_dir']).name}", other_attributes=(global_cfg | data_folder))
+            _config = dict(global_cfg)
+            _config.update(data_folder)
+            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config {Path(data_folder['slide_dir']).name}", other_attributes=(_config))
 
             # Folder Table Entity Node
             roiDataTable = bndl.entity(f"{NAMESPACE_PREPROC}:roiTables {Path(data_folder['slide_dir']).name}", other_attributes={})

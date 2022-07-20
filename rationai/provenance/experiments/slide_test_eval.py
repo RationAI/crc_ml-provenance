@@ -131,7 +131,8 @@ def export_provenance(test_log_fp: Path, eval_log_fp: Path) -> None:
     # Data Entities
     predict_file_attrs = {'filepath': log_t['predictions']['prediction_file'], 'sha256': get_sha256(log_t['predictions']['prediction_file'])}
     predict_table_hashes = log_t['predictions']['sha256']
-    testPredicts = bndl.entity(f"{NAMESPACE_EVAL}:testPredictions", other_attributes= predict_file_attrs | predict_table_hashes)
+    predict_file_attrs.update(predict_table_hashes)
+    testPredicts = bndl.entity(f"{NAMESPACE_EVAL}:testPredictions", other_attributes= predict_file_attrs)
     testEvals = bndl.entity(f"{NAMESPACE_EVAL}:testEvaluations", other_attributes=flatten_dict(log_e['eval']))
 
     # Input Data Specializations

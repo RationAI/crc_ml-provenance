@@ -72,23 +72,23 @@ def export_provenance(log_fp: Path) -> None:
 
     has_part = 0
     if USE_VALIDATION:
-        other_attributes |= {f'{NAMESPACE_DCT}:hasPart{has_part}': f'{NAMESPACE_TRAINING}:datasetSplitting'}
+        other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:datasetSplitting'
         has_part += 1
 
-    other_attributes |= {f'{NAMESPACE_DCT}:hasPart{has_part}': f'{NAMESPACE_TRAINING}:trainGenerator'}
+    other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:trainGenerator'
     has_part += 1
 
     if USE_VALIDATION:
-         other_attributes |= {f'{NAMESPACE_DCT}:hasPart{has_part}': f'{NAMESPACE_TRAINING}:validGenerator'}
+         other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:validGenerator'
          has_part += 1
 
     for iter_i in range(act_epochs):
-        other_attributes |= {f'{NAMESPACE_DCT}:hasPart{has_part}': f'{NAMESPACE_TRAINING}:trainIter{iter_i}'}
+        other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:trainIter{iter_i}'
         has_part += 1
 
     if USE_VALIDATION:
         for iter_i in range(act_epochs):
-            other_attributes |= {f'{NAMESPACE_DCT}:hasPart{has_part}': f'{NAMESPACE_TRAINING}:validIter{iter_i}'}
+            other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:validIter{iter_i}'
             has_part += 1
 
 
