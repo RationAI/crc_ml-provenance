@@ -17,7 +17,7 @@ from rationai.provenance import NAMESPACE_TRAINING
 from rationai.provenance import prepare_document
 
 from rationai.utils.provenance import parse_log
-from rationai.utils.provenance import export_to_image
+from rationai.utils.provenance import export_to_image, export_to_provn
 from rationai.utils.provenance import flatten_lists
 from rationai.utils.provenance import get_sha256
 from rationai.utils.provenance import hash_tables_by_groups
@@ -161,7 +161,7 @@ def export_provenance(log_fp: Path) -> None:
     bndl.specialization(hdf_file, sendTestingConnEntDataset)
 
     export_to_image(bndl, 'preprocessing')
-
+    export_to_provn(doc, 'preprocessing')
 
 
 if __name__=='__main__':

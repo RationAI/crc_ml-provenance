@@ -16,7 +16,7 @@ from rationai.provenance import NAMESPACE_TRAINING
 from rationai.provenance import prepare_document
 
 from rationai.utils.provenance import parse_log
-from rationai.utils.provenance import export_to_image
+from rationai.utils.provenance import export_to_image, export_to_provn
 from rationai.utils.provenance import get_sha256
 from rationai.utils.provenance import flatten_lists
 
@@ -204,8 +204,7 @@ def export_provenance(log_fp: Path) -> None:
         last_model = result_model
 
     export_to_image(bndl, 'training')
-
-
+    export_to_provn(doc, 'training')
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description=__doc__,

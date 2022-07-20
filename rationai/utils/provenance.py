@@ -217,8 +217,15 @@ def export_to_image(bundle: prov.model.ProvBundle, name: str) -> None:
         name: The name of the bundle as a string, given a suffix to the filename
               of the image.
     """
+    # FIXME: Configure which output directory
     dot = prov.dot.prov_to_dot(bundle)
     dot.write_png(f"prov-{name}.png")
+
+def export_to_provn(doc: prov.model.ProvDocument, name: str) -> None:
+    """Save bundle as a PROV-N document in current directory"""
+    # FIXME: Configure which output directory
+    with open(f"prov-{name}.provn", "w") as f:
+        doc.serialize(f, format="provn")
 
 def get_sha256(filepath: str, mock_env: bool = False) -> str:
     """Generate a SHA256 hash of a file with a given filename.
