@@ -1,0 +1,76 @@
+{
+    "image-registration": {
+      "_global": {
+        "pattern": "*.mrxs",
+        "segmentation_level": 7,
+        "processing_level": 1,
+        "segmentation_closing_diem_he": 5,
+        "segmentation_closing_diem_ce": 5,
+        "min_distance_from_edge": 0,
+        "min_distance_between_regions": 40,
+        "max_distance_between_centroids": 80,
+        "blur_radius": 15,
+        "minimum_area": 1000,
+        "white_thresh": 245,
+        "min_sample_area": 100,
+        "color_seg_kernel_size": 3,
+        "color_seg_max_dist": 6,
+        "color_seg_ratio": 0.5,
+        "he_nuclei_max_area": 300,
+        "he_nuclei_min_area": 50,
+        "ce_nuclei_max_area": 250,
+        "ce_nuclei_min_area": 30,
+        "cytokeratin_optimal_number_nuclei": 600,
+        "hematoxylin_optimal_number_nuceli": 4000,
+        "cytokeratin_optimal_number_nuclei_for_piecewise": 3000,
+        "hematoxylin_optimal_number_nuclei_for_piecewise": 4000,
+        "nuclei_seg_color_thr_min": 0.1,
+        "nuclei_seg_color_thr_max": 1.0,
+        "nuclei_seg_color_thr_steps": 130,
+        "holes_min_area": 50,
+        "mask_min_area": 60,
+        "holes_max_area": 400,
+        "holes_h_proportion": 0.4,
+        "number_of_parallel_grids": 60,
+        "number_of_steps_grid_search_exp": 4,
+        "top_step_size_grid_exp": 6,
+        "bot_step_size_grid_exp": 0,
+        "stopping_bad_suffix_length": 5,
+        "angle_step": 0.01,
+        "number_of_angle_steps": 200,
+        "local_search_number_of_steps": 4,
+        "local_search_step_size": 2,
+        "verbose": true
+      },
+      "test": [
+        {
+          "he_dir": "/mnt/data/home/matejg/Project/histopat_data/HE",
+          "hdab_dir": "/mnt/data/home/matejg/Project/histopat_data/HDAB"
+        }
+      ]
+    },
+    "slide-converter": {
+      "_global": {
+        "output_path": "/mnt/data/home/matejg/Project/histopat/imreg_output",
+        "tile_size": 512,
+        "center_size": 256,
+        "step_size": 128,
+        "sample_level": 0,
+        "bg_level": 0,
+        "force": false,
+        "min_tissue": 0.50,
+        "max_tissue": 1.00,
+        "disk_size": 10,
+        "negative_mode": true,
+        "strict_mode": false,
+        "max_workers": 1,
+        "pattern": "*.tif"
+      },
+      "test": [
+        {
+          "he_dir": "/mnt/data/home/matejg/Project/histopat/imreg_output/test/he/",
+          "ce_dir": "/mnt/data/home/matejg/Project/histopat/imreg_output/test/ce/"
+        }
+      ]
+    }
+  }

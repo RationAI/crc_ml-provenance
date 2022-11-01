@@ -1,0 +1,71 @@
+{
+    "output_dir": "/home/jovyan/matejg/Project/provenance/experiments/",
+    "test_generator": "test_gen",
+    "definitions": {
+        "datagen": "rationai.datagens.datagens.GeneratorDatagen",
+        "model": "rationai.training.models.keras_models.PretrainedNet",
+        "executor": "rationai.training.executors.keras_executors.KerasExecutor"
+    },
+    "configurations": {
+        "datagen": {
+            "data_sources": {
+                "_class": "rationai.datagens.datasources.HDF5DataSource",
+                "_data": "/home/jovyan/matejg/Project/provenance/data/data.h5",
+                "definitions": {
+                    "train_ds": {
+                        "keys": ["test"],
+                        "names": ["test"]
+                    }
+                }
+            },
+            "generators": {
+                "test_gen": {
+                    "components": {
+                        "data_source": "test",
+                        "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                        "extractor": "rationai.datagens.extractors.OpenslideExtractor",
+                        "generator": "rationai.datagens.generators.BaseGeneratorKeras"
+                    },
+                    "configurations": {
+                        "sampler": {"index_levels": ["slide_name"], "seed": 2021},
+                        "augmenter": {"seed": 2020},
+                        "extractor": {},
+                        "generator": {"resample": true, "batch_size": 1}
+                    }
+                }
+            }
+        },
+        "model": {
+            "checkpoint": "best_val_loss.ckpt",
+            "input_shape": [512, 512, 3],
+            "output_size": 1,
+            "dropout": 0.5,
+            "components": {
+                "convolution_network": "tensorflow.keras.applications.VGG16",
+                "output_activation_fn": "tensorflow.keras.activations.sigmoid",
+                "optimizer": "tensorflow.keras.optimizers.Adam",
+                "metrics": [],
+                "loss": "tensorflow.keras.losses.BinaryCrossentropy",
+                "regularizer": "tensorflow.keras.regularizers.L2"
+            },
+            "configurations": {
+                "convolution_network": {"include_top": false, "weights": "imagenet", "pooling": "max"},
+                "optimizer": {"learning_rate": 5e-05},
+                "metrics": [],
+                "loss": {"from_logits": false},
+                "regularizer": {"l2": 5e-05}
+            }
+        },
+        "executor": {
+            "epochs": 1,
+            "max_queue_size": 50,
+            "workers": 10,
+            "use_multiprocessing": false,
+            "callbacks": {
+                "definitions": ["rationai.training.executors.keras_callbacks.ProvenanceCallback"],
+                "configurations": []
+            }
+        }
+    }
+}

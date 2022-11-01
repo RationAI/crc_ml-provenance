@@ -1,0 +1,64 @@
+{
+    "output_dir": "/home/jovyan/matejg/Project/provenance/experiments/",
+    "eval_generator": "eval_gen",
+    "definitions": {
+        "datagen": "rationai.datagens.datagens.GeneratorDatagen",
+        "evaluators": [
+            "rationai.training.evaluators.metrics.BinaryAccuracy",
+            "rationai.training.evaluators.metrics.Precision",
+            "rationai.training.evaluators.metrics.Recall",
+            "rationai.training.evaluators.metrics.TruePositives",
+            "rationai.training.evaluators.metrics.TrueNegatives",
+            "rationai.training.evaluators.metrics.FalsePositives",
+            "rationai.training.evaluators.metrics.FalseNegatives"
+        ]
+    },
+    "configurations": {
+        "datagen": {
+            "data_sources": {
+                "_class": "rationai.datagens.datasources.HDF5DataSource",
+                "_data": "predictions.h5",
+                "definitions": {
+                    "train_ds": {
+                        "keys": ["test"],
+                        "names": ["test"]
+                    }
+                }
+            },
+            "generators": {
+                "eval_gen": {
+                    "components": {
+                        "data_source": "test",
+                        "sampler": "rationai.datagens.samplers.SequentialTreeSampler",
+                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
+                        "extractor": "rationai.datagens.extractors.GenericExtractor",
+                        "generator": "rationai.datagens.generators.BaseGeneratorKeras"
+                    },
+                    "configurations": {
+                        "sampler": {"index_levels": ["slide_name"]},
+                        "augmenter": {},
+                        "extractor": {
+                            "return": {
+                                "y_pred": [{"entry": "pred"}],
+                                "y_true": [{"entry": "is_cancer", "dtype": "float"}]
+                            }
+                        },
+                        "generator": {
+                            "resample": true,
+                            "batch_size": 1
+                        }
+                    }
+                }
+            }
+        },
+        "evaluators": [
+            {"name": "Binary Accuracy", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "Precision", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "Recall", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "TP", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "TN", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "FP", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}},
+            {"name": "FN", "threshold": 0.5, "mapping": {"y_pred": "y_pred", "y_true": "y_true"}}
+        ]
+    }
+}

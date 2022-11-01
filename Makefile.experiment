@@ -1,0 +1,33 @@
+# Variables to set when running the script
+# TRAIN_CONFIG, TEST_CONFIG, EVAL_CONFIG, EID_PREFIX
+
+PIP=pip3
+PYTHON=python3
+EID := $(shell openssl rand -hex 12)
+
+# Prepends EID Prefix if defined
+ifdef EID_PREFIX
+EID := $(EID_PREFIX)-$(EID)
+endif
+
+.PHONY: setup train test eval
+
+run: setup train test eval
+
+setup: requirements.txt
+	$(PIP) install -r requirements.txt
+
+train: $(TRAIN_CONFIG)
+	$(PYTHON) -m rationai.training.experiments.slide_train --config_fp $(TRAIN_CONFIG) --eid $(EID)
+
+test: $(TEST_CONFIG)
+	$(PYTHON) -m rationai.training.experiments.slide_test --config_fp $(TEST_CONFIG) --eid $(EID)
+
+eval: $(EVAL_CONFIG)
+	$(PYTHON) -m rationai.training.experiments.slide_eval --config_fp $(EVAL_CONFIG) --eid $(EID)
+
+help:
+	@echo "This is a help string."
+
+clean:
+	@echo "Cleaning temporary files."
