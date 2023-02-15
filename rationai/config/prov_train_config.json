@@ -1,7 +1,7 @@
 {
-    "output_dir": "/home/jovyan/matejg/Project/provenance/experiments/",
+    "output_dir": "/home/meta/matejg/Data/camelyon16/cam16_experiments/",
     "train_generator": "train_gen",
-    "valid_generator": "valid_gen",
+    "valid_generator": null,
     "definitions": {
         "datagen": "rationai.datagens.datagens.GeneratorDatagen",
         "model": "rationai.training.models.keras_models.PretrainedNet",
@@ -11,14 +11,11 @@
         "datagen": {
             "data_sources": {
                 "_class": "rationai.datagens.datasources.HDF5DataSource",
-                "_data": "/home/jovyan/matejg/Project/provenance/data/data.h5",
+                "_data": "/home/meta/matejg/Data/camelyon16/cam16_mrxs/cam16_mrxs.h5",
                 "definitions": {
                     "train_ds": {
                         "keys": ["train"],
-                        "names": ["train", "valid"],
-                        "split_probas": [0.7, 0.3],
-                        "split_on": "is_cancer",
-                        "seed": 2022
+                        "names": ["train"]
                     }
                 }
             },
@@ -35,39 +32,17 @@
                         "sampler": {
                             "epoch_size": 50,
                             "index_levels": ["is_cancer", "slide_name"],
-                            "seed": 2021
+                            "seed": 2023
                         },
                         "augmenter": {
                             "horizontal_flip": 0.5,
                             "vertical_flip": 0.5,
                             "rotate_interval": [1,3],
-                            "seed": 2020
+                            "seed": 2023
                         },
                         "extractor": {},
                         "generator": {
                             "resample": true,
-                            "batch_size": 1
-                        }
-                    }
-                },
-                "valid_gen": {
-                    "components": {
-                        "data_source": "valid",
-                        "sampler": "rationai.datagens.samplers.RandomTreeSampler",
-                        "augmenter": "rationai.datagens.augmenters.NoOpImageAugmenter",
-                        "extractor": "rationai.datagens.extractors.OpenslideExtractor",
-                        "generator": "rationai.datagens.generators.BaseGeneratorKeras"
-                    },
-                    "configurations": {
-                        "sampler": {
-                            "epoch_size": 10,
-                            "index_levels": ["is_cancer", "slide_name"],
-                            "seed": 2021
-                        },
-                        "augmenter": {},
-                        "extractor": {},
-                        "generator": {
-                            "resample": false,
                             "batch_size": 1
                         }
                     }
@@ -102,7 +77,6 @@
         },
         "executor": {
             "epochs": 3,
-            "validation_freq": 10,
             "max_queue_size": 50,
             "workers": 1,
             "use_multiprocessing": false,
@@ -115,17 +89,17 @@
                     "rationai.training.executors.keras_callbacks.ProvenanceCallback"
                 ],
                 "configurations": [
-                    {"monitor": "val_loss", "patience": 5},
+                    {"monitor": "loss", "patience": 5},
                     {
-                        "filepath": "best_val_loss.ckpt",
-                        "monitor": "val_loss",
+                        "filepath": "best_loss.ckpt",
+                        "monitor": "loss",
                         "save_best_only": true,
                         "save_weights_only": true,
                         "verbose": 1
                     },
                     {
-                        "filepath": "val_recall_{epoch:02d}.ckpt",
-                        "monitor": "val_recall",
+                        "filepath": "auc_{epoch:02d}.ckpt",
+                        "monitor": "auc",
                         "save_best_only": false,
                         "save_weights_only": true,
                         "verbose": 1

@@ -1,16 +1,25 @@
 {
-    "output_dir": "/home/jovyan/matejg/Project/provenance/experiments/",
+    "output_dir": "/home/meta/matejg/Data/camelyon16/cam16_experiments/",
     "test_generator": "test_gen",
     "definitions": {
         "datagen": "rationai.datagens.datagens.GeneratorDatagen",
         "model": "rationai.training.models.keras_models.PretrainedNet",
-        "executor": "rationai.training.executors.keras_executors.KerasExecutor"
+        "executor": "rationai.training.executors.keras_executors.KerasExecutor",
+        "evaluators": [
+            "rationai.training.evaluators.metrics.BinaryAccuracy",
+            "rationai.training.evaluators.metrics.Precision",
+            "rationai.training.evaluators.metrics.Recall",
+            "rationai.training.evaluators.metrics.TruePositives",
+            "rationai.training.evaluators.metrics.TrueNegatives",
+            "rationai.training.evaluators.metrics.FalsePositives",
+            "rationai.training.evaluators.metrics.FalseNegatives"
+        ]
     },
     "configurations": {
         "datagen": {
             "data_sources": {
                 "_class": "rationai.datagens.datasources.HDF5DataSource",
-                "_data": "/home/jovyan/matejg/Project/provenance/data/data.h5",
+                "_data": "/home/meta/matejg/Data/camelyon16/cam16_mrxs/cam16_mrxs.h5",
                 "definitions": {
                     "train_ds": {
                         "keys": ["test"],
@@ -37,7 +46,7 @@
             }
         },
         "model": {
-            "checkpoint": "best_val_loss.ckpt",
+            "checkpoint": "best_loss.ckpt",
             "input_shape": [512, 512, 3],
             "output_size": 1,
             "dropout": 0.5,
@@ -64,8 +73,17 @@
             "use_multiprocessing": false,
             "callbacks": {
                 "definitions": ["rationai.training.executors.keras_callbacks.ProvenanceCallback"],
-                "configurations": []
+                "configurations": [{}]
             }
-        }
+        },
+        "evaluators": [
+            {"name": "Binary Accuracy", "threshold": 0.5, "mapping": {"y_pred": "pred", "y_true": "is_cancer"}},
+            {"name": "Precision", "threshold": 0.5, "mapping": {"y_pred": "pred", "y_true": "is_cancer"}},
+            {"name": "Recall", "threshold": 0.5},
+            {"name": "TP", "threshold": 0.5},
+            {"name": "TN", "threshold": 0.5},
+            {"name": "FP", "threshold": 0.5},
+            {"name": "FN", "threshold": 0.5}
+        ]
     }
 }
