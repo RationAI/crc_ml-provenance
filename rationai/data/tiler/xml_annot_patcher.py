@@ -12,6 +12,7 @@ from datetime import datetime
 import argparse
 import logging
 import shutil
+import uuid
 import json
 import copy
 
@@ -611,18 +612,8 @@ class SlideConverter:
                 - slide_fp       WSI filepath
                 - annot_fp       XML Annotation filepath
                 - sample_level   resolution level at which tiles were sampled
+                - is_cancer      1 if slide contains cancer, otherwise 0
 
-                - tissue type   Shortened tissue type ID
-                - patient_id    Pseudo-anonymized patient ID
-                - case_id       Sequential scan ID for each patient
-                - year          Year when scan was made
-                - is_cancer     1 if slide contains cancer, otherwise 0
-
-                Name convention for slides:
-                    (tissue_type)-(year)_(patient_id)-(case_id)-(cancer).mrxs
-
-                Example:
-                    P-2019_1477-13-1.mrxs
 
         Args:
             slide_fp (Path): WSI filepath.
@@ -634,15 +625,8 @@ class SlideConverter:
         metadata['tile_size'] = self.config.tile_size
         metadata['center_size'] = self.config.center_size
         metadata['sample_level'] = self.config.sample_level
+        metadata['is_cancer'] = annot_fp is not None
 
-        tissue_type, year_patient_id, case_id, is_cancer = self.slide_name.split('-')
-        year, patient_id = year_patient_id.split('_')
-
-        metadata['tissue_type'] = tissue_type
-        metadata['patient_id'] = patient_id
-        metadata['is_cancer'] = is_cancer
-        metadata['case_id'] = case_id
-        metadata['year'] = year
 
         return metadata
 
@@ -797,6 +781,7 @@ class SlideConverter:
             self.output_dir = Path(self.output_dir)
 
 def main(args):
+    sw_log.set('eid', value=str(uuid.uuid4()))
     dataset_h5 = None
 
     # Spawn worker for each slide; maximum `max_workers` simultaneous workers.
@@ -818,6 +803,8 @@ def main(args):
                     dataset_h5.append(table_key, table)
                     dataset_h5.get_storer(table_key).attrs.metadata = metadata
 
+    sw_log.set('script', value=__file__)
+    sw_log.set('end_time', value=SummaryWriter.now())
     sw_log.to_json((cfg.output_dir / 'prov_preprocess.log').resolve())
     dataset_h5.close()
 
