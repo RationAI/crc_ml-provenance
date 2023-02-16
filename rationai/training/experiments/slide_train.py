@@ -150,5 +150,6 @@ if __name__=='__main__':
     # Copy configuration file
     shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
     sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
+    sw_log.set('script', value=__file__)
     sw_log.to_json(Experiment.Config.experiment_dir / 'prov_train.log')
 
