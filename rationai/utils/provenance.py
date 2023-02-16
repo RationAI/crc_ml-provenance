@@ -209,7 +209,7 @@ def hash_table(hdfs_handler: pd.HDFStore, table_key: str) -> str:
     checksum = sha256.hexdigest()
     return checksum
 
-def export_to_image(bundle: prov.model.ProvBundle, name: str) -> None:
+def export_to_image(bundle: prov.model.ProvBundle, filepath: Path) -> None:
     """Create a png image from a bundle and suffix it with given name.
     
     Args: 
@@ -219,12 +219,12 @@ def export_to_image(bundle: prov.model.ProvBundle, name: str) -> None:
     """
     # FIXME: Configure which output directory
     dot = prov.dot.prov_to_dot(bundle)
-    dot.write_png(f"prov-{name}.png")
+    dot.write_png(filepath)
 
-def export_to_provn(doc: prov.model.ProvDocument, name: str) -> None:
+def export_to_provn(doc: prov.model.ProvDocument, filepath: Path) -> None:
     """Save bundle as a PROV-N document in current directory"""
     # FIXME: Configure which output directory
-    with open(f"prov-{name}.provn", "w") as f:
+    with filepath.open("w") as f:
         doc.serialize(f, format="provn")
 
 def get_sha256(filepath: str, mock_env: bool = False) -> str:

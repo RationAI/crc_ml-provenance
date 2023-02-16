@@ -1,6 +1,9 @@
 # Standard Imports
 import argparse
 from pathlib import Path
+import json
+import uuid
+import os
 
 
 # Third-party Imports
@@ -21,7 +24,10 @@ from rationai.utils.provenance import get_sha256
 from rationai.utils.provenance import flatten_lists
 
 
-def export_provenance(log_fp: Path) -> None:
+def export_provenance(experiment_dir: Path) -> None:
+    log_fp =  experiment_dir / 'prov_train.log'
+    assert log_fp.exists(), 'Execution log not found.'
+    
     doc = prepare_document()
     log_t = parse_log(log_fp)
     USE_VALIDATION = log_t['config']['valid_generator'] is not None
@@ -79,8 +85,8 @@ def export_provenance(log_fp: Path) -> None:
     has_part += 1
 
     if USE_VALIDATION:
-         other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:validGenerator'
-         has_part += 1
+        other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:validGenerator'
+        has_part += 1
 
     for iter_i in range(act_epochs):
         other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'{NAMESPACE_TRAINING}:trainIter{iter_i}'
@@ -203,17 +209,36 @@ def export_provenance(log_fp: Path) -> None:
 
         last_model = result_model
 
-    export_to_image(bndl, 'training')
-    export_to_provn(doc, 'training')
+    export_to_image(bndl, (experiment_dir / log_fp.stem).with_suffix('.png'))
+    export_to_provn(doc, (experiment_dir / log_fp.stem).with_suffix('.provn'))
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # Required arguments
-    parser.add_argument('--log_fp', type=Path, required=True, help='Path to provenanace log')
+    parser.add_argument('--config_fp', type=Path, required=True, help='Path to provenanace log of a train run')
+    parser.add_argument('--eid', type=str, required=True, help='Execution UUID')
     args = parser.parse_args()
-
-    export_provenance(args.log_fp)
+    
+    with open(args.config_fp, 'r') as json_in:
+        json_cfg = json.load(json_in)
+    
+    experiment_dir = Path(json_cfg['output_dir']) / args.eid
+    
+    # Provenance of provenance
+    output_log = {
+        'script': str(__file__),
+        'eid': str(uuid.uuid4()),
+        'input': str(args.config_fp.resolve()),
+        'output': {
+            'png': str(experiment_dir / 'prov_train.png'),
+            'provn': str(experiment_dir / 'prov_train.provn')
+        }
+    }
+    with open(experiment_dir / 'prov_train.provn.log', 'w') as json_out:
+        json.dump(output_log, json_out, indent=3)
+    
+    export_provenance(experiment_dir)
 
     
