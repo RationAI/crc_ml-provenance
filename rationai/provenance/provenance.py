@@ -17,6 +17,7 @@ NAMESPACE_TRAINING = "ns_training"
 NAMESPACE_PREPROC = "ns_preprocessing"
 NAMESPACE_PATHOLOGY = "ns_pathology"
 
+NAMESPACE_METAPROV = "metabundle"
 NAMESPACE_COMMON_MODEL = "cpm"
 NAMESPACE_DCT = "dct"
 NAMESPACE_PROV = "prov"
@@ -33,6 +34,7 @@ def prepare_document():
     document.add_namespace(NAMESPACE_EVAL, "eval_uri")
     document.add_namespace(NAMESPACE_TRAINING, "test_uri")
     document.add_namespace(NAMESPACE_PROV, 'prov_uri')
+    document.add_namespace(NAMESPACE_METAPROV, 'metabundle_uri')
     
     document.set_default_namespace('http://example.org/0/')
 
