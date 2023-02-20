@@ -53,7 +53,9 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
         if k == '_global':
             continue
         cents = process_group(crate, k, v, config_dict['slide-converter']['_global']['pattern'])
-        ce_convert['object'] += [crate.add_dataset(dest_path=f'wsi/{k}')]
+        top_dir = crate.add_dataset(dest_path=f'wsi/{k}')
+        top_dir['hasPart'] = cents
+        ce_convert['object'] += [top_dir]
 
     # Create and Map Input Configuration File Entity
     ce_convert['object'] += [crate.add_file(prov_dict['config_file'], properties={

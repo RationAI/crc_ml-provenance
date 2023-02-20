@@ -18,6 +18,10 @@ def create_rocrate(input_log):
     
     crate = ROCrate()
     crate.root_dataset['mentions'] = []
+    crate.metadata.extra_terms.update({
+        'CPMMetaProvenanceFile': 'https://w3id.org/ro/terms/cpm#CPMMetaProvenanceFile',
+        'CPMProvenanceFile': 'https://w3id.org/ro/terms/cpm#CPMProvenanceFile'
+    })
     
     # Test provenance
     meta_test_log_fp = Path(meta_prov_log['input']['test'])

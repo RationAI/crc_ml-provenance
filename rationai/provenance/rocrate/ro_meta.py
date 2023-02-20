@@ -28,7 +28,7 @@ def rocrate_prov(crate, meta_log_fp, meta_prov_dict):
     # Create and Map Output Entities
     assert Path(meta_prov_dict['output']['provn']).exists(), 'meta provn does not exist'
     provn_entity = crate.add_file(meta_prov_dict['output']['provn'], properties={
-        '@type': ['File', 'CPMProvenanceFile'],
+        '@type': ['File', 'CPMMetaProvenanceFile'],
         'name': 'WSI Tiler Provenanace CPM File',
         'encodingFormat': ['text/provenance-notation', {'@id': 'http://www.w3.org/TR/2013/REC-prov-n-20130430/'}],
         'description': 'CPM compliant provenance file generated based on the computation log file.',
