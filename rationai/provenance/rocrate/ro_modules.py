@@ -7,7 +7,7 @@ from rocrate.model.data_entity import DataEntity
 from rocrate.model.file import File
 
 
-class WSI_Collection(DataEntity):
+class WSI_Collection(ContextEntity):
     def __init__(self, crate, source=None, properties=None):
         if properties is None:
             properties = {}
