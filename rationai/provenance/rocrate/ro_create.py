@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 
 from rocrate.rocrate import ROCrate
+from rocrate.model.contextentity import ContextEntity
 
 from rationai.provenance.rocrate.ro_preproc import rocrate_preproc
 from rationai.provenance.rocrate.ro_train import rocrate_train
@@ -22,6 +23,21 @@ def create_rocrate(input_log):
         'CPMMetaProvenanceFile': 'https://w3id.org/ro/terms/cpm#CPMMetaProvenanceFile',
         'CPMProvenanceFile': 'https://w3id.org/ro/terms/cpm#CPMProvenanceFile'
     })
+    
+    # Conformance statements
+    ro_cpm = ContextEntity(crate, 'https://w3id.org/cpm/ro-crate/0.1', properties={
+        '@type': 'CreativeWork',
+        'name': 'Common Provenance Model RO-Crate profile',
+        'version': '0.1'
+    })
+
+    ro_wfrun = ContextEntity(crate, 'https://w3id.org/ro/wfrun/process/0.1', properties={
+        '@type': 'CreativeWork',
+        'name': 'Process Run Crate',
+        'version': '0.1'
+    })
+    crate.add(ro_cpm, ro_wfrun)
+    crate.root_dataset['conformsTo'] = [ro_cpm, ro_wfrun]
     
     # Test provenance
     meta_test_log_fp = Path(meta_prov_log['input']['test'])

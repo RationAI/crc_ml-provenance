@@ -97,7 +97,7 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
     ce_convert['result'] += [provn_entity, provn_log_entity, provn_png_entity]
     provn_entity['about'] += [ce_convert]
     provn_log_entity['about'] += [ce_convert]
-    provn_png_entity['about'] += [ce_convert]
+    provn_png_entity['about'] += [provn_entity]
 
     return crate
 
