@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from rationai.provenance.rocrate.ro_modules import HistopatEntity
+from rationai.provenance.rocrate.ro_modules import HistopatScript
 
 def rocrate_prov(crate, meta_log_fp, meta_prov_dict):
     # First CreateAction Entity
@@ -12,11 +13,18 @@ def rocrate_prov(crate, meta_log_fp, meta_prov_dict):
     crate.root_dataset['mentions'] += [ce_convert]
 
     # Create and Map Instrument Entity
-    instrument = crate.add_file(meta_prov_dict['script'], properties={
-        'name': 'Meta Provenanace Generation Python Script',
-        '@type': ['File', 'SoftwareSourceCode'],
-        'description': 'A python script that translates the computation log files into CPM compliant provenance file.',
-    })
+    instrument = crate.add(
+        HistopatScript(
+            crate,
+            meta_prov_dict['git_commit_hash'],
+            meta_prov_dict['script'],
+            properties={
+                'name': 'Meta Provenanace Generation Python Script',
+                '@type': ['File', 'SoftwareSourceCode'],
+                'description': 'A python script that translates the computation log files into CPM compliant provenance file.'
+            }
+        )
+    )
     ce_convert.instrument = instrument
 
     # Dereference and Map Input Files

@@ -5,6 +5,7 @@ import uuid
 import json
 import os
 from pathlib import Path
+import pygit2
 
 
 # Third-party Imports
@@ -35,6 +36,7 @@ def export_provenance(experiment_dir: Path) -> None:
     
     # Provenance of provenance
     output_log = {
+        'git_commit_hash': str(pygit2.Repository('.').revparse_single('HEAD').hex),
         'script': str(__file__),
         'eid': str(uuid.uuid4()),
         'input': {},

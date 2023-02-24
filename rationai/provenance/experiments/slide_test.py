@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import uuid
 import os
+import pygit2
 
 # Local Imports
 from rationai.provenance import NAMESPACE_COMMON_MODEL
@@ -161,6 +162,7 @@ if __name__=='__main__':
     
     # Provenance of provenance
     output_log = {
+        'git_commit_hash': str(pygit2.Repository('.').revparse_single('HEAD').hex),
         'script': str(__file__),
         'eid': str(uuid.uuid4()),
         'input': str(args.config_fp.resolve()),

@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 
 # Local Imports
-from rationai.training.experiments.base_sequential_test import BaseSequentialTest
 from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
 from rationai.utils.provenance import SummaryWriter

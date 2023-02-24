@@ -58,11 +58,18 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
 
     # Create and Map Instrument Entity
     assert Path(meta_prov_dict['script']).exists(), 'test provgen script does not exist'
-    instrument = crate.add_file(meta_prov_dict['script'], properties={
-        'name': 'Test Provenanace Generation Python Script',
-        '@type': ['File', 'SoftwareSourceCode'],
-        'description': 'A python script that translates the computation log files into CPM compliant provenance file.',
-    })
+    instrument = crate.add(
+        HistopatScript(
+            crate,
+            meta_prov_dict['git_commit_hash'],
+            meta_prov_dict['script'],
+            properties={
+                'name': 'Test Provenanace Generation Python Script',
+                '@type': ['File', 'SoftwareSourceCode'],
+                'description': 'A python script that translates the computation log files into CPM compliant provenance file.'
+            }
+        )
+    )
     ce_convert.instrument = instrument
 
     ce_convert['object'] += [prov_log]

@@ -79,7 +79,8 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
     ]
 
     # First CreateAction Entity
-    ce_convert = crate.add(HistopatEntity(crate, f'#convert_script:{meta_prov_dict["eid"]}:CPM-provgen', properties={
+    ce_convert = crate.add(
+        HistopatEntity(crate, f'#convert_script:{meta_prov_dict["eid"]}:CPM-provgen', properties={
         'name': 'CPM Compliant Tiler Provenanace Generation Execution',
         'description': 'CPM compliant provenance generation for WSI tiling.'
     }))
@@ -87,11 +88,18 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
 
     # Create and Map Instrument Entity
     assert Path(meta_prov_dict['script']).exists(), 'preproc provgen script does not exist'
-    instrument = crate.add_file(meta_prov_dict['script'], properties={
-        'name': 'WSI Tiler Provenanace Generation Python Script',
-        '@type': ['File', 'SoftwareSourceCode'],
-        'description': 'A python script that translates the computation log files into CPM compliant provenance file.',
-    })
+    instrument = crate.add(
+        HistopatScript(
+            crate,
+            meta_prov_dict['git_commit_hash'],
+            meta_prov_dict['script'],
+            properties={
+                'name': 'WSI Tiler Provenanace Generation Python Script',
+                '@type': ['File', 'SoftwareSourceCode'],
+                'description': 'A python script that translates the computation log files into CPM compliant provenance file.'
+            }
+        )
+    )
     ce_convert.instrument = instrument
 
     ce_convert['object'] += [prov_log]
