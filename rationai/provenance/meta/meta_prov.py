@@ -65,7 +65,7 @@ def export_provenance(experiment_dir: Path) -> None:
             'local_png': str(png_filepath),
             'remote_png': str(GRAPH_NAMESPACE_URI + str(Path(BUNDLE_META).with_suffix('.png'))),
             'local_provn': str(provn_filepath),
-            'remote_provn': str(PID_NAMESPACE_URI + BUNDLE_META)
+            'remote_provn': str(PROVN_NAMESPACE_URI + BUNDLE_META)
         }
     }
         

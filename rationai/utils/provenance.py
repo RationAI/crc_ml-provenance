@@ -306,10 +306,30 @@ def export_to_datacite(
         test_mode=True
     )
     
+    metadata= {
+        'identifiers': [{
+            'identifierType': 'DOI',
+            'identifier': entity_identifier,
+        }],
+        'creators': [
+            {'name': 'Rudolf Wittner'},
+            {'name': 'Matej Gallo'}
+        ],
+        'titles': [
+            {'title': f'CPM Linking Paper {entity_identifier.split("/")[-1]}', }
+        ],
+        'publisher': 'Masaryk University',
+        'publicationYear': '2023',
+        'types': {
+            'resourceType': 'Text',
+            'resourceTypeGeneral': 'Text'
+        },
+        'schemaVersion': 'http://datacite.org/schema/kernel-4',
+    }
+    
     try:
-        d.draft_doi(doi=entity_identifier)
-    except DataCiteError:
-        pass # If draft already exists, ignore exception
-    finally:
-        d.update_url(doi=entity_identifier, url=remote_git_repo_path)
+        d.public_doi(metadata=metadata, url=remote_git_repo_path, doi=entity_identifier)
+    except DataCiteError as e:
+        d.update_doi(doi=entity_identifier, metadata=metadata, url=remote_git_repo_path)
+        
 
