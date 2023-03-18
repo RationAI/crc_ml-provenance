@@ -17,5 +17,7 @@ from .provenance import PID_NAMESPACE
 from .provenance import PID_NAMESPACE_URI
 from .provenance import PROVN_NAMESPACE
 from .provenance import PROVN_NAMESPACE_URI
+from .provenance import GRAPH_NAMESPACE
+from .provenance import GRAPH_NAMESPACE_URI
 
 from .provenance import get_bundle_identifier

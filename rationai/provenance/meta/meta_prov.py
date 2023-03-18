@@ -12,6 +12,7 @@ import pygit2
 
 
 # Local Imports
+from rationai.provenance import GRAPH_NAMESPACE_URI
 from rationai.provenance import PID_NAMESPACE_URI
 from rationai.provenance import PROVN_NAMESPACE
 from rationai.provenance import PROVN_NAMESPACE_URI
@@ -51,7 +52,7 @@ def get_preproc_provlog(provlog):
 def export_provenance(experiment_dir: Path) -> None:
     
     provn_filepath = OUTPUT_DIR / 'provn' / BUNDLE_META
-    png_filepath = (OUTPUT_DIR / 'provn' / BUNDLE_META).with_suffix('.png')
+    png_filepath = (OUTPUT_DIR / 'graph' / BUNDLE_META).with_suffix('.png')
     json_filepath = (OUTPUT_DIR / 'json' / BUNDLE_META).with_suffix('.json')
     
     # Provenance of provenance
@@ -61,7 +62,8 @@ def export_provenance(experiment_dir: Path) -> None:
         'eid': str(uuid.uuid4()),
         'input': {},
         'output': {
-            'png': str(png_filepath),
+            'local_png': str(png_filepath),
+            'remote_png': str(GRAPH_NAMESPACE_URI + str(Path(BUNDLE_META).with_suffix('.png'))),
             'local_provn': str(provn_filepath),
             'remote_provn': str(PID_NAMESPACE_URI + BUNDLE_META)
         }

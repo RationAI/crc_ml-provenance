@@ -22,6 +22,9 @@ PROVN_NAMESPACE_URI = 'https://gitlab.ics.muni.cz/422328/pid-test/-/blob/master/
 PID_NAMESPACE = 'pid'
 PID_NAMESPACE_URI = 'https://gitlab.ics.muni.cz/422328/pid-test/-/blob/master/pid/'
 
+GRAPH_NAMESPACE = 'graph'
+GRAPH_NAMESPACE_URI = 'https://gitlab.ics.muni.cz/422328/pid-test/-/blob/master/graph/'
+
 ORGANISATION_DOI = '10.82521'
 DOI_NAMESPACE = 'doi'
 DOI_NAMESPACE_URI = f'https://doi.org/{ORGANISATION_DOI}/'

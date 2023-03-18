@@ -25,10 +25,10 @@ def create_rocrate(input_log):
     })
     
     # Conformance statements
-    ro_cpm = ContextEntity(crate, 'https://w3id.org/cpm/ro-crate/0.1', properties={
+    ro_cpm = ContextEntity(crate, 'https://w3id.org/cpm/ro-crate/0.2', properties={
         '@type': 'CreativeWork',
         'name': 'Common Provenance Model RO-Crate profile',
-        'version': '0.1'
+        'version': '0.2'
     })
 
     ro_wfrun = ContextEntity(crate, 'https://w3id.org/ro/wfrun/process/0.1', properties={

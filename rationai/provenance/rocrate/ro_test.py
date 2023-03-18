@@ -24,26 +24,26 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
 
     # Create and Map Input Configuration File Entity
     ce_convert['object'] += [crate.add_file(prov_dict['config_file'], properties={
-        'name': 'input configuration file',
+        'name': 'Input Configuration File',
         'encodingFormat': 'text/json'
     })]
 
     # Create and Map Input Dataset File Entity
     ce_convert['object'] += [crate.add_file(config_dict['configurations']['datagen']['data_sources']['_data'], properties={
-        'name': 'input dataset',
+        'name': 'Dataset of ROI Indices',
         'encodingFormat': 'text/json'
     })]
 
     # Create and Map Output File Entities
     prov_log = crate.add_file(str(log_fp), properties={
-        'name': 'output provenance log',
+        'name': 'Experiment Run Log',
         'encodingFormat': 'application/json'
     })
     
     ce_convert['result'] += [
         # Output dataset
         crate.add_file(prov_dict['predictions']['prediction_file'], properties={
-            'name': 'output dataset with predictions and metrics',
+            'name': 'Dataset of ROI Indices with Predictions and Metrics',
             'encodingFormat': 'application/x-hdf5'
         }),
         # Output provenance log
@@ -90,14 +90,20 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
         )
     )
     
-    assert Path(meta_prov_dict['output']['png']).exists(), 'test PNG provn does not exist'
-    provn_png_entity = crate.add_file(meta_prov_dict['output']['png'], properties={
-        '@type': ['File'],
-        'name': 'PNG visualization of Provenanace CPM File',
-        'encodingFormat': 'image/png',
-        'description': 'PNG visualization of a CPM compliant provenance file generated based on the computation log file.',
-        'about': []
-    })
+    assert Path(meta_prov_dict['output']['local_png']).exists(), 'test PNG provn does not exist'
+    provn_png_entity = crate.add(
+        CPMProvenanceFile(
+            crate,
+            Path(meta_prov_dict['output']['remote_png']),
+            properties={
+                'name': 'PNG visualization of Provenanace CPM File',
+                '@type': ['File'],
+                'description': 'PNG visualization of a CPM compliant provenance file generated based on the computation log file.',
+                'encodingFormat': 'image/png',
+                'about': []
+            }
+        )
+    )
     
     assert meta_log_fp.exists(), 'test meta_log_fp does not exist'
     provn_log_entity = crate.add_file(meta_log_fp, properties={

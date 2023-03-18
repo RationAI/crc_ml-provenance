@@ -12,7 +12,6 @@ import pygit2
 
 
 # Local Imports
-from rationai.provenance import PID_NAMESPACE_URI
 from rationai.provenance import BUNDLE_PREPROC
 from rationai.provenance import BUNDLE_TRAIN
 from rationai.provenance import BUNDLE_META
@@ -29,6 +28,7 @@ from rationai.provenance import DOI_NAMESPACE_URI
 from rationai.provenance import NAMESPACE_COMMON_MODEL
 from rationai.provenance import NAMESPACE_DCT
 from rationai.provenance import NAMESPACE_PROV
+from rationai.provenance import GRAPH_NAMESPACE_URI
 
 from rationai.utils.provenance import parse_log
 from rationai.utils.provenance import export_to_image
@@ -187,7 +187,12 @@ def export_provenance(config_fp: Path) -> None:
     # Read Data
     bndl.wasDerivedFrom(evalDataset, testPredicts)
 
-    export_to_image(bndl, (OUTPUT_DIR / 'provn' / BUNDLE_EVAL).with_suffix('.png'))
+    subdirs = ['', 'graph', 'json', 'provn']
+    for subdir in subdirs:
+        if not (OUTPUT_DIR / subdir).exists():
+            (OUTPUT_DIR / subdir).mkdir(parents=True)
+    
+    export_to_image(bndl, (OUTPUT_DIR / 'graph' / BUNDLE_EVAL).with_suffix('.png'))
     export_to_file(doc, (OUTPUT_DIR / 'json' / BUNDLE_EVAL).with_suffix('.json'), format='json')
     export_to_file(doc, OUTPUT_DIR / 'provn' / BUNDLE_EVAL, format='provn')
     
@@ -201,9 +206,10 @@ def export_provenance(config_fp: Path) -> None:
             'log': str(log_fp.resolve())
         },
         'output': {
-            'png': str((OUTPUT_DIR / 'provn' / BUNDLE_EVAL).with_suffix('.png')),
+            'local_png': str((OUTPUT_DIR / 'graph' / BUNDLE_EVAL).with_suffix('.png')),
+            'remote_png': str(GRAPH_NAMESPACE_URI + str(Path(BUNDLE_EVAL).with_suffix('.png'))),
             'local_provn': str(OUTPUT_DIR / 'provn' / BUNDLE_EVAL),
-            'remote_provn': str(PID_NAMESPACE_URI + BUNDLE_EVAL)
+            'remote_provn': str(PROVN_NAMESPACE_URI + BUNDLE_EVAL)
         }
     }
     with open(experiment_dir / f'{BUNDLE_EVAL}.log', 'w') as json_out:
