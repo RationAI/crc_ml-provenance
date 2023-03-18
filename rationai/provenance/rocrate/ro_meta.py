@@ -3,6 +3,7 @@ from pathlib import Path
 
 from rationai.provenance.rocrate.ro_modules import HistopatEntity
 from rationai.provenance.rocrate.ro_modules import HistopatScript
+from rationai.provenance.rocrate.ro_modules import CPMProvenanceFile
 
 def rocrate_prov(crate, meta_log_fp, meta_prov_dict):
     # First CreateAction Entity
@@ -34,14 +35,20 @@ def rocrate_prov(crate, meta_log_fp, meta_prov_dict):
         ce_convert['object'] += [crate_ref]
     
     # Create and Map Output Entities
-    assert Path(meta_prov_dict['output']['provn']).exists(), 'meta provn does not exist'
-    provn_entity = crate.add_file(meta_prov_dict['output']['provn'], properties={
-        '@type': ['File', 'CPMMetaProvenanceFile'],
-        'name': 'WSI Tiler Provenanace CPM File',
-        'encodingFormat': ['text/provenance-notation', {'@id': 'http://www.w3.org/TR/2013/REC-prov-n-20130430/'}],
-        'description': 'CPM compliant provenance file generated based on the computation log file.',
-        'about': []
-    })
+    provn_entity = crate.add(
+        CPMProvenanceFile(
+            crate,
+            Path(meta_prov_dict['output']['remote_provn']),
+            properties={
+                'name': 'Meta Provenanace CPM File',
+                '@type': ['File', 'CPMMetaProvenanceFile'],
+                'description': 'CPM compliant provenance file generated based on the computation log file.',
+                'encodingFormat': ['text/provenance-notation', {'@id': 'http://www.w3.org/TR/2013/REC-prov-n-20130430/'}],
+                'about': []
+            }
+        )
+    )
+
     assert Path(meta_prov_dict['output']['png']).exists(), 'meta png does not exist'
     provn_png_entity = crate.add_file(meta_prov_dict['output']['png'], properties={
         '@type': ['File'],

@@ -14,6 +14,8 @@ from rationai.utils.provenance import SummaryWriter
 from rationai.utils.provenance import hash_tables_by_keys
 from rationai.utils.provenance import hash_table
 
+from rationai.provenance import BUNDLE_EVAL
+
 sw_log = SummaryWriter.getLogger('provenance')
 
 class WSIBinaryClassifierTest(Experiment):
@@ -219,4 +221,4 @@ if __name__=='__main__':
     shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
     sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
     sw_log.set('script', value=__file__)
-    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_test.log')
+    sw_log.to_json((Experiment.Config.experiment_dir / BUNDLE_EVAL).with_suffix('.log').resolve())

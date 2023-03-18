@@ -37,6 +37,8 @@ from rationai.utils.utils import open_pil_image
 from rationai.utils.config import ConfigProto
 from rationai.utils.provenance import SummaryWriter
 
+from rationai.provenance import BUNDLE_PREPROC
+
 # Allows to load large images
 Image.MAX_IMAGE_PIXELS = None
 
@@ -805,7 +807,7 @@ def main(args):
 
     sw_log.set('script', value=__file__)
     sw_log.set('end_time', value=SummaryWriter.now())
-    sw_log.to_json((cfg.output_dir / 'prov_preprocess.log').resolve())
+    sw_log.to_json((cfg.output_dir / BUNDLE_PREPROC).with_suffix('.log').resolve())
     dataset_h5.close()
 
 

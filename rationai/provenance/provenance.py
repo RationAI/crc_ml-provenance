@@ -6,36 +6,65 @@ from typing import List
 from pathlib import Path
 
 # Third-party Imports
+from pygit2 import Repository
 import prov.model as prov
 import pandas as pd
 
 #Local Imports
 
 # Namespace definitions
-NAMESPACE_EVAL = "ns_eval"
-NAMESPACE_TRAINING = "ns_training"
-NAMESPACE_PREPROC = "ns_preprocessing"
-NAMESPACE_PATHOLOGY = "ns_pathology"
+DEFAULT_NAMESPACE = 'master'
+DEFAULT_NAMESPACE_URI = 'https://gitlab.ics.muni.cz/422328/pid-test/-/blob/master/'
 
-NAMESPACE_METAPROV = "metabundle"
+PROVN_NAMESPACE = 'resolvable_prefix'
+PROVN_NAMESPACE_URI = 'https://gitlab.ics.muni.cz/422328/pid-test/-/blob/master/provn/'
+
+PID_NAMESPACE = 'pid'
+PID_NAMESPACE_URI = 'https://gitlab.ics.muni.cz/422328/pid-test/-/blob/master/pid/'
+
+ORGANISATION_DOI = '10.82521'
+DOI_NAMESPACE = 'doi'
+DOI_NAMESPACE_URI = f'https://doi.org/{ORGANISATION_DOI}/'
+
+BUNDLE_PATHOL  = 'pathol.provn'
+BUNDLE_PREPROC = 'preproc.provn'
+BUNDLE_TRAIN   = 'train.provn'
+BUNDLE_EVAL    = 'eval.provn'
+BUNDLE_META    = 'meta.provn'
+
 NAMESPACE_COMMON_MODEL = "cpm"
 NAMESPACE_DCT = "dct"
 NAMESPACE_PROV = "prov"
 
 
-def prepare_document():
-    document = prov.ProvDocument()
-    
-    # Declaring namespaces
-    document.add_namespace(NAMESPACE_PREPROC, "preproc_uri")
-    document.add_namespace(NAMESPACE_PATHOLOGY, "pathology_uri")
-    document.add_namespace(NAMESPACE_COMMON_MODEL, "cpm_uri")
-    document.add_namespace(NAMESPACE_DCT, "dct_uri")
-    document.add_namespace(NAMESPACE_EVAL, "eval_uri")
-    document.add_namespace(NAMESPACE_TRAINING, "test_uri")
-    document.add_namespace(NAMESPACE_PROV, 'prov_uri')
-    document.add_namespace(NAMESPACE_METAPROV, 'metabundle_uri')
-    
-    document.set_default_namespace('http://example.org/0/')
 
-    return document
+# Redirect all output to github repository folder
+OUTPUT_DIR = Path('/home/jovyan/matejg/Data/prov_experiments/provn_test_pid')
+if not OUTPUT_DIR.exists():
+    OUTPUT_DIR.mkdir(parents=True)
+if not (OUTPUT_DIR / 'provn').exists():
+    (OUTPUT_DIR / 'provn').mkdir()
+
+
+def get_bundle_identifier(filepath: Path):
+    # Get Repository
+    repo = Repository(filepath.parent)
+
+    # Get remote URL
+    remote_url = repo.remotes['origin'].url.replace(':', '/')
+    remote_url = remote_url.split('@')[-1][:-4]
+
+    # Get branch
+    branch = repo.head.shorthand
+
+    # Get relative path of file
+    rel_path = filepath.relative_to(Path(repo.path).parent)
+
+    git_url = str(Path(remote_url) / 'tree' / branch / rel_path)
+
+    print(f'Remote URL: {remote_url}')
+    print(f'Branch:     {branch}')
+    print(f'Relpath:    {rel_path}')
+    print('-------------------------')
+    print(f'URI: {git_url}')
+

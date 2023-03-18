@@ -1,24 +1,40 @@
 # Standard Imports
 import argparse
 from pathlib import Path
-import uuid
 import json
+import uuid
 import os
-from pathlib import Path
-import pygit2
 
 
 # Third-party Imports
+import prov.model as prov
+import pygit2
 
 
 # Local Imports
-from rationai.provenance import NAMESPACE_PREPROC
-from rationai.provenance import NAMESPACE_EVAL
-from rationai.provenance import NAMESPACE_TRAINING
-from rationai.provenance import NAMESPACE_METAPROV
-from rationai.provenance import prepare_document
+from rationai.provenance import PID_NAMESPACE_URI
+from rationai.provenance import PROVN_NAMESPACE
+from rationai.provenance import PROVN_NAMESPACE_URI
+from rationai.provenance import DEFAULT_NAMESPACE_URI
+from rationai.provenance import PID_NAMESPACE
+from rationai.provenance import BUNDLE_PREPROC
+from rationai.provenance import BUNDLE_TRAIN
+from rationai.provenance import BUNDLE_EVAL
+from rationai.provenance import BUNDLE_META
+from rationai.provenance import OUTPUT_DIR
 
-from rationai.utils.provenance import export_to_image, export_to_provn
+
+from rationai.utils.provenance import export_to_image
+from rationai.utils.provenance import export_to_file
+
+
+def prepare_document():
+    document = prov.ProvDocument()
+    
+    # Declaring namespaces
+    document.add_namespace(PROVN_NAMESPACE, PROVN_NAMESPACE_URI)
+    document.set_default_namespace(DEFAULT_NAMESPACE_URI)
+    return document
 
 
 def get_preproc_provlog(provlog):
@@ -27,12 +43,16 @@ def get_preproc_provlog(provlog):
         cfg = json.load(json_in)
     
     # Find out the source of inputs
-    cfg_fp = Path(cfg['input'])
+    cfg_fp = Path(cfg['input']['config'])
     with cfg_fp.open('r') as json_in:
         cfg = json.load(json_in)
-    return Path(cfg['configurations']['datagen']['data_sources']['_data']).parent / 'prov_preprocess.provn.log'
+    return Path(cfg['configurations']['datagen']['data_sources']['_data']).parent / f'{BUNDLE_PREPROC}.log'
 
 def export_provenance(experiment_dir: Path) -> None:
+    
+    provn_filepath = OUTPUT_DIR / 'provn' / BUNDLE_META
+    png_filepath = (OUTPUT_DIR / 'provn' / BUNDLE_META).with_suffix('.png')
+    json_filepath = (OUTPUT_DIR / 'json' / BUNDLE_META).with_suffix('.json')
     
     # Provenance of provenance
     output_log = {
@@ -41,28 +61,29 @@ def export_provenance(experiment_dir: Path) -> None:
         'eid': str(uuid.uuid4()),
         'input': {},
         'output': {
-            'png': str((experiment_dir / 'meta_provenance.png').resolve()),
-            'provn': str((experiment_dir / 'meta_provenance.provn').resolve())
+            'png': str(png_filepath),
+            'local_provn': str(provn_filepath),
+            'remote_provn': str(PID_NAMESPACE_URI + BUNDLE_META)
         }
     }
         
     doc = prepare_document()
-    bndl = doc.bundle(f'{NAMESPACE_METAPROV}:meta-provenance')
+    bndl = doc.bundle(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     
     module_ns_mapping = {
-        'train': (experiment_dir / 'prov_train.provn.log', NAMESPACE_TRAINING),
-        'test': (experiment_dir / 'prov_test.provn.log', NAMESPACE_EVAL),
-        'preprocess': (get_preproc_provlog(experiment_dir / 'prov_test.provn.log'), NAMESPACE_PREPROC)
+        'train': experiment_dir / f'{BUNDLE_TRAIN}.log',
+        'eval': experiment_dir / f'{BUNDLE_EVAL}.log',
+        'preprocess': get_preproc_provlog(experiment_dir / f'{BUNDLE_EVAL}.log')
     }
     
-    for module, (provlog, ns) in module_ns_mapping.items():
+    for module, provlog in module_ns_mapping.items():
         output_log['input'][module] = str(provlog.resolve())
     
-        b = bndl.entity(f'{ns}:bundle_{module}', other_attributes={
+        b = bndl.entity(f'bundle_{module}', other_attributes={
             'prov:type': 'prov:bundle'
         })
 
-        b_gen = bndl.entity(f'{ns}:bundle_{module}_gen', other_attributes={
+        b_gen = bndl.entity(f'bundle_{module}_gen', other_attributes={
             'prov:type': 'prov:bundle'
         })
 
@@ -70,10 +91,11 @@ def export_provenance(experiment_dir: Path) -> None:
         
     
     
-    export_to_image(bndl, experiment_dir / 'meta_provenance.png')
-    export_to_provn(doc, experiment_dir / 'meta_provenance.provn')
+    export_to_image(bndl, png_filepath)
+    export_to_file(doc, provn_filepath, format='provn')
+    export_to_file(doc, json_filepath, format='json')
     
-    with open(experiment_dir / 'meta_provenance.provn.log', 'w') as json_out:
+    with open(experiment_dir / f'{BUNDLE_META}.log', 'w') as json_out:
         json.dump(output_log, json_out, indent=3)
     
     
@@ -89,6 +111,7 @@ if __name__=='__main__':
     
     with args.config_fp.open('r') as json_in:
         cfg = json.load(json_in)
+        
     experiment_dir = Path(cfg['output_dir']) / args.eid
     
     export_provenance(experiment_dir)

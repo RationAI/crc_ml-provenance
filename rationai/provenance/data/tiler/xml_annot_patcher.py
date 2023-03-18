@@ -4,102 +4,122 @@ from pathlib import Path
 import json
 import uuid
 import os
-import pygit2
 
 
 # Third-party Imports
+import prov.model as prov
+import pygit2
 
 
 # Local Imports
+from rationai.provenance import PID_NAMESPACE_URI
+from rationai.provenance import BUNDLE_PREPROC
+from rationai.provenance import BUNDLE_TRAIN
+from rationai.provenance import BUNDLE_META
+from rationai.provenance import BUNDLE_EVAL
+from rationai.provenance import OUTPUT_DIR
+from rationai.provenance import ORGANISATION_DOI
+
+# Document Namespaces
+from rationai.provenance import DEFAULT_NAMESPACE_URI
+from rationai.provenance import PROVN_NAMESPACE
+from rationai.provenance import PROVN_NAMESPACE_URI
+from rationai.provenance import DOI_NAMESPACE
+from rationai.provenance import DOI_NAMESPACE_URI
 from rationai.provenance import NAMESPACE_COMMON_MODEL
-from rationai.provenance import NAMESPACE_PATHOLOGY
-from rationai.provenance import NAMESPACE_PREPROC
 from rationai.provenance import NAMESPACE_DCT
 from rationai.provenance import NAMESPACE_PROV
-from rationai.provenance import NAMESPACE_EVAL
-from rationai.provenance import NAMESPACE_TRAINING
-from rationai.provenance import prepare_document
 
 from rationai.utils.provenance import parse_log
-from rationai.utils.provenance import export_to_image, export_to_provn
+from rationai.utils.provenance import export_to_image
+from rationai.utils.provenance import export_to_file
 from rationai.utils.provenance import flatten_lists
 from rationai.utils.provenance import get_sha256
 from rationai.utils.provenance import hash_tables_by_groups
 
 
-def export_provenance(experiment_dir: Path) -> None:
-    log_fp =  experiment_dir / 'prov_preprocess.log'
+def prepare_document():
+    document = prov.ProvDocument()
+    
+    # Declaring namespaces
+    document.add_namespace(PROVN_NAMESPACE, PROVN_NAMESPACE_URI)
+    document.add_namespace(DOI_NAMESPACE, DOI_NAMESPACE_URI)
+    document.add_namespace(NAMESPACE_COMMON_MODEL, "cpm_uri")
+    document.add_namespace(NAMESPACE_DCT, "dct_uri")
+    document.set_default_namespace(DEFAULT_NAMESPACE_URI)
+
+    return document
+
+
+def export_provenance(config_fp: Path) -> None:
+    with open(config_fp, 'r') as json_in:
+        json_cfg = json.load(json_in)
+    
+    experiment_dir = Path(json_cfg['slide-converter']['_global']['output_dir'])
+    log_fp =  (experiment_dir / BUNDLE_PREPROC).with_suffix('.log')
     assert log_fp.exists(), 'Execution log not found.'
     
     doc = prepare_document()
     log_t = parse_log(log_fp)
     # Creating preprocessing bundle
-    bndl = doc.bundle(f"{NAMESPACE_PREPROC}:bundle_preproc")
+    bndl = doc.bundle(f'{PROVN_NAMESPACE}:{BUNDLE_PREPROC}')
 
     ###                                                                    ###
     #                     Creating Backbone Part                             #
     ##                                                                     ###
 
-    # Receiver connector
-    recConnEnt = bndl.entity(f"{NAMESPACE_PATHOLOGY}:WSIDataConnector", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverConnector",
-        f"{NAMESPACE_COMMON_MODEL}:senderBundleId": f"{NAMESPACE_PATHOLOGY}:bundle_pathology",
-        f"{NAMESPACE_COMMON_MODEL}:senderServiceUri": "#URI#"
-    })
-
     # Sender connectors
-    sendTrainingConnEntDataset = bndl.entity(f"{NAMESPACE_PREPROC}:datasetTrainConnector", other_attributes={
+    entity_identifier = 'datasetTrainConnector'
+    sendTrainingConnEntDataset = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
         f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderConnector",
-        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f"{NAMESPACE_TRAINING}:bundle_training",
-        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f"#URI#"
+        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f'{PROVN_NAMESPACE}:{BUNDLE_TRAIN}',
+        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f'{DEFAULT_NAMESPACE_URI}',
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}'
     })
 
-    sendTestingConnEntDataset = bndl.entity(f"{NAMESPACE_PREPROC}:datasetTestConnector", other_attributes={
+    entity_identifier = 'datasetEvalConnector'
+    sendEvalConnEntDataset = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
         f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderConnector",
-        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f"{NAMESPACE_EVAL}:bundle_eval",
-        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f"#URI#"
+        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f"{PROVN_NAMESPACE}:{BUNDLE_EVAL}",
+        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f'{DEFAULT_NAMESPACE_URI}',
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}'
     })
-
+    
+    # External Input Connector
+    entity_identifier = 'WSIDataExternalInputConnector'
+    rawDataEnt = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector",
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}',
+        f'{NAMESPACE_COMMON_MODEL}:currentBundle': str(bndl.identifier)
+    })
+    
     # Receiver agent
-    recAgent = bndl.agent(f"{NAMESPACE_PREPROC}:receiverAgent", other_attributes={
+    recAgent = bndl.agent(f"receiverAgent", other_attributes={
         f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverAgent"
     })
 
-    # Sending agent
-    sendAgent = bndl.agent(f"{NAMESPACE_PREPROC}:senderAgent", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderAgent"
+    # Main activity
+    preproc = bndl.activity(f"preprocessing", other_attributes={
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:mainActivity",
+        f"{NAMESPACE_DCT}:hasPart": f"tilesGeneration",
     })
-
-    # Receipt activity
-    rec = bndl.activity(f"{NAMESPACE_PREPROC}:receipt", other_attributes={
+    
+    # Receipt Activity
+    act_receipt = bndl.activity(f"receipt", other_attributes={
         f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiptActivity",
     })
-
-    # Main activity
-    preproc = bndl.activity(f"{NAMESPACE_PREPROC}:preprocessing", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:mainActivity",
-        f"{NAMESPACE_DCT}:hasPart": f"{NAMESPACE_PREPROC}:tilesGeneration",
-    })
-
-    # Data Entity Node
-    rawDataEnt = bndl.entity(f"{NAMESPACE_PREPROC}:WSI data", other_attributes={
-        f"{NAMESPACE_COMMON_MODEL}:primaryId": f""
-    })
+    
 
     # Establish relationships between backbones nodes
-    bndl.wasGeneratedBy(rawDataEnt, rec)
-    bndl.attribution(recConnEnt, sendAgent)
+    bndl.wasGeneratedBy(rawDataEnt, act_receipt)
     bndl.attribution(sendTrainingConnEntDataset, recAgent)
-    bndl.attribution(sendTestingConnEntDataset, recAgent)
-    bndl.wasDerivedFrom(rawDataEnt, recConnEnt)
-    bndl.used(rec, recConnEnt)
-    bndl.wasInvalidatedBy(recConnEnt, rec)
+    bndl.attribution(sendEvalConnEntDataset, recAgent)
 
     bndl.used(preproc, rawDataEnt)
     bndl.wasDerivedFrom(sendTrainingConnEntDataset, rawDataEnt)
     bndl.wasGeneratedBy(sendTrainingConnEntDataset, preproc)
-    bndl.wasDerivedFrom(sendTestingConnEntDataset, rawDataEnt)
-    bndl.wasGeneratedBy(sendTestingConnEntDataset, preproc)
+    bndl.wasDerivedFrom(sendEvalConnEntDataset, rawDataEnt)
+    bndl.wasGeneratedBy(sendEvalConnEntDataset, preproc)
 
 
     ###                                                                    ###
@@ -107,13 +127,13 @@ def export_provenance(experiment_dir: Path) -> None:
     ###                                                                    ###
 
     # Activity Node
-    gzact = bndl.activity(f"{NAMESPACE_PREPROC}:tilesGeneration", other_attributes={
+    gzact = bndl.activity(f"tilesGeneration", other_attributes={
         f"{NAMESPACE_PROV}:label": f"tiles generation",
         "git_commit_hash": log_t['git_commit_hash']
     })
 
     # Output Entity Node
-    hdf_file = bndl.entity(f'{NAMESPACE_PREPROC}:hdf5_dataset', other_attributes={
+    hdf_file = bndl.entity(f'hdf5_dataset', other_attributes={
         'filepath': log_t['dataset_file'],
         'hash': get_sha256(log_t['dataset_file'])
     })
@@ -123,7 +143,7 @@ def export_provenance(experiment_dir: Path) -> None:
 
     # Global Config Node
     global_cfg = flatten_lists(cfg.pop('_global'))
-    cfg_global = bndl.entity(f"{NAMESPACE_PREPROC}:params", other_attributes={
+    cfg_global = bndl.entity(f"params", other_attributes={
         "filepath": log_t['config_file'],
         "sha256": get_sha256(log_t['config_file'])
     })
@@ -131,10 +151,10 @@ def export_provenance(experiment_dir: Path) -> None:
     # Group Config Nodes
     table_hashes = hash_tables_by_groups(log_t['dataset_file'], cfg.keys())
     for group_name, group_itemlist in cfg.items():
-        hdf5_group = bndl.entity(f"{NAMESPACE_PREPROC}:{group_name}Group", other_attributes=table_hashes[group_name])
+        hdf5_group = bndl.entity(f"{group_name}Group", other_attributes=table_hashes[group_name])
         for data_folder in group_itemlist:
             # Folder Data Entity Node
-            rawDataSpec = bndl.entity(f"{NAMESPACE_PREPROC}:Data {Path(data_folder['slide_dir']).name}", other_attributes={
+            rawDataSpec = bndl.entity(f"Data {Path(data_folder['slide_dir']).name}", other_attributes={
                 f"{NAMESPACE_COMMON_MODEL}:primaryId": f"",
                 f"imagesDirSHA256": f"{get_sha256(data_folder['slide_dir'])}",
                 f"imagesDirPath": f"{data_folder['slide_dir']}",
@@ -147,10 +167,10 @@ def export_provenance(experiment_dir: Path) -> None:
             data_folder = flatten_lists(data_folder)
             _config = dict(global_cfg)
             _config.update(data_folder)
-            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config {Path(data_folder['slide_dir']).name}", other_attributes=(_config))
+            rawDataCfg = bndl.entity(f"Config {Path(data_folder['slide_dir']).name}", other_attributes=(_config))
 
             # Folder Table Entity Node
-            roiDataTable = bndl.entity(f"{NAMESPACE_PREPROC}:roiTables {Path(data_folder['slide_dir']).name}", other_attributes={})
+            roiDataTable = bndl.entity(f"roiTables {Path(data_folder['slide_dir']).name}", other_attributes={})
 
             # Establish relationships between dynamic nodes
             bndl.wasDerivedFrom(rawDataCfg, cfg_global)     # [Global Config] -WDF-> [Folder Config]
@@ -165,10 +185,31 @@ def export_provenance(experiment_dir: Path) -> None:
 
     # Relationships between static parts
     bndl.specialization(hdf_file, sendTrainingConnEntDataset)
-    bndl.specialization(hdf_file, sendTestingConnEntDataset)
+    bndl.specialization(hdf_file, sendEvalConnEntDataset)
 
-    export_to_image(bndl, (experiment_dir / log_fp.stem).with_suffix('.png'))
-    export_to_provn(doc, (experiment_dir / log_fp.stem).with_suffix('.provn'))
+    export_to_image(bndl, (OUTPUT_DIR / 'provn' / BUNDLE_PREPROC).with_suffix('.png'))
+    export_to_file(doc, (OUTPUT_DIR / 'json' / BUNDLE_PREPROC).with_suffix('.json'), format='json')
+    export_to_file(doc, OUTPUT_DIR / 'provn' / BUNDLE_PREPROC, format='provn')
+    
+    # Provenance of provenance
+    output_log = {
+        'git_commit_hash': str(pygit2.Repository('.').revparse_single('HEAD').hex),
+        'script': str(__file__),
+        'eid': str(uuid.uuid4()),
+        'input': {
+            'config': str(config_fp.resolve()),
+            'log': str(log_fp.resolve())
+        },
+        'output': {
+            'png': str((OUTPUT_DIR / 'provn' / BUNDLE_PREPROC).with_suffix('.png')),
+            'local_provn': str(OUTPUT_DIR / 'provn' / BUNDLE_PREPROC),
+            'remote_provn': str(PID_NAMESPACE_URI + BUNDLE_PREPROC)
+        }
+    }
+    
+    with open(experiment_dir / f'{BUNDLE_PREPROC}.log', 'w') as json_out:
+        json.dump(output_log, json_out, indent=3)
+    
 
 
 if __name__=='__main__':
@@ -179,23 +220,4 @@ if __name__=='__main__':
     parser.add_argument('--config_fp', type=Path, required=True, help='Path to provenanace log of a WSI conversion run')
     args = parser.parse_args()
     
-    with open(args.config_fp, 'r') as json_in:
-        json_cfg = json.load(json_in)
-    
-    experiment_dir = Path(json_cfg['slide-converter']['_global']['output_dir'])
-    
-    # Provenance of provenance
-    output_log = {
-        'git_commit_hash': str(pygit2.Repository('.').revparse_single('HEAD').hex),
-        'script': str(__file__),
-        'eid': str(uuid.uuid4()),
-        'input': str(args.config_fp.resolve()),
-        'output': {
-            'png': str(experiment_dir / 'prov_preprocess.png'),
-            'provn': str(experiment_dir / 'prov_preprocess.provn')
-        }
-    }
-    with open(experiment_dir / 'prov_preprocess.provn.log', 'w') as json_out:
-        json.dump(output_log, json_out, indent=3)
-    
-    export_provenance(experiment_dir)
+    export_provenance(args.config_fp)

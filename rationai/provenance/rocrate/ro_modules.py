@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 
+from rationai.provenance import PID_NAMESPACE_URI
+
 from rocrate.model.contextentity import ContextEntity
 from rocrate.model.creativework import CreativeWork
 from rocrate.model.data_entity import DataEntity
@@ -25,13 +27,12 @@ class WSI_Collection(ContextEntity):
 
 class HistopatScript(File):    
     TYPES = ['File', 'SoftwareSourceCode']
+    GIT_URL = 'https://github.com/RationAI/crc_ml-provenance/blob'
     
-    def __init__(self, crate, commit_hash, local_rep_path, properties=None, **kwargs):
-        GIT_URL = 'https://github.com/RationAI/crc_ml-provenance/blob'
-        
+    def __init__(self, crate, commit_hash, local_rep_path, properties=None, **kwargs):        
         script_path = Path(local_rep_path)
         script_path = str(Path(*script_path.parts[script_path.parts.index('rationai'):]))
-        url = f'{GIT_URL}/{commit_hash}/{script_path}'
+        url = f'{self.GIT_URL}/{commit_hash}/{script_path}'
         
         if properties is None:
             properties = {}
@@ -64,6 +65,42 @@ class HistopatScript(File):
     def url(self, url):
         self['url'] = url
 
+        
+class CPMProvenanceFile(File):
+    TYPES = ['File', 'CPMProvenanceFile']
+    
+    def __init__(self, crate, url, properties=None, **kwargs):        
+        url = str(url)
+        if properties is None:
+            properties = {}
+        if 'url' not in properties:
+            properties['url'] = url
+            
+        super().__init__(crate=crate, source=url, properties=properties, **kwargs)
+        
+    def _empty(self):
+        return {
+            '@id': self.id,
+            '@type': self.TYPES[:],
+            'name': None,
+            'url': None
+        }
+    
+    @property
+    def name(self):
+        return self.get('name')
+    
+    @name.setter
+    def name(self, name):
+        self['name'] = name
+    
+    @property
+    def url(self):
+        return self.get('url')
+        
+    @url.setter
+    def url(self, url):
+        self['url'] = url
 
 class HistopatEntity(ContextEntity, CreativeWork):
     def _empty(self):

@@ -10,6 +10,8 @@ from rationai.training.base.experiments import Experiment
 from rationai.utils.class_handler import get_class
 from rationai.utils.provenance import SummaryWriter
 
+from rationai.provenance import BUNDLE_TRAIN
+
 sw_log = SummaryWriter.getLogger('provenance')
 sw_log.clear()
 
@@ -151,5 +153,5 @@ if __name__=='__main__':
     shutil.copy2(args.config_fp, Experiment.Config.experiment_dir / args.config_fp.name)
     sw_log.set('config_file', value=str(Path(Experiment.Config.experiment_dir / args.config_fp.name).resolve()))
     sw_log.set('script', value=__file__)
-    sw_log.to_json(Experiment.Config.experiment_dir / 'prov_train.log')
+    sw_log.to_json((Experiment.Config.experiment_dir / BUNDLE_TRAIN).with_suffix('.log').resolve())
 

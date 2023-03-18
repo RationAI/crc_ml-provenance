@@ -7,6 +7,7 @@ from rocrate.rocrate import ROCrate
 from rationai.provenance.rocrate.ro_modules import WSI_Collection
 from rationai.provenance.rocrate.ro_modules import HistopatEntity
 from rationai.provenance.rocrate.ro_modules import HistopatScript
+from rationai.provenance.rocrate.ro_modules import CPMProvenanceFile
 
 def process_group(crate, group, json_group, pattern, debug=False):
     datasets = []
@@ -105,14 +106,19 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
     ce_convert['object'] += [prov_log]
 
     # Create and Map Output Entities
-    assert Path(meta_prov_dict['output']['provn']).exists(), 'preproc provn does not exist'
-    provn_entity = crate.add_file(meta_prov_dict['output']['provn'], properties={
-        '@type': ['File', 'CPMProvenanceFile'],
-        'name': 'WSI Tiler Provenanace CPM File',
-        'encodingFormat': ['text/provenance-notation', {'@id': 'http://www.w3.org/TR/2013/REC-prov-n-20130430/'}],
-        'description': 'CPM compliant provenance file generated based on the computation log file.',
-        'about': []
-    })
+    provn_entity = crate.add(
+        CPMProvenanceFile(
+            crate,
+            Path(meta_prov_dict['output']['remote_provn']),
+            properties={
+                'name': 'WSI Tiler Provenanace CPM File',
+                '@type': ['File', 'CPMProvenanceFile'],
+                'description': 'CPM compliant provenance file generated based on the computation log file.',
+                'encodingFormat': ['text/provenance-notation', {'@id': 'http://www.w3.org/TR/2013/REC-prov-n-20130430/'}],
+                'about': []
+            }
+        )
+    )
     
     assert Path(meta_prov_dict['output']['png']).exists(), 'preproc PNG provn does not exist'
     provn_png_entity = crate.add_file(meta_prov_dict['output']['png'], properties={
@@ -138,12 +144,13 @@ def rocrate_module(crate, log_fp, meta_log_fp, prov_dict, meta_prov_dict, config
 
     return crate
 
-def rocrate_preproc(crate, log_fp, meta_log_fp):
-    with log_fp.open('r') as json_in:
-        prov_dict = json.load(json_in)
-        
+def rocrate_preproc(crate, meta_log_fp):        
     with meta_log_fp.open('r') as json_in:
         meta_prov_dict = json.load(json_in)
+        
+    log_fp = Path(meta_prov_dict['input']['log'])
+    with log_fp.open('r') as json_in:
+        prov_dict = json.load(json_in)
     
     with Path(prov_dict['config_file']).resolve().open('r') as config_in:
         config_dict = json.load(config_in)

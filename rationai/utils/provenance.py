@@ -7,11 +7,15 @@ import hashlib
 import json
 
 # Third-party Imports
+from datacite import DataCiteRESTClient as client
+from datacite import schema42 as schema
+from datacite.errors import DataCiteError
 import xml.etree.ElementTree as ET
 import pandas as pd
 import prov.model
 import prov.dot
 import pygit2
+import os
 
 
 # Local Imports
@@ -114,6 +118,7 @@ class SummaryWriter:
             cls._instances[name] = new_sw
         return cls._instances[name]
 
+    
 def parse_log(filepath: Path) -> Dict:
     # Open Provenance Log
     with open(filepath, 'r') as log_in:
@@ -126,11 +131,13 @@ def parse_log(filepath: Path) -> Dict:
 
     return log
 
+
 def flatten_lists(cfg: Dict) -> Dict:
     for key, val in cfg.items():
         if isinstance(val, list):
             cfg[key] = flatten_list(val)
     return cfg
+
 
 def flatten_list(l: List):
     if not isinstance(l, List):
@@ -138,11 +145,13 @@ def flatten_list(l: List):
     str_list = [str(x) for x in l]
     return ', '.join(str_list)
 
+
 def flatten_dict(d: Dict, sep='_') -> Dict:
     """Flattens dictionary by concatenating the nested keys
        Source: https://stackoverflow.com/a/41801708/9734414    
     """
     return pd.json_normalize(d, sep=sep).to_dict(orient='records')[0]
+
 
 def hash_tables_by_groups(filepath: Path, groups: List[str]) -> Dict:
     """Given a path to a pandas.HDFStore it calculates the sha256
@@ -168,6 +177,7 @@ def hash_tables_by_groups(filepath: Path, groups: List[str]) -> Dict:
     hdfs.close()
     return G_tables
 
+
 def hash_tables_by_keys(hdfs_handler: pd.HDFStore, table_keys: List[str]) -> Dict:
     """Given a path to a pandas.HDFStore it calculates the sha256
     hash for each table as a combination of the table content and
@@ -185,6 +195,7 @@ def hash_tables_by_keys(hdfs_handler: pd.HDFStore, table_keys: List[str]) -> Dic
         checksum = hash_table(hdfs_handler, table_key)
         result[f'table_{idx}_sha256'] = checksum
     return result
+
 
 def hash_table(hdfs_handler: pd.HDFStore, table_key: str) -> str:
     """Helper function for computing a hash for a single table.
@@ -208,24 +219,7 @@ def hash_table(hdfs_handler: pd.HDFStore, table_key: str) -> str:
 
     checksum = sha256.hexdigest()
     return checksum
-
-def export_to_image(bundle: prov.model.ProvBundle, filepath: Path) -> None:
-    """Create a png image from a bundle and suffix it with given name.
-    
-    Args: 
-        bundle: The bundle of which the provenance is to be exported.
-        name: The name of the bundle as a string, given a suffix to the filename
-              of the image.
-    """
-    # FIXME: Configure which output directory
-    dot = prov.dot.prov_to_dot(bundle)
-    dot.write_png(filepath)
-
-def export_to_provn(doc: prov.model.ProvDocument, filepath: Path) -> None:
-    """Save bundle as a PROV-N document in current directory"""
-    # FIXME: Configure which output directory
-    with filepath.open("w") as f:
-        doc.serialize(f, format="provn")
+        
 
 def get_sha256(filepath: str, mock_env: bool = False) -> str:
     """Generate a SHA256 hash of a file with a given filename.
@@ -271,3 +265,51 @@ def get_sha256(filepath: str, mock_env: bool = False) -> str:
             return sha256_hash.hexdigest()
     else:
         raise ValueError('Unknown file type.')
+
+
+def export_to_image(bundle: prov.model.ProvBundle, filepath: Path) -> None:
+    """Create a png image from a bundle and suffix it with given name.
+    
+    Args: 
+        bundle: The bundle of which the provenance is to be exported.
+        name: The name of the bundle as a string, given a suffix to the filename
+              of the image.
+    """
+    # FIXME: Configure which output directory
+    dot = prov.dot.prov_to_dot(bundle)
+    dot.write_png(filepath)
+
+
+def export_to_file(doc: prov.model.ProvDocument, filepath: Path, format: str) -> None:
+    """Save bundle/document in a specified format in current directory"""
+    with filepath.open('w') as f:
+        doc.serialize(f, format=format)  
+
+
+def export_to_datacite(
+    organisation_doi: str,
+    entity_identifier: str,
+    remote_git_repo_path: str
+):
+    
+    if 'DATACITE_REPOSITORY_USERNAME' not in os.environ:
+        raise ValueError('DATACITE_REPOSITORY_USERNAME environmental variable not set.')
+    
+    if 'DATACITE_REPOSITORY_PASSWORD' not in os.environ:
+        raise ValueError('DATACITE_REPOSITORY_PASSWORD environmental variable not set.')
+    
+    # Initialize the REST client.
+    d = client(
+        username=os.environ['DATACITE_REPOSITORY_USERNAME'],
+        password=os.environ['DATACITE_REPOSITORY_PASSWORD'],
+        prefix=organisation_doi,
+        test_mode=True
+    )
+    
+    try:
+        d.draft_doi(doi=entity_identifier)
+    except DataCiteError:
+        pass # If draft already exists, ignore exception
+    finally:
+        d.update_url(doi=entity_identifier, url=remote_git_repo_path)
+
