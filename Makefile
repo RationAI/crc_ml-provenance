@@ -12,7 +12,7 @@ endif
 
 .PHONY: setup convert train test meta
 
-run: setup train test
+run: train test meta resolve
 
 setup: requirements.txt
 	$(PIP) install -r requirements.txt
@@ -32,5 +32,15 @@ test: $(TEST_CONFIG)
 meta:
 	$(PYTHON) -m rationai.provenance.meta.meta_prov --config_fp $(TEST_CONFIG) --eid $(EID)
     
+resolve:
+	$(PYTHON) -m rationai.provenance.export --config_fp $(TEST_CONFIG) --eid $(EID)
+    
 rocrate:
 	$(PYTHON) -m rationai.provenance.rocrate.ro_create --rocrate_log $(ROCRATE_LOG)
+    
+provenance:
+	$(PYTHON) -m rationai.provenance.data.tiler.xml_annot_patcher --config_fp $(CONVERT_CONFIG)
+	$(PYTHON) -m rationai.provenance.experiments.slide_train --config_fp $(TRAIN_CONFIG) --eid $(EID)
+	$(PYTHON) -m rationai.provenance.experiments.slide_test --config_fp $(TEST_CONFIG) --eid $(EID)
+	$(PYTHON) -m rationai.provenance.meta.meta_prov --config_fp $(TEST_CONFIG) --eid $(EID)
+	$(PYTHON) -m rationai.provenance.export --config_fp $(TEST_CONFIG) --eid $(EID)

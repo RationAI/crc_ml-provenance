@@ -303,7 +303,7 @@ def export_to_datacite(
         username=os.environ['DATACITE_REPOSITORY_USERNAME'],
         password=os.environ['DATACITE_REPOSITORY_PASSWORD'],
         prefix=organisation_doi,
-        test_mode=True
+        test_mode=False
     )
     
     metadata= {
@@ -331,5 +331,7 @@ def export_to_datacite(
         d.public_doi(metadata=metadata, url=remote_git_repo_path, doi=entity_identifier)
     except DataCiteError as e:
         d.update_doi(doi=entity_identifier, metadata=metadata, url=remote_git_repo_path)
+    finally:
+        d.show_doi(doi=entity_identifier)
         
 

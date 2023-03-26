@@ -57,7 +57,7 @@ def export_provenance(config_fp: Path) -> None:
     experiment_dir = Path(json_cfg['output_dir']) / args.eid
     
     log_fp =  (experiment_dir / BUNDLE_TRAIN).with_suffix('.log')
-    assert log_fp.exists(), 'Execution log not found.'
+    assert log_fp.exists(), f'Execution log not found: {log_fp}'
     
     doc = prepare_document()
     log_t = parse_log(log_fp)
