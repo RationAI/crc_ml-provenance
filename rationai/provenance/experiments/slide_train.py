@@ -102,9 +102,20 @@ def export_provenance(experiment_dir: Path) -> None:
     act_training = bndl.activity(f'{NAMESPACE_TRAINING}:training', other_attributes=other_attributes)
 
     # Data Entity Node
-    ent_train_group = bndl.entity(f'{NAMESPACE_TRAINING}:dataset')
+    ent_train_group = bndl.entity(f'{NAMESPACE_TRAINING}:dataset', other_attributes={
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector"
+    })
+    
+    # Trained Model Collection Entity
+    ent_trained_model_collection = bndl.entity(f'{NAMESPACE_TRAINING}:trainedModelCollection', other_attributes={
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:Collection"
+    })
+    bndl.specializationOf(ent_trained_model_collection, conn_trained_model_connector)
 
     # Establish relationships between backbones nodes
+    bndl.wasDerivedFrom(conn_trained_model_connector, ent_train_group)
+    bndl.wasInvalidatedBy(conn_train_set ,act_receipt)
+    bndl.wasDerivedFrom(ent_train_group, conn_train_set)
     bndl.used(act_receipt, conn_train_set)
     bndl.wasGeneratedBy(ent_train_group, act_receipt)
     bndl.used(act_training, ent_train_group)
@@ -167,11 +178,12 @@ def export_provenance(experiment_dir: Path) -> None:
     })
 
     bndl.wasGeneratedBy(init_checkpoint, init_model)
-    bndl.specializationOf(init_checkpoint, conn_trained_model_connector)
+    bndl.hadMember(ent_trained_model_collection, init_checkpoint)
 
     last_model = init_model
 
     for epoch in range(act_epochs):
+        MODEL_IS_MEMBER_FLAG = False
         train_tiles_subset = bndl.entity(f'{NAMESPACE_TRAINING}:trainTilesSubset{epoch}', other_attributes={
             "sampled_epoch_sha256": f"{log_t['iters'][f'{epoch}']['train_gen']['sha256']}"
         })
@@ -199,13 +211,26 @@ def export_provenance(experiment_dir: Path) -> None:
             bndl.used(act_valid_iter1, valid_tiles_subset)
             bndl.used(act_valid_iter1, result_model)
 
-            for ckpt in log_t['iters'][f'{epoch}']['checkpoints']:
-                if bool(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['valid']):
-                    checkpoint = bndl.entity(f"{NAMESPACE_TRAINING}:ckpt_{Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem}_{epoch}", other_attributes={
-                        'filepath': log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
-                    })
+        for ckpt in log_t['iters'][f'{epoch}']['checkpoints']:
+            if bool(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['valid']):
+                '''
+                checkpoint = bndl.entity(f"{NAMESPACE_TRAINING}:ckpt_{Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem}_{epoch}", other_attributes={
+                    'filepath': log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
+                })
+                
+                if USE_VALIDATION:
                     bndl.wasGeneratedBy(checkpoint, act_valid_iter1)
-                    bndl.specializationOf(checkpoint, conn_trained_model_connector)
+                else:
+                    bndl.wasGeneratedBy(checkpoint, act_train_iter)
+                bndl.hadMember(ent_trained_model_collection, checkpoint)
+                '''
+                result_model = bndl.entity(f'{NAMESPACE_TRAINING}:modelIter{epoch+1}', other_attributes={
+                    Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem: log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
+                })
+                if not MODEL_IS_MEMBER_FLAG:
+                    bndl.hadMember(ent_trained_model_collection, result_model)
+                    MODEL_IS_MEMBER_FLAG = True
+                
 
 
         last_model = result_model

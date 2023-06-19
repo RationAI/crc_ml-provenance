@@ -82,8 +82,8 @@ def export_provenance(experiment_dir: Path) -> None:
     })
 
     # Data Entity Node
-    rawDataEnt = bndl.entity(f"{NAMESPACE_PREPROC}:WSI data", other_attributes={
-        f"{NAMESPACE_COMMON_MODEL}:primaryId": f""
+    rawDataEnt = bndl.entity(f"{NAMESPACE_PREPROC}:WSI_Data", other_attributes={
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector"
     })
 
     # Establish relationships between backbones nodes
@@ -134,7 +134,7 @@ def export_provenance(experiment_dir: Path) -> None:
         hdf5_group = bndl.entity(f"{NAMESPACE_PREPROC}:{group_name}Group", other_attributes=table_hashes[group_name])
         for data_folder in group_itemlist:
             # Folder Data Entity Node
-            rawDataSpec = bndl.entity(f"{NAMESPACE_PREPROC}:Data {Path(data_folder['slide_dir']).name}", other_attributes={
+            rawDataSpec = bndl.entity(f"{NAMESPACE_PREPROC}:Data_{Path(data_folder['slide_dir']).name}", other_attributes={
                 f"{NAMESPACE_COMMON_MODEL}:primaryId": f"",
                 f"imagesDirSHA256": f"{get_sha256(data_folder['slide_dir'])}",
                 f"imagesDirPath": f"{data_folder['slide_dir']}",
@@ -147,10 +147,10 @@ def export_provenance(experiment_dir: Path) -> None:
             data_folder = flatten_lists(data_folder)
             _config = dict(global_cfg)
             _config.update(data_folder)
-            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config {Path(data_folder['slide_dir']).name}", other_attributes=(_config))
+            rawDataCfg = bndl.entity(f"{NAMESPACE_PREPROC}:Config_{Path(data_folder['slide_dir']).name}", other_attributes=(_config))
 
             # Folder Table Entity Node
-            roiDataTable = bndl.entity(f"{NAMESPACE_PREPROC}:roiTables {Path(data_folder['slide_dir']).name}", other_attributes={})
+            roiDataTable = bndl.entity(f"{NAMESPACE_PREPROC}:roiTables_{Path(data_folder['slide_dir']).name}", other_attributes={})
 
             # Establish relationships between dynamic nodes
             bndl.wasDerivedFrom(rawDataCfg, cfg_global)     # [Global Config] -WDF-> [Folder Config]

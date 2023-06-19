@@ -132,6 +132,8 @@ def export_provenance(experiment_dir: Path) -> None:
 
     # Result Derivations
     bndl.wasDerivedFrom(testPredicts, testDataset)
+    bndl.wasDerivedFrom(testPredicts, testConfig)
+    bndl.wasDerivedFrom(testPredicts, trainedNetSpec)
 
     # PREDICT Activity Relationships
     bndl.used(testRun, testDataset)
