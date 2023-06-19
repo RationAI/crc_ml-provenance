@@ -143,9 +143,14 @@ def export_provenance(config_fp: Path) -> None:
 
 
     act_training = bndl.activity(f'training', other_attributes=other_attributes)
-
+    
+    # Trained Model Collection Entity
+    ent_trained_model_collection = bndl.entity(f'trainedModelCollection', other_attributes={
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:Collection"
+    })
+    
     # Establish relationships between backbones nodes
-    bndl.wasDerivedFrom(conn_trained_model_connector, entity_identifier)
+    bndl.wasDerivedFrom(conn_trained_model_connector, ent_train_group)
     bndl.wasDerivedFrom(ent_train_group, conn_train_set)
     bndl.wasInvalidatedBy(conn_train_set, act_receipt)
     bndl.used(act_receipt, conn_train_set)
@@ -154,6 +159,7 @@ def export_provenance(config_fp: Path) -> None:
     bndl.wasGeneratedBy(conn_trained_model_connector, act_training)
     bndl.attribution(conn_train_set, sendAgent)
     bndl.attribution(conn_trained_model_connector, recAgent)
+    bndl.specializationOf(ent_trained_model_collection, conn_trained_model_connector)
 
 
     ###                                                                    ###
@@ -201,20 +207,24 @@ def export_provenance(config_fp: Path) -> None:
 
     # Initial Model
     init_model = bndl.entity(f'modelInit', other_attributes={
-        'model': log_t['config']['definitions']['model']
-    })
-
-    # Init Checkpoint
-    init_checkpoint = bndl.entity(f'checkpointInit', other_attributes={
+        'model': log_t['config']['definitions']['model'],
         'filepath': log_t['init_checkpoint_file']
     })
+    
+    bndl.hadMember(ent_trained_model_collection, init_model)
 
-    bndl.wasGeneratedBy(init_checkpoint, init_model)
-    bndl.specializationOf(init_checkpoint, conn_trained_model_connector)
+    # Init Checkpoint
+    #init_checkpoint = bndl.entity(f'checkpointInit', other_attributes={
+    #    'filepath': log_t['init_checkpoint_file']
+    #})
+
+    #bndl.wasGeneratedBy(init_checkpoint, init_model)
+    #bndl.specializationOf(init_checkpoint, conn_trained_model_connector)
 
     last_model = init_model
 
     for epoch in range(act_epochs):
+        MODEL_IS_MEMBER_FLAG = False
         train_tiles_subset = bndl.entity(f'trainTilesSubset{epoch}', other_attributes={
             "sampled_epoch_sha256": f"{log_t['iters'][f'{epoch}']['train_gen']['sha256']}"
         })
@@ -242,13 +252,15 @@ def export_provenance(config_fp: Path) -> None:
             bndl.used(act_valid_iter1, valid_tiles_subset)
             bndl.used(act_valid_iter1, result_model)
 
-            for ckpt in log_t['iters'][f'{epoch}']['checkpoints']:
-                if bool(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['valid']):
-                    checkpoint = bndl.entity(f"ckpt_{Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem}_{epoch}", other_attributes={
-                        'filepath': log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
-                    })
-                    bndl.wasGeneratedBy(checkpoint, act_valid_iter1)
-                    bndl.specializationOf(checkpoint, conn_trained_model_connector)
+        for ckpt in log_t['iters'][f'{epoch}']['checkpoints']:
+            if bool(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['valid']):
+                result_model = bndl.entity(f'modelIter{epoch+1}', other_attributes={
+                    Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem: log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
+                })
+                
+                if not MODEL_IS_MEMBER_FLAG:
+                    bndl.hadMember(ent_trained_model_collection, result_model)
+                    MODEL_IS_MEMBER_FLAG = True
 
 
         last_model = result_model
