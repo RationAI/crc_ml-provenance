@@ -169,16 +169,11 @@ def export_provenance(experiment_dir: Path) -> None:
 
     # Initial Model
     init_model = bndl.entity(f'{NAMESPACE_TRAINING}:modelInit', other_attributes={
-        'model': log_t['config']['definitions']['model']
-    })
-
-    # Init Checkpoint
-    init_checkpoint = bndl.entity(f'{NAMESPACE_TRAINING}:checkpointInit', other_attributes={
+        'model': log_t['config']['definitions']['model'],
         'filepath': log_t['init_checkpoint_file']
     })
 
-    bndl.wasGeneratedBy(init_checkpoint, init_model)
-    bndl.hadMember(ent_trained_model_collection, init_checkpoint)
+    bndl.hadMember(ent_trained_model_collection, init_model)
 
     last_model = init_model
 
@@ -213,17 +208,6 @@ def export_provenance(experiment_dir: Path) -> None:
 
         for ckpt in log_t['iters'][f'{epoch}']['checkpoints']:
             if bool(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['valid']):
-                '''
-                checkpoint = bndl.entity(f"{NAMESPACE_TRAINING}:ckpt_{Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem}_{epoch}", other_attributes={
-                    'filepath': log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
-                })
-                
-                if USE_VALIDATION:
-                    bndl.wasGeneratedBy(checkpoint, act_valid_iter1)
-                else:
-                    bndl.wasGeneratedBy(checkpoint, act_train_iter)
-                bndl.hadMember(ent_trained_model_collection, checkpoint)
-                '''
                 result_model = bndl.entity(f'{NAMESPACE_TRAINING}:modelIter{epoch+1}', other_attributes={
                     Path(log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']).stem: log_t['iters'][f'{epoch}']['checkpoints'][ckpt]['filepath']
                 })
