@@ -40,13 +40,6 @@ def export_provenance(experiment_dir: Path) -> None:
     #                     Creating Backbone Part                             #
     ##                                                                     ###
 
-    # Receiver connector
-    recConnEnt = bndl.entity(f"{NAMESPACE_PATHOLOGY}:WSIDataConnector", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverConnector",
-        f"{NAMESPACE_COMMON_MODEL}:senderBundleId": f"{NAMESPACE_PATHOLOGY}:bundle_pathology",
-        f"{NAMESPACE_COMMON_MODEL}:senderServiceUri": "#URI#"
-    })
-
     # Sender connectors
     sendTrainingConnEntDataset = bndl.entity(f"{NAMESPACE_PREPROC}:datasetTrainConnector", other_attributes={
         f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderConnector",
@@ -63,11 +56,6 @@ def export_provenance(experiment_dir: Path) -> None:
     # Receiver agent
     recAgent = bndl.agent(f"{NAMESPACE_PREPROC}:receiverAgent", other_attributes={
         f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverAgent"
-    })
-
-    # Sending agent
-    sendAgent = bndl.agent(f"{NAMESPACE_PREPROC}:senderAgent", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderAgent"
     })
 
     # Receipt activity
@@ -88,12 +76,8 @@ def export_provenance(experiment_dir: Path) -> None:
 
     # Establish relationships between backbones nodes
     bndl.wasGeneratedBy(rawDataEnt, rec)
-    bndl.attribution(recConnEnt, sendAgent)
     bndl.attribution(sendTrainingConnEntDataset, recAgent)
     bndl.attribution(sendTestingConnEntDataset, recAgent)
-    bndl.wasDerivedFrom(rawDataEnt, recConnEnt)
-    bndl.used(rec, recConnEnt)
-    bndl.wasInvalidatedBy(recConnEnt, rec)
 
     bndl.used(preproc, rawDataEnt)
     bndl.wasDerivedFrom(sendTrainingConnEntDataset, rawDataEnt)

@@ -59,10 +59,10 @@ def export_provenance(experiment_dir: Path) -> None:
 
     #creating external inputs
     trainedNet = bndl.entity(f"{NAMESPACE_EVAL}:trainedNet", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInput"
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector"
     })
     bckbTestDatset = bndl.entity(f"{NAMESPACE_EVAL}:testDataset", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInput"
+        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector"
     })
 
     #creating receipt activities
