@@ -43,8 +43,7 @@ class WSIBinaryClassifierTest(Experiment):
             hdfs_handler=test_gen.sampler.data_source.source,
             table_keys=test_gen.sampler.data_source.tables
         )
-        sw_log.set('DEBUG', 'before', value=hashes)
-        
+
         while test_gen.sampler.active_node is not None:
             net_predicts = self.executor.predict(
                 self.model,
@@ -61,7 +60,6 @@ class WSIBinaryClassifierTest(Experiment):
             table_keys=test_gen.sampler.data_source.tables
         )
         sw_log.set('splits', test_gen.name, value=hashes)
-        sw_log.set('DEBUG', 'after', value=hashes)
         self.hdfstore_output.close()
         sw_log.set('predictions', 'prediction_file', value=str(Experiment.Config.experiment_dir / "predictions.h5"))
 
