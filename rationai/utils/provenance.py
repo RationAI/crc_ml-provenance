@@ -86,6 +86,16 @@ class SummaryWriter:
         if keys[-1] not in leaf:
             leaf[keys[-1]] = []
         leaf[keys[-1]].append(value)
+        
+    def add_to_set(self, *keys, **values):
+        leaf = self.__get_leaf(*keys)
+        value = values.pop('value', None)
+        if values:
+            raise TypeError('Invalid parameters passed: {}'.format(str(values)))
+        if keys[-1] not in leaf:
+            leaf[keys[-1]] = []
+        if value not in leaf[keys[-1]]:
+            leaf[keys[-1]].append(value)
 
     def __get_leaf(self, *keys):
         if len(keys) == 0:
@@ -221,7 +231,7 @@ def hash_table(hdfs_handler: pd.HDFStore, table_key: str) -> str:
     return checksum
         
 
-def get_sha256(filepath: str, mock_env: bool = False) -> str:
+def get_hash(filepath: str, mock_env: bool = False, hash_type: str = 'sha256') -> str:
     """Generate a SHA256 hash of a file with a given filename.
 
     For the purpose of this thesis it can generate a random string when the given path is
@@ -245,8 +255,12 @@ def get_sha256(filepath: str, mock_env: bool = False) -> str:
         return None
 
     filepath = Path(filepath)
-    sha256_hash = hashlib.sha256()
-
+    if hash_type == 'sha256':
+        hash_m = hashlib.sha256()
+    elif hash_type == 'md5':
+        hash_m = hashlib.md5()
+    else:
+        raise ValueError(f'Invalid hash type: {hash_type}. Must be either sha256 or md5.')
     if not filepath.exists():
         if mock_env:
             # For Keras checkpoint files
@@ -255,14 +269,14 @@ def get_sha256(filepath: str, mock_env: bool = False) -> str:
             raise ValueError('File does not exist')
     elif filepath.is_dir():
         for filepath_i in filepath.glob('*'):
-            sha256_hash.update(bytes.fromhex(get_sha256(filepath_i.resolve())))
-        return sha256_hash.hexdigest()
+            hash_m.update(bytes.fromhex(get_hash(filepath_i.resolve(), hash_type=hash_type)))
+        return hash_m.hexdigest()
     elif filepath.is_file():
         with open(filepath, "rb") as f:
             # read and update hash string value in blocks of 4K
             for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-            return sha256_hash.hexdigest()
+                hash_m.update(byte_block)
+            return hash_m.hexdigest()
     else:
         raise ValueError('Unknown file type.')
 
