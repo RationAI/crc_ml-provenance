@@ -14,8 +14,11 @@ import numpy as np
 # Local Imports
 from rationai.datagens.datasources import DataSource
 from rationai.utils.config import ConfigProto
+from rationai.utils.provenance import get_hash
+from rationai.utils.provenance import SummaryWriter
 
 log = logging.getLogger('samplers')
+sw_log = SummaryWriter.getLogger('provenance')
 
 @dataclass
 class SampledEntry:
@@ -188,7 +191,7 @@ class RandomTreeSampler(TreeSampler):
 
             entry = node.data.sample(random_state=self._rng.bit_generator).to_dict('records')[0]
             metadata = self.data_source.get_metadata(entry)
-
+            sw_log.add_to_set('WSIData', value=metadata['slide_fp'])
             sampled_entry = SampledEntry(
                 entry=entry,
                 metadata=metadata
@@ -232,6 +235,8 @@ class SequentialTreeSampler(TreeSampler):
             result = []
             for entry in self.active_node.data.to_dict('records'):
                 metadata = self.data_source.get_metadata(entry)
+                print(f'Adding to set.')
+                sw_log.add_to_set('WSIData', value=metadata['slide_fp'])
                 sampled_entry = SampledEntry(
                     entry=entry,
                     metadata=metadata
