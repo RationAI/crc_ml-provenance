@@ -1,5 +1,5 @@
 {
-    "output_dir": "/home/meta/matejg/Data/camelyon16/cam16_experiments/",
+    "output_dir": "/home/meta/matejg/Data/camelyon16/prov_experiments/",
     "train_generator": "train_gen",
     "valid_generator": null,
     "definitions": {
@@ -11,7 +11,7 @@
         "datagen": {
             "data_sources": {
                 "_class": "rationai.datagens.datasources.HDF5DataSource",
-                "_data": "/home/meta/matejg/Data/camelyon16/cam16_mrxs/cam16_mrxs.h5",
+                "_data": "/home/meta/matejg/Data/camelyon16/prov_anon/prov_anon.h5",
                 "definitions": {
                     "train_ds": {
                         "keys": ["train"],

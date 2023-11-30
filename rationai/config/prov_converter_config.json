@@ -1,7 +1,7 @@
 {
   "slide-converter": {
     "_global": {
-      "output_dir": "/home/meta/matejg/Data/camelyon16/cam16_mrxs",
+      "output_dir": "/home/meta/matejg/Data/camelyon16/prov_anon",
       "tile_size": 512,
       "center_size": 256,
       "step_size": 128,
