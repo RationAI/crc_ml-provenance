@@ -16,6 +16,7 @@ from rationai.provenance import GRAPH_NAMESPACE_URI
 from rationai.provenance import PID_NAMESPACE_URI
 from rationai.provenance import PROVN_NAMESPACE
 from rationai.provenance import PROVN_NAMESPACE_URI
+from rationai.provenance import NAMESPACE_PROV
 from rationai.provenance import DEFAULT_NAMESPACE_URI
 from rationai.provenance import PID_NAMESPACE
 from rationai.provenance import BUNDLE_PREPROC
@@ -27,6 +28,7 @@ from rationai.provenance import OUTPUT_DIR
 
 from rationai.utils.provenance import export_to_image
 from rationai.utils.provenance import export_to_file
+from rationai.utils.provenance import get_hash
 
 
 def prepare_document():
@@ -73,20 +75,21 @@ def export_provenance(experiment_dir: Path) -> None:
     bndl = doc.bundle(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     
     module_ns_mapping = {
-        'train': experiment_dir / f'{BUNDLE_TRAIN}.log',
-        'eval': experiment_dir / f'{BUNDLE_EVAL}.log',
-        'preprocess': get_preproc_provlog(experiment_dir / f'{BUNDLE_EVAL}.log')
+        BUNDLE_TRAIN: experiment_dir / f'{BUNDLE_TRAIN}.log',
+        BUNDLE_EVAL: experiment_dir / f'{BUNDLE_EVAL}.log',
+        BUNDLE_PREPROC: get_preproc_provlog(experiment_dir / f'{BUNDLE_EVAL}.log')
     }
     
     for module, provlog in module_ns_mapping.items():
         output_log['input'][module] = str(provlog.resolve())
     
-        b = bndl.entity(f'bundle_{module}', other_attributes={
-            'prov:type': 'prov:bundle'
+        b = bndl.entity(f'{PROVN_NAMESPACE}:{module}', other_attributes={
+            f'{NAMESPACE_PROV}:type': bndl.valid_qualified_name(f'{NAMESPACE_PROV}:bundle'),
+            'sha256': get_hash((provn_filepath.parent / provlog.stem).with_suffix('.provn'), hash_type='sha256')
         })
 
-        b_gen = bndl.entity(f'bundle_{module}_gen', other_attributes={
-            'prov:type': 'prov:bundle'
+        b_gen = bndl.entity(f'{PROVN_NAMESPACE}:{module}_gen', other_attributes={
+            f'{NAMESPACE_PROV}:type': bndl.valid_qualified_name(f'{NAMESPACE_PROV}:bundle')
         })
 
         bndl.specialization(b, b_gen)

@@ -26,29 +26,31 @@ from rationai.provenance import PROVN_NAMESPACE_URI
 from rationai.provenance import DOI_NAMESPACE
 from rationai.provenance import DOI_NAMESPACE_URI
 from rationai.provenance import NAMESPACE_COMMON_MODEL
+from rationai.provenance import NAMESPACE_COMMON_MODEL_URI
 from rationai.provenance import NAMESPACE_DCT
+from rationai.provenance import NAMESPACE_DCT_URI
 from rationai.provenance import NAMESPACE_PROV
 from rationai.provenance import GRAPH_NAMESPACE_URI
+from rationai.provenance import BACKWARD_PROVN_NAMESPACE
+from rationai.provenance import BACKWARD_PROVN_NAMESPACE_URI
+from rationai.provenance import BACKWARD_BUNDLE
 
 from rationai.utils.provenance import parse_log
 from rationai.utils.provenance import export_to_image
 from rationai.utils.provenance import export_to_file
 from rationai.utils.provenance import flatten_lists
-from rationai.utils.provenance import get_sha256
+from rationai.utils.provenance import get_hash
 from rationai.utils.provenance import hash_tables_by_groups
 
 
-def prepare_document():
-    document = prov.ProvDocument()
-    
+def add_namespaces(prov_obj):
     # Declaring namespaces
-    document.add_namespace(PROVN_NAMESPACE, PROVN_NAMESPACE_URI)
-    document.add_namespace(DOI_NAMESPACE, DOI_NAMESPACE_URI)
-    document.add_namespace(NAMESPACE_COMMON_MODEL, "cpm_uri")
-    document.add_namespace(NAMESPACE_DCT, "dct_uri")
-    document.set_default_namespace(DEFAULT_NAMESPACE_URI)
-
-    return document
+    prov_obj.add_namespace(PROVN_NAMESPACE, PROVN_NAMESPACE_URI)
+    prov_obj.add_namespace(BACKWARD_PROVN_NAMESPACE, BACKWARD_PROVN_NAMESPACE_URI)
+    prov_obj.add_namespace(DOI_NAMESPACE, DOI_NAMESPACE_URI)
+    prov_obj.add_namespace(NAMESPACE_COMMON_MODEL, NAMESPACE_COMMON_MODEL_URI)
+    prov_obj.add_namespace(NAMESPACE_DCT, NAMESPACE_DCT_URI)
+    prov_obj.set_default_namespace(DEFAULT_NAMESPACE_URI)
 
 
 def export_provenance(config_fp: Path) -> None:
@@ -59,67 +61,88 @@ def export_provenance(config_fp: Path) -> None:
     log_fp =  (experiment_dir / BUNDLE_PREPROC).with_suffix('.log')
     assert log_fp.exists(), 'Execution log not found.'
     
-    doc = prepare_document()
+    doc = prov.ProvDocument()
+    add_namespaces(doc)
+    
     log_t = parse_log(log_fp)
     # Creating preprocessing bundle
     bndl = doc.bundle(f'{PROVN_NAMESPACE}:{BUNDLE_PREPROC}')
+    add_namespaces(bndl)
 
     ###                                                                    ###
     #                     Creating Backbone Part                             #
     ##                                                                     ###
 
-    # Sender connectors
-    entity_identifier = 'datasetTrainConnector'
-    sendTrainingConnEntDataset = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderConnector",
-        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f'{PROVN_NAMESPACE}:{BUNDLE_TRAIN}',
-        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f'{DEFAULT_NAMESPACE_URI}',
-        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}'
+    # Forward/Backward Connectors
+    entity_identifier = 'trainIndexROITablesConnector'
+    connEntTrainDataset = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:forwardConnector"),
+        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_TRAIN}'),
+        #f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": bndl.valid_qualified_name(f'{DEFAULT_NAMESPACE_URI}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     })
 
-    entity_identifier = 'datasetEvalConnector'
-    sendEvalConnEntDataset = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderConnector",
-        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f"{PROVN_NAMESPACE}:{BUNDLE_EVAL}",
-        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f'{DEFAULT_NAMESPACE_URI}',
-        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}'
+    entity_identifier = 'evalIndexROITablesConnector'
+    connEntEvalDataset = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:forwardConnector"),
+        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": bndl.valid_qualified_name(f"{PROVN_NAMESPACE}:{BUNDLE_EVAL}"),
+        #f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": bndl.valid_qualified_name(f'{DEFAULT_NAMESPACE_URI}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     })
     
-    # External Input Connector
-    entity_identifier = 'WSIDataExternalInputConnector'
-    rawDataEnt = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector",
-        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}',
-        f'{NAMESPACE_COMMON_MODEL}:currentBundle': str(bndl.identifier)
+    entity_identifier = 'WSIDataConnectorPreproc'
+    connEntWSIData = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:backwardConnector"),
+        f"{NAMESPACE_COMMON_MODEL}:senderBundleId": bndl.valid_qualified_name(f"{BACKWARD_PROVN_NAMESPACE}:{BACKWARD_BUNDLE}"),
+        #f"{NAMESPACE_COMMON_MODEL}:senderServiceUri": bndl.valid_qualified_name(f'{BACKWARD_PROVN_NAMESPACE}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{BACKWARD_PROVN_NAMESPACE}:{BUNDLE_META}'),
     })
     
-    # Receiver agent
-    recAgent = bndl.agent(f"receiverAgent", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverAgent"
+    # Current Connectors
+    entity_identifier = 'WSIDataPreproc'
+    entWSIData = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f'{NAMESPACE_COMMON_MODEL}:currentConnector'),
+        f"{NAMESPACE_COMMON_MODEL}:currentBundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_PREPROC}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
+    })
+    
+    # Agents
+    agentRDC = bndl.agent(f"researchDataCentre", other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:receiverAgent")
+    })
+    
+    agentMMCI = bndl.agent(f"pathologyDepartment", other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:receiverAgent")
     })
 
     # Main activity
     preproc = bndl.activity(f"preprocessing", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:mainActivity",
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:mainActivity"),
         f"{NAMESPACE_DCT}:hasPart": f"tilesGeneration",
     })
     
     # Receipt Activity
-    act_receipt = bndl.activity(f"receipt", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiptActivity",
+    act_receipt = bndl.activity(f"receiptWSIDataset", other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:receiptActivity"),
     })
     
+    
+    # Agent Relations
+    bndl.wasAttributedTo(connEntWSIData, agentMMCI)
+    bndl.wasAttributedTo(connEntTrainDataset, agentRDC)
+    bndl.wasAttributedTo(connEntEvalDataset, agentRDC)
+    
+    # Receipt Relations
+    bndl.used(act_receipt, connEntWSIData)
+    bndl.wasGeneratedBy(entWSIData, act_receipt)
+    bndl.wasDerivedFrom(entWSIData, connEntWSIData)
+    
 
-    # Establish relationships between backbones nodes
-    bndl.wasGeneratedBy(rawDataEnt, act_receipt)
-    bndl.attribution(sendTrainingConnEntDataset, recAgent)
-    bndl.attribution(sendEvalConnEntDataset, recAgent)
-
-    bndl.used(preproc, rawDataEnt)
-    bndl.wasDerivedFrom(sendTrainingConnEntDataset, rawDataEnt)
-    bndl.wasGeneratedBy(sendTrainingConnEntDataset, preproc)
-    bndl.wasDerivedFrom(sendEvalConnEntDataset, rawDataEnt)
-    bndl.wasGeneratedBy(sendEvalConnEntDataset, preproc)
+    bndl.used(preproc, entWSIData)
+    bndl.wasDerivedFrom(connEntTrainDataset, entWSIData)
+    bndl.wasGeneratedBy(connEntTrainDataset, preproc)
+    bndl.wasDerivedFrom(connEntEvalDataset, entWSIData)
+    bndl.wasGeneratedBy(connEntEvalDataset, preproc)
 
 
     ###                                                                    ###
@@ -133,9 +156,9 @@ def export_provenance(config_fp: Path) -> None:
     })
 
     # Output Entity Node
-    hdf_file = bndl.entity(f'hdf5_dataset', other_attributes={
+    hdf_file = bndl.entity(f'hdf5DatasetFile', other_attributes={
         'filepath': log_t['dataset_file'],
-        'hash': get_sha256(log_t['dataset_file'])
+        'hash': get_hash(log_t['dataset_file'], hash_type='sha256')
     })
 
     RAW_DATA_SPECS = []
@@ -143,9 +166,9 @@ def export_provenance(config_fp: Path) -> None:
 
     # Global Config Node
     global_cfg = flatten_lists(cfg.pop('_global'))
-    cfg_global = bndl.entity(f"params", other_attributes={
+    cfg_global = bndl.entity(f"configFile", other_attributes={
         "filepath": log_t['config_file'],
-        "sha256": get_sha256(log_t['config_file'])
+        "sha256": get_hash(log_t['config_file'], hash_type='sha256')
     })
 
     # Group Config Nodes
@@ -154,23 +177,23 @@ def export_provenance(config_fp: Path) -> None:
         hdf5_group = bndl.entity(f"{group_name}Group", other_attributes=table_hashes[group_name])
         for data_folder in group_itemlist:
             # Folder Data Entity Node
-            rawDataSpec = bndl.entity(f"Data_{Path(data_folder['slide_dir']).name}", other_attributes={
+            rawDataSpec = bndl.entity(f"WSIData{''.join(map(str.capitalize,Path(data_folder['slide_dir']).name.split('_')))}", other_attributes={
                 f"{NAMESPACE_COMMON_MODEL}:primaryId": f"",
-                f"imagesDirSHA256": f"{get_sha256(data_folder['slide_dir'])}",
+                f"imagesDirSHA256": f"{get_hash(data_folder['slide_dir'], hash_type='sha256')}",
                 f"imagesDirPath": f"{data_folder['slide_dir']}",
-                f"annotationsDirHash": f"{get_sha256(data_folder['label_dir'])}",
+                f"annotationsDirHash": f"{get_hash(data_folder['label_dir'], hash_type='sha256')}",
                 f"annotationsDirPath": f"{data_folder['label_dir']}",
-                f"{NAMESPACE_PROV}:type": f"{NAMESPACE_PROV}:collection"
+                f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_PROV}:collection")
             })
 
             # Folder Config Entity Node
             data_folder = flatten_lists(data_folder)
             _config = dict(global_cfg)
             _config.update(data_folder)
-            rawDataCfg = bndl.entity(f"Config_{Path(data_folder['slide_dir']).name}", other_attributes=(_config))
+            rawDataCfg = bndl.entity(f"config{''.join(map(str.capitalize,Path(data_folder['slide_dir']).name.split('_')))}", other_attributes=(_config))
 
             # Folder Table Entity Node
-            roiDataTable = bndl.entity(f"roiTables_{Path(data_folder['slide_dir']).name}", other_attributes={})
+            roiDataTable = bndl.entity(f"roiTables{''.join(map(str.capitalize,Path(data_folder['slide_dir']).name.split('_')))}", other_attributes={})
 
             # Establish relationships between dynamic nodes
             bndl.wasDerivedFrom(rawDataCfg, cfg_global)     # [Global Config] -WDF-> [Folder Config]
@@ -180,12 +203,12 @@ def export_provenance(config_fp: Path) -> None:
             bndl.used(gzact, rawDataSpec)                   # [Activity] -U-> [Folder Data]
             bndl.used(gzact, rawDataCfg)                    # [Activity] -U-> [Folder Config]
             bndl.wasDerivedFrom(hdf5_group, roiDataTable)   # [Group Table] -WDF-> [Folder Table]
-            bndl.specialization(rawDataSpec, rawDataEnt)    # [Folder Data] -S-> [DataConnectorEntity]
+            bndl.specialization(rawDataSpec, entWSIData)    # [Folder Data] -S-> [DataConnectorEntity]
         bndl.wasDerivedFrom(hdf_file, hdf5_group)
 
     # Relationships between static parts
-    bndl.specialization(hdf_file, sendTrainingConnEntDataset)
-    bndl.specialization(hdf_file, sendEvalConnEntDataset)
+    bndl.specialization(hdf_file, connEntTrainDataset)
+    bndl.specialization(hdf_file, connEntEvalDataset)
     
     subdirs = ['', 'graph', 'json', 'provn']
     for subdir in subdirs:

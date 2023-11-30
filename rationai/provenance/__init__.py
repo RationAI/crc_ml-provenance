@@ -1,11 +1,15 @@
 from .provenance import NAMESPACE_COMMON_MODEL
+from .provenance import NAMESPACE_COMMON_MODEL_URI
 from .provenance import BUNDLE_PREPROC
 from .provenance import BUNDLE_TRAIN
 from .provenance import BUNDLE_EVAL
 from .provenance import BUNDLE_META
-from .provenance import BUNDLE_PATHOL
 from .provenance import NAMESPACE_PROV
 from .provenance import NAMESPACE_DCT
+from .provenance import NAMESPACE_DCT_URI
+from .provenance import BACKWARD_PROVN_NAMESPACE
+from .provenance import BACKWARD_PROVN_NAMESPACE_URI
+from .provenance import BACKWARD_BUNDLE
 
 from .provenance import OUTPUT_DIR
 from .provenance import DEFAULT_NAMESPACE

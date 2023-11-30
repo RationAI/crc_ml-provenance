@@ -26,28 +26,30 @@ from rationai.provenance import PROVN_NAMESPACE_URI
 from rationai.provenance import DOI_NAMESPACE
 from rationai.provenance import DOI_NAMESPACE_URI
 from rationai.provenance import NAMESPACE_COMMON_MODEL
+from rationai.provenance import NAMESPACE_COMMON_MODEL_URI
 from rationai.provenance import NAMESPACE_DCT
+from rationai.provenance import NAMESPACE_DCT_URI
 from rationai.provenance import NAMESPACE_PROV
 from rationai.provenance import GRAPH_NAMESPACE_URI
+from rationai.provenance import BACKWARD_PROVN_NAMESPACE
+from rationai.provenance import BACKWARD_PROVN_NAMESPACE_URI
+from rationai.provenance import BACKWARD_BUNDLE
 
 from rationai.utils.provenance import parse_log
 from rationai.utils.provenance import export_to_image
 from rationai.utils.provenance import export_to_file
-from rationai.utils.provenance import get_sha256
+from rationai.utils.provenance import get_hash
 from rationai.utils.provenance import flatten_lists
 
 
-def prepare_document():
-    document = prov.ProvDocument()
-    
+def add_namespaces(prov_obj):
     # Declaring namespaces
-    document.add_namespace(PROVN_NAMESPACE, PROVN_NAMESPACE_URI)
-    document.add_namespace(DOI_NAMESPACE, DOI_NAMESPACE_URI)
-    document.add_namespace(NAMESPACE_COMMON_MODEL, "cpm_uri")
-    document.add_namespace(NAMESPACE_DCT, "dct_uri")
-    document.set_default_namespace(DEFAULT_NAMESPACE_URI)
-
-    return document
+    prov_obj.add_namespace(PROVN_NAMESPACE, PROVN_NAMESPACE_URI)
+    prov_obj.add_namespace(BACKWARD_PROVN_NAMESPACE, BACKWARD_PROVN_NAMESPACE_URI)
+    prov_obj.add_namespace(DOI_NAMESPACE, DOI_NAMESPACE_URI)
+    prov_obj.add_namespace(NAMESPACE_COMMON_MODEL, NAMESPACE_COMMON_MODEL_URI)
+    prov_obj.add_namespace(NAMESPACE_DCT, NAMESPACE_DCT_URI)
+    prov_obj.set_default_namespace(DEFAULT_NAMESPACE_URI)
 
 
 def export_provenance(config_fp: Path) -> None:
@@ -59,107 +61,130 @@ def export_provenance(config_fp: Path) -> None:
     log_fp =  (experiment_dir / BUNDLE_TRAIN).with_suffix('.log')
     assert log_fp.exists(), f'Execution log not found: {log_fp}'
     
-    doc = prepare_document()
+    doc = prov.ProvDocument()
+    add_namespaces(doc)
     log_t = parse_log(log_fp)
     USE_VALIDATION = log_t['config']['valid_generator'] is not None
 
     # Creating training bundle
     bndl = doc.bundle(f"{PROVN_NAMESPACE}:{BUNDLE_TRAIN}")
+    add_namespaces(bndl)
 
     ###                                                                    ###
     #                     Creating Backbone Part                             #
     ##                                                                     ###
 
-    # Receiver connector
-    entity_identifier = 'datasetTrainConnector'
-    conn_train_set = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverConnector",
-        f"{NAMESPACE_COMMON_MODEL}:senderBundleId": f"{PROVN_NAMESPACE}:{BUNDLE_PREPROC}",
-        f"{NAMESPACE_COMMON_MODEL}:senderServiceUri": f'{DEFAULT_NAMESPACE_URI}',
-        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}'
+    # Backward Connectors
+    entity_identifier = 'trainIndexROITablesConnector'
+    connEntTrainSet = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:backwardConnector"),
+        f"{NAMESPACE_COMMON_MODEL}:senderBundleId": bndl.valid_qualified_name(f"{PROVN_NAMESPACE}:{BUNDLE_PREPROC}"),
+        #f"{NAMESPACE_COMMON_MODEL}:senderServiceUri": bndl.valid_qualified_name(f'{DEFAULT_NAMESPACE_URI}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}'),
+    })
+    
+    entity_identifier = 'WSIDataConnectorTrain'
+    connEntWSIData = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:backwardConnector"),
+        f"{NAMESPACE_COMMON_MODEL}:senderBundleId": bndl.valid_qualified_name(f"{BACKWARD_PROVN_NAMESPACE}:{BACKWARD_BUNDLE}"),
+        #f"{NAMESPACE_COMMON_MODEL}:senderServiceUri": bndl.valid_qualified_name(f'{BACKWARD_PROVN_NAMESPACE}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{BACKWARD_PROVN_NAMESPACE}:{BUNDLE_META}'),
     })
 
-    # Sender connector
+    # Forward Connectors
     entity_identifier = 'trainedModelConnector'
-    conn_trained_model_connector = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderConnector",
-        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": f"{PROVN_NAMESPACE}:{BUNDLE_EVAL}",
-        f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f'{DEFAULT_NAMESPACE_URI}',
-        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}'
+    connEntTrainedModel = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:forwardConnector"),
+        f"{NAMESPACE_COMMON_MODEL}:receiverBundleId": bndl.valid_qualified_name(f"{PROVN_NAMESPACE}:{BUNDLE_EVAL}"),
+        #f"{NAMESPACE_COMMON_MODEL}:receiverServiceUri": f'{DEFAULT_NAMESPACE_URI}',
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     })
     
-    # External Input Connector
-    entity_identifier = 'datasetExternalInputConnector'
-    ent_train_group = bndl.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:externalInputConnector",
-        f"{NAMESPACE_COMMON_MODEL}:metabundle": f'{PROVN_NAMESPACE}:{BUNDLE_META}',
-        f'{NAMESPACE_COMMON_MODEL}:currentBundle': str(bndl.identifier)
+    # Current Connectors
+    entity_identifier = 'trainIndexROITables'
+    entTrainSet = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f'{NAMESPACE_COMMON_MODEL}:currentConnector'),
+        f"{NAMESPACE_COMMON_MODEL}:currentBundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_TRAIN}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     })
     
-
-    # Receiver Agent
-    recAgent = bndl.agent(f"receiverAgent", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiverAgent"
+    entity_identifier = 'WSIDataTrain'
+    entWSIData = bndl.entity(bndl.valid_qualified_name(f"{DOI_NAMESPACE}:{entity_identifier}"), other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f'{NAMESPACE_COMMON_MODEL}:currentConnector'),
+        f"{NAMESPACE_COMMON_MODEL}:currentBundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_TRAIN}'),
+        f"{NAMESPACE_COMMON_MODEL}:metabundle": bndl.valid_qualified_name(f'{PROVN_NAMESPACE}:{BUNDLE_META}')
     })
+        
 
-    # Sender Agent
-    sendAgent = bndl.agent(f"senderAgent", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:senderAgent"
+    # Agents
+    agentRDC = bndl.agent("researchDataCentre", other_attributes={
+        f"{NAMESPACE_PROV}:type":  bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:senderAgent"),
+        f"{NAMESPACE_PROV}:type":  bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:receiverAgent")
+    })
+    
+    agentMMCI = bndl.agent("pathologyDepartment", other_attributes={
+        f"{NAMESPACE_PROV}:type":  bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:senderAgent")
     })
 
     # Receipt Activity
-    act_receipt = bndl.activity(f"receipt", other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:receiptActivity",
+    actReceiptTrainDataset = bndl.activity(f"receiptROITables", other_attributes={
+        f"{NAMESPACE_PROV}:type":  bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:receiptActivity"),
+    })
+    
+    actReceiptWSIData = bndl.activity(f"receiptWSIDataset", other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name( f"{NAMESPACE_COMMON_MODEL}:receiptActivity"),
     })
 
-    # Main Activity - they are ordered (Splitter -> Generators -> Train Iters -> Valid Iters)
-    act_epochs = len(log_t['iters'].keys()) - 1  # Note: Generators' on_epoch_end() will create one additional epochs in the logs.
+    # Main Activity
+    # Note: Generators' on_epoch_end() will create one additional epoch record in the logs at the end of last epoch.
+    act_epochs = len(log_t['iters'].keys()) - 1  
 
-    other_attributes = {
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:mainActivity",
+    act_training = bndl.activity(f'training', other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:mainActivity"),
         'git_commit_hash': log_t['git_commit_hash']
-    }
-
-    has_part = 0
-    if USE_VALIDATION:
-        other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'datasetSplitting'
-        has_part += 1
-
-    other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'trainGenerator'
-    has_part += 1
+    })
 
     if USE_VALIDATION:
-        other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'validGenerator'
-        has_part += 1
+        act_training.add_attributes({f'{NAMESPACE_DCT}:hasPart': f'datasetSplitting'})
+
+    act_training.add_attributes({f'{NAMESPACE_DCT}:hasPart': f'trainGenerator'})
+
+    if USE_VALIDATION:
+        act_training.add_attributes({f'{NAMESPACE_DCT}:hasPart': f'validGenerator'})
 
     for iter_i in range(act_epochs):
-        other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'trainIter{iter_i}'
-        has_part += 1
+        act_training.add_attributes({f'{NAMESPACE_DCT}:hasPart': f'trainIter{iter_i}'})
 
     if USE_VALIDATION:
         for iter_i in range(act_epochs):
-            other_attributes[f'{NAMESPACE_DCT}:hasPart{has_part}'] = f'validIter{iter_i}'
-            has_part += 1
-
-
-    act_training = bndl.activity(f'training', other_attributes=other_attributes)
+            act_training.add_attributes({f'{NAMESPACE_DCT}:hasPart': f'validIter{iter_i}'})
     
-    # Trained Model Collection Entity
-    ent_trained_model_collection = bndl.entity(f'trainedModelCollection', other_attributes={
-        f"{NAMESPACE_PROV}:type": f"{NAMESPACE_COMMON_MODEL}:Collection"
-    })
+    # Agent Relations
+    bndl.wasAttributedTo(connEntTrainSet, agentRDC)
+    bndl.wasAttributedTo(connEntTrainedModel, agentRDC)
+    bndl.wasAttributedTo(connEntWSIData, agentMMCI)
     
-    # Establish relationships between backbones nodes
-    bndl.wasDerivedFrom(conn_trained_model_connector, ent_train_group)
-    bndl.wasDerivedFrom(ent_train_group, conn_train_set)
-    bndl.wasInvalidatedBy(conn_train_set, act_receipt)
-    bndl.used(act_receipt, conn_train_set)
-    bndl.wasGeneratedBy(ent_train_group, act_receipt)
-    bndl.used(act_training, ent_train_group)
-    bndl.wasGeneratedBy(conn_trained_model_connector, act_training)
-    bndl.attribution(conn_train_set, sendAgent)
-    bndl.attribution(conn_trained_model_connector, recAgent)
-    bndl.specializationOf(ent_trained_model_collection, conn_trained_model_connector)
+    # Receipt Relations
+    bndl.used(actReceiptTrainDataset, connEntTrainSet)
+    bndl.used(actReceiptWSIData, connEntWSIData)
+    
+    bndl.wasInvalidatedBy(connEntTrainSet, actReceiptTrainDataset)
+    bndl.wasInvalidatedBy(connEntWSIData, actReceiptWSIData)
+    
+    bndl.wasGeneratedBy(entTrainSet, actReceiptTrainDataset)
+    bndl.wasGeneratedBy(entWSIData, actReceiptWSIData)
+    
+    bndl.wasDerivedFrom(entTrainSet, connEntTrainSet)
+    bndl.wasDerivedFrom(entWSIData, connEntWSIData)
+    
+    # Main Activity Relations
+    bndl.used(act_training, entTrainSet)
+    bndl.used(act_training, entWSIData)
+    
+    bndl.wasGeneratedBy(connEntTrainedModel, act_training)
+    
+    bndl.wasDerivedFrom(connEntTrainedModel, entTrainSet)
+    bndl.wasDerivedFrom(connEntTrainedModel, entWSIData)
 
 
     ###                                                                    ###
@@ -167,15 +192,17 @@ def export_provenance(config_fp: Path) -> None:
     ###                                                                    ###
 
     # Specialized Dataset
-    ent_train_group_prostate = bndl.entity(f'trainData' ,other_attributes={
+    entTrainSetProstate = bndl.entity('trainIndexROITableProstate', other_attributes={
         'file': log_t['config']['configurations']['datagen']['data_sources']['_data'],
         'groups': ', '.join(log_t['config']['configurations']['datagen']['data_sources']['definitions']['train_ds']['keys']),
-        'sha256': get_sha256(log_t['config']['configurations']['datagen']['data_sources']['_data'])
+        'sha256': get_hash(log_t['config']['configurations']['datagen']['data_sources']['_data'], hash_type='sha256')
+    } | log_t['splits']['train_gen'])
+    bndl.specializationOf(entTrainSetProstate, entTrainSet)
+    
+    entWSIDataProstate = bndl.entity('WSIDataTrainProstate', other_attributes={
+        Path(wsi_fp).name: get_hash(wsi_fp, hash_type='sha256') for wsi_fp in log_t['WSIData']
     })
-    bndl.specializationOf(ent_train_group_prostate, ent_train_group)
-
-    # Required Training Slides
-    ent_train_slides = bndl.entity(f'trainSlides', other_attributes=log_t['splits']['train_gen'])
+    bndl.specializationOf(entWSIDataProstate, entWSIData)
 
     # Required Activity Node
     train_dg_cfg = log_t['config']['configurations']['datagen']['generators']['train_gen']['components']
@@ -187,8 +214,8 @@ def export_provenance(config_fp: Path) -> None:
         split_cfg = log_t['config']['configurations']['datagen']['data_sources']['definitions']['train_ds']
         split_cfg = flatten_lists(split_cfg)
         act_dataset_splitting = bndl.activity(f'datasetSplitting', other_attributes=split_cfg)
-        bndl.used(act_dataset_splitting, ent_train_group_prostate)
-        bndl.wasGeneratedBy(ent_train_slides, act_dataset_splitting)
+        bndl.used(act_dataset_splitting, entTrainSetProstate)
+        bndl.wasGeneratedBy(entWSIDataProstate, act_dataset_splitting)
 
         # Optional Validation Slides
         ent_valid_slides = bndl.entity(f'validSlides', other_attributes=log_t['splits']['valid_gen'])
@@ -199,12 +226,19 @@ def export_provenance(config_fp: Path) -> None:
         act_valid_sampler = bndl.activity(f'validGenerator', other_attributes=valid_dg_cfg)
 
         bndl.wasGeneratedBy(ent_valid_slides, act_dataset_splitting)
-        bndl.wasDerivedFrom(ent_valid_slides, ent_train_group_prostate)
+        bndl.wasDerivedFrom(ent_valid_slides, entTrainSetProstate)
         bndl.used(act_valid_sampler, ent_valid_slides)
 
-    bndl.used(act_train_sampler, ent_train_slides)
-    bndl.wasDerivedFrom(ent_train_slides, ent_train_group_prostate)
+    bndl.used(act_train_sampler, entWSIDataProstate)
+    bndl.used(act_train_sampler, entTrainSetProstate)
 
+    # Trained Model Collection Entity
+    ent_trained_model_collection = bndl.entity(f'trainedModelCollection', other_attributes={
+        f"{NAMESPACE_PROV}:type": bndl.valid_qualified_name(f"{NAMESPACE_COMMON_MODEL}:Collection")
+    })
+    
+    bndl.specializationOf(ent_trained_model_collection, connEntTrainedModel)
+    
     # Initial Model
     init_model = bndl.entity(f'modelInit', other_attributes={
         'model': log_t['config']['definitions']['model'],
@@ -212,14 +246,6 @@ def export_provenance(config_fp: Path) -> None:
     })
     
     bndl.hadMember(ent_trained_model_collection, init_model)
-
-    # Init Checkpoint
-    #init_checkpoint = bndl.entity(f'checkpointInit', other_attributes={
-    #    'filepath': log_t['init_checkpoint_file']
-    #})
-
-    #bndl.wasGeneratedBy(init_checkpoint, init_model)
-    #bndl.specializationOf(init_checkpoint, conn_trained_model_connector)
 
     last_model = init_model
 
@@ -229,7 +255,8 @@ def export_provenance(config_fp: Path) -> None:
             "sampled_epoch_sha256": f"{log_t['iters'][f'{epoch}']['train_gen']['sha256']}"
         })
         bndl.wasGeneratedBy(train_tiles_subset, act_train_sampler)
-        bndl.wasDerivedFrom(train_tiles_subset, ent_train_slides)
+        bndl.wasDerivedFrom(train_tiles_subset, entWSIDataProstate)
+        bndl.wasDerivedFrom(train_tiles_subset, entTrainSetProstate)
 
         act_train_iter = bndl.activity(f'trainIter{epoch}', other_attributes=log_t['iters'][f'{epoch}']['metrics']['train'])
         result_model = bndl.entity(f'modelIter{epoch+1}')
@@ -264,7 +291,7 @@ def export_provenance(config_fp: Path) -> None:
 
 
         last_model = result_model
-        
+    
     subdirs = ['', 'graph', 'json', 'provn']
     for subdir in subdirs:
         if not (OUTPUT_DIR / subdir).exists():

@@ -40,15 +40,15 @@ def create_rocrate(input_log):
     crate.root_dataset['conformsTo'] = [ro_cpm, ro_wfrun]
     
     # Test provenance
-    meta_test_log_fp = Path(meta_prov_log['input']['eval'])    # provlog file
+    meta_test_log_fp = Path(meta_prov_log['input']['eval.provn'])    # provlog file
     crate = rocrate_test(crate, meta_test_log_fp)
         
     # Train provenance
-    meta_train_log_fp = Path(meta_prov_log['input']['train'])
+    meta_train_log_fp = Path(meta_prov_log['input']['train.provn'])
     crate = rocrate_train(crate, meta_train_log_fp)
         
     # Preprocess provenance
-    meta_preproc_log_fp = Path(meta_prov_log['input']['preprocess'])
+    meta_preproc_log_fp = Path(meta_prov_log['input']['preproc.provn'])
     crate = rocrate_preproc(crate, meta_preproc_log_fp)
     
     # Meta provenance

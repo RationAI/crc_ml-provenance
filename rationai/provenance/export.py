@@ -15,24 +15,25 @@ from rationai.provenance import PID_NAMESPACE_URI
 from rationai.provenance import NAMESPACE_COMMON_MODEL
 from rationai.provenance import NAMESPACE_PROV
 from rationai.provenance import OUTPUT_DIR
+from rationai.provenance import BUNDLE_META
+from rationai.provenance import PROVN_NAMESPACE
+from rationai.provenance import DOI_NAMESPACE
 
 
-def filter_entity(entity):
+def filter_entity(entity: prov.ProvEntity):
     '''Keep only connector type entities.'''
     FILTER_TYPES = [
         f'{NAMESPACE_COMMON_MODEL}:externalInputConnector',
-        f'{NAMESPACE_COMMON_MODEL}:receiverConnector',
-        f'{NAMESPACE_COMMON_MODEL}:senderConnector'
+        f'{NAMESPACE_COMMON_MODEL}:forwardConnector',
+        f'{NAMESPACE_COMMON_MODEL}:currentConnector'
     ]
-    prov_type = list(entity.get_attribute(
-        entity.bundle.valid_qualified_name(f'{NAMESPACE_PROV}:type')
-    ))
-    if len(prov_type) > 0:
-        return prov_type[0] in FILTER_TYPES
+    prov_type = list(entity.get_attribute(f'{NAMESPACE_PROV}:type'))
+    if prov_type:
+        return str(prov_type[0]) in FILTER_TYPES
     else:
         return False
-
-
+    
+    
 def deserialize_jsonprov_dir(prov_dir: Path) -> dict:
     '''Read and parse all PROV-JSONs in the directory.
     Group connector entities by name.'''
@@ -61,11 +62,29 @@ def attribute_values_to_qualnames(doc: prov.ProvDocument, entity: prov.ProvEntit
 
 def process_saved_prov(doc: prov.ProvDocument, conn_map: dict) -> dict:
     '''Populate mapping structure with filtered elements.'''
-    for conn_entity in filter(filter_entity, doc.flattened().records):
-        conn_entity = attribute_values_to_qualnames(doc, conn_entity)
-        conn_map[conn_entity.identifier.localpart].append(conn_entity)
+    for bundle in doc.bundles:
+        for conn_entity in filter(filter_entity, bundle.records):
+            if f'{NAMESPACE_COMMON_MODEL}:forwardConnector' in [str(attr) for attr in conn_entity.get_attribute(f'{NAMESPACE_PROV}:type')]:
+                backward_entity = create_backward_entity(bundle, conn_entity)
+                backward_entity = attribute_values_to_qualnames(doc, backward_entity)
+                conn_map[conn_entity.identifier.localpart].append(backward_entity)
+                pass
+            conn_entity = attribute_values_to_qualnames(doc, conn_entity)
+            conn_map[conn_entity.identifier.localpart].append(conn_entity)
     return conn_map
-        
+
+
+def create_backward_entity(bundle: prov.ProvBundle, entity: prov.ProvEntity):
+    '''Creates backward-linking entity for PID'''
+    entity_identifier = entity.identifier.localpart
+    remote_entity = bundle.entity(f"{DOI_NAMESPACE}:{entity_identifier}", other_attributes={
+        f'{NAMESPACE_PROV}:type': f'{NAMESPACE_COMMON_MODEL}:backwardConnector',
+        f'{NAMESPACE_COMMON_MODEL}:senderBundleId': entity.bundle.identifier,
+        #f'{NAMESPACE_COMMON_MODEL}:senderServiceUri': PROVN_NAMESPACE,
+        f'{NAMESPACE_COMMON_MODEL}:metabundle': f'{PROVN_NAMESPACE}:{BUNDLE_META}'
+    })
+    return remote_entity
+
 
 def convert_to_docs(conn_map: dict) -> list:
     '''Create new ProvDocument containing only Connector records.'''
@@ -78,7 +97,7 @@ def convert_to_docs(conn_map: dict) -> list:
     return doc_map
             
 
-def export_docs(doc_map: dict):
+def export_docs(doc_map: dict, to_datacite: bool):
     '''Save document to PID directory.'''
     pid_directory = OUTPUT_DIR / 'pid'
     if not pid_directory.exists():
@@ -87,18 +106,19 @@ def export_docs(doc_map: dict):
     for connector_name, prov_doc in doc_map.items():
         export_to_file(prov_doc, (pid_directory / connector_name).with_suffix('.provn'), format='provn')
         export_to_file(prov_doc, (pid_directory / connector_name).with_suffix('.json'), format='json')
-        
-        export_to_datacite(
-            organisation_doi=ORGANISATION_DOI,
-            entity_identifier=connector_name,
-            remote_git_repo_path=PID_NAMESPACE_URI + connector_name + '.provn'
-        )
+    
+        if to_datacite:
+            export_to_datacite(
+                organisation_doi=ORGANISATION_DOI,
+                entity_identifier=connector_name,
+                remote_git_repo_path=PID_NAMESPACE_URI + connector_name + '.provn'
+            )
 
 
 def resolve_provenance(prov_dir: Path):
     connector_entities = deserialize_jsonprov_dir(prov_dir)
     mapped_docs = convert_to_docs(connector_entities)
-    export_docs(mapped_docs)
+    export_docs(mapped_docs, True)
 
 
 if __name__=='__main__':
@@ -114,7 +134,8 @@ if __name__=='__main__':
         cfg = json.load(json_in)
         
     experiment_dir = Path(cfg['output_dir']) / args.eid / 'json'
-    experiment_dir = OUTPUT_DIR / 'json' # DELETE ME
+    experiment_dir = OUTPUT_DIR / 'json'
     assert experiment_dir.exists()
     
     resolve_provenance(experiment_dir)
+    
